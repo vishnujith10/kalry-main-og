@@ -188,7 +188,12 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
         ]);
         
         if (error) throw error;
-        Alert.alert('Saved!', 'Meal saved to your Saved Meals.');
+        Alert.alert('Saved!', 'Meal saved to your Saved Meals.', [
+          { 
+            text: 'OK', 
+            onPress: () => navigation.navigate('SavedMealsScreen')
+          }
+        ]);
     } catch (error) {
         console.error('Error saving meal:', error);
         Alert.alert('Error', 'Failed to save meal. ' + error.message);

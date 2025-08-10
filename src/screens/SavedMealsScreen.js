@@ -40,6 +40,7 @@ const SavedMealsScreen = ({ navigation, route }) => {
       }
       // Map saved_meal to meal card format
       const mapped = data.map(log => ({
+        id: log.id, // Include the database ID for deletion
         dish_name: log.dish_name,
         total_nutrition: { calories: Number(log.calories) },
         macros: {
@@ -71,8 +72,33 @@ const SavedMealsScreen = ({ navigation, route }) => {
     return matchesSearch && matchesFilter;
   });
 
-  const handleDelete = idx => {
-    setMeals(meals.filter((_, i) => i !== idx));
+  const handleDelete = async (idx) => {
+    try {
+      const mealToDelete = meals[idx];
+      if (!mealToDelete || !mealToDelete.id) {
+        Alert.alert('Error', 'Cannot delete this meal.');
+        return;
+      }
+
+      // Delete from database
+      const { error } = await supabase
+        .from('saved_meal')
+        .delete()
+        .eq('id', mealToDelete.id);
+
+      if (error) {
+        console.error('Error deleting meal:', error);
+        Alert.alert('Error', 'Failed to delete meal from database.');
+        return;
+      }
+
+      // Remove from local state
+      setMeals(meals.filter((_, i) => i !== idx));
+      Alert.alert('Success', 'Meal deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting meal:', error);
+      Alert.alert('Error', 'Failed to delete meal.');
+    }
   };
 
   const handleAddToPlan = async (meal) => {
