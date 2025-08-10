@@ -69,19 +69,30 @@ const SleepTrackerScreen = () => {
     }
   }, [realUserId]);
 
+  // FIXED: Fetch data directly from Supabase instead of backend API
   async function fetchSleepLogs() {
     if (!realUserId) return;
     try {
-      const response = await fetch(`http://192.168.1.3:3000/api/sleeplogs/${realUserId}`);
-      const data = await response.json();
+      // Fetch directly from Supabase instead of backend API
+      const { data, error } = await supabase
+        .from('sleep_logs')
+        .select('*')
+        .eq('user_id', realUserId)
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.log('Error fetching sleep logs:', error);
+        return;
+      }
+
       console.log('Fetched sleep logs:', data);
-      setSleepLogs(data);
-      setLastSleep(data[0] || null);
+      setSleepLogs(data || []);
+      setLastSleep(data?.[0] || null);
       
       // Prepare week data
       const week = getWeekDates();
       const weekMap = {};
-      data.forEach(log => { 
+      (data || []).forEach(log => { 
         const logDate = getDateOnly(log.date);
         weekMap[logDate] = log; 
       });
@@ -775,12 +786,18 @@ const SleepTrackerScreen = () => {
             </Text>
             <Text style={{ color: '#888', fontSize: 13 }}>Last synced 2h ago</Text>
           </View>
-          <TouchableOpacity style={{ 
-            backgroundColor: '#F3F4F6', 
-            borderRadius: 8, 
-            paddingHorizontal: 14, 
-            paddingVertical: 7 
-          }}>
+          <TouchableOpacity 
+            style={{ 
+              backgroundColor: '#F3F4F6', 
+              borderRadius: 8, 
+              paddingHorizontal: 14, 
+              paddingVertical: 7 
+            }}
+            onPress={() => {
+              // Manually refresh data when sync is pressed
+              fetchSleepLogs();
+            }}
+          >
             <Text style={{ color: '#4F46E5', fontWeight: 'bold' }}>Sync</Text>
           </TouchableOpacity>
         </View>

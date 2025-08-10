@@ -220,7 +220,14 @@ const MainDashboardScreen = () => {
 
   const [realUserId, setRealUserId] = useState(null);
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setRealUserId(user?.id));
+    const getUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('MainDashboard - Session:', session);
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('MainDashboard - User ID:', user?.id);
+      setRealUserId(user?.id);
+    };
+    getUser();
   }, []);
 
   useFocusEffect(
@@ -417,12 +424,15 @@ const MainDashboardScreen = () => {
       console.log('Dashboard realUserId for food logs:', realUserId);
       const fetchRecentSleepLogs = async () => {
         if (!realUserId) return;
-        const { data } = await supabase
+        console.log('MainDashboard - Sleep User ID:', realUserId);
+        const { data, error } = await supabase
           .from('sleep_logs')
           .select('*')
           .eq('user_id', realUserId)
           .order('date', { ascending: false })
           .limit(7);
+        console.log('MainDashboard - Sleep data:', data);
+        console.log('MainDashboard - Sleep error:', error);
         setSleepLogs(data || []);
         console.log('Fetched sleepLogs:', data);
         console.log('todayStr:', todayStr);
@@ -452,13 +462,17 @@ const MainDashboardScreen = () => {
       setHydrationLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       const userId = session?.user?.id;
+      console.log('MainDashboard - Hydration User ID:', userId);
       const today = new Date().toISOString().slice(0, 10);
+      console.log('MainDashboard - Today:', today);
       const { data, error } = await supabase
         .from('daily_water_intake')
         .select('*')
         .eq('user_id', userId)
         .eq('date', today)
         .single();
+      console.log('MainDashboard - Hydration data:', data);
+      console.log('MainDashboard - Hydration error:', error);
       if (data) {
         setCurrentIntake(data.current_intake_ml / 1000);
         setDailyGoal(data.daily_goal_ml / 1000);
@@ -469,6 +483,32 @@ const MainDashboardScreen = () => {
     };
     fetchHydration();
   }, []);
+
+  // Refresh hydration data when screen comes into focus (e.g., when returning from HydrationTrackerScreen)
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchHydration = async () => {
+        setHydrationLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+        const today = new Date().toISOString().slice(0, 10);
+        const { data, error } = await supabase
+          .from('daily_water_intake')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('date', today)
+          .single();
+        if (data) {
+          setCurrentIntake(data.current_intake_ml / 1000);
+          setDailyGoal(data.daily_goal_ml / 1000);
+          setIntake1(data.intake1_ml || 250);
+          setIntake2(data.intake2_ml || 500);
+        }
+        setHydrationLoading(false);
+      };
+      fetchHydration();
+    }, [])
+  );
 
   const handleAddWater = async (amount) => {
     const newIntake = Math.min(currentIntake * 1000 + amount, dailyGoal * 1000);
@@ -552,11 +592,14 @@ const MainDashboardScreen = () => {
             </View>
           </View>
 
-          {/* Hydration Card (already navigates on header/progress/buttons) */}
+          {/* Hydration Card */}
+          {console.log('Rendering hydration card - currentIntake:', currentIntake, 'dailyGoal:', dailyGoal, 'intake1:', intake1, 'intake2:', intake2, 'hydrationLoading:', hydrationLoading)}
           <View style={styles.shadowWrapper}>
-            <View style={styles.cardCustom}>
+            <View style={styles.hydrationCardCustom}>
               <TouchableOpacity style={styles.hydrationHeaderRow} onPress={() => navigation.navigate('HydrationTrackerScreen')}>
-                <MaterialCommunityIcons name="water-outline" size={20} color="#A084E8" style={{ marginRight: 6 }} />
+                <View style={styles.hydrationIconContainer}>
+                  <MaterialCommunityIcons name="water-outline" size={22} color="#A084E8" />
+                </View>
                 <Text style={styles.hydrationTitle}>Water Intake</Text>
                 <Text style={styles.hydrationGoal}>{hydrationLoading ? '--' : `${currentIntake.toFixed(1)}L / ${dailyGoal.toFixed(1)}L`}</Text>
               </TouchableOpacity>
@@ -884,37 +927,44 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   hydrationTitle: {
-    fontSize: 15,
+    fontSize: 18,
     fontFamily: 'Lexend-Bold',
-    color: COLORS.primary,
+    color: '#181A20',
     marginLeft: 8,
   },
   hydrationGoal: {
-    fontSize: 13,
-    fontFamily: 'Manrope-Bold',
-    color: COLORS.secondary,
+    fontSize: 16,
+    fontFamily: 'Lexend-SemiBold',
+    color: '#181A20',
     marginLeft: 'auto',
   },
   hydrationBtnsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
   hydrationBtn: {
-    backgroundColor: COLORS.primaryLight,
-    borderRadius: RADIUS.md,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: '#A084E8',
+    borderRadius: 12,
+    paddingVertical: 10,
+    marginHorizontal: 6,
+    backgroundColor: '#fff',
+    alignItems: 'center',
   },
   hydrationBtnText: {
-    color: COLORS.primary,
-    fontFamily: 'Manrope-Bold',
+    color: '#A084E8',
+    fontFamily: 'Lexend-SemiBold',
     fontSize: 14,
+    fontWeight: '600',
   },
   hydrationSub: {
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: 'Manrope-Regular',
-    color: COLORS.secondary,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 4,
   },
   sleepCard: {
     flexBasis: '48%',
@@ -1187,22 +1237,29 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     padding: 18,
   },
+  hydrationCardCustom: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
   hydrationHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
   },
-  hydrationTitle: {
-    fontFamily: 'Lexend-SemiBold',
-    fontSize: 16,
-    color: '#181A20',
-    marginRight: 8,
-  },
-  hydrationGoal: {
-    fontFamily: 'Lexend-SemiBold',
-    fontSize: 16,
-    color: '#181A20',
-    marginLeft: 'auto',
+  hydrationIconContainer: {
+    backgroundColor: '#E5DFFB',
+    borderRadius: 18,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
   progressBarBg: {
     height: 12,
@@ -1216,33 +1273,6 @@ const styles = StyleSheet.create({
     height: 12,
     backgroundColor: '#A084E8',
     borderRadius: 8,
-  },
-  hydrationBtnsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  hydrationBtn: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderColor: '#A084E8',
-    borderRadius: 12,
-    paddingVertical: 10,
-    marginHorizontal: 6,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hydrationBtnText: {
-    color: '#A084E8',
-    fontFamily: 'Lexend-SemiBold',
-    fontSize: 16,
-  },
-  hydrationSub: {
-    fontFamily: 'Lexend-Regular',
-    fontSize: 13,
-    color: '#888',
-    marginTop: 2,
   },
   sleepCardCustom: {
     flex: 1,

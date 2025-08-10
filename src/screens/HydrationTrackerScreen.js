@@ -21,6 +21,8 @@ const HydrationTrackerScreen = () => {
   const [recordId, setRecordId] = useState(null); // Track current day's record ID
   // Weekly data state
   const [weeklyIntakeData, setWeeklyIntakeData] = useState({});
+  // New state for tracking intake values per day
+  const [weeklyIntakeValues, setWeeklyIntakeValues] = useState({});
   // Animated value for bar height
   const [barAnimation] = useState(new Animated.Value(0));
 
@@ -91,16 +93,30 @@ const HydrationTrackerScreen = () => {
         if (now.getDay() === 1) {
           loadWeeklyData(userId);
         }
+        // Update intake values for new day
+        updateIntakeValuesForNewDay();
       }
     }, 60000);
 
     return () => clearInterval(interval);
   }, [recordId, userId, currentIntake, dailyGoal]);
 
+  // Function to update intake values for new day
+  const updateIntakeValuesForNewDay = () => {
+    const updatedWeeklyIntakeValues = { ...weeklyIntakeValues };
+    updatedWeeklyIntakeValues[todayIndex] = {
+      intake1: intake1,
+      intake2: intake2
+    };
+    setWeeklyIntakeValues(updatedWeeklyIntakeValues);
+  };
+
   const initializeUser = async () => {
     try {
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
+      console.log('HydrationTracker - User:', user);
+      console.log('HydrationTracker - User Error:', userError);
       
       if (userError || !user) {
         Alert.alert('Error', 'Please login first');
@@ -108,8 +124,13 @@ const HydrationTrackerScreen = () => {
       }
 
       setUserId(user.id);
+      console.log('HydrationTracker - User ID set:', user.id);
       await loadTodayData(user.id);
       await loadWeeklyData(user.id);
+      // Initialize intake values for today if not already set
+      if (!weeklyIntakeValues[todayIndex]) {
+        updateIntakeValuesForNewDay();
+      }
     } catch (error) {
       console.error('Error initializing user:', error);
       Alert.alert('Error', 'Failed to initialize user data');
@@ -122,7 +143,7 @@ const HydrationTrackerScreen = () => {
       
       const { data, error } = await supabase
         .from('daily_water_intake')
-        .select('date, current_intake_ml')
+        .select('date, current_intake_ml, intake1_ml, intake2_ml')
         .eq('user_id', userId)
         .in('date', weekDates);
 
@@ -130,14 +151,20 @@ const HydrationTrackerScreen = () => {
 
       // Convert data to our weekly format
       const weeklyData = {};
+      const weeklyIntakeValuesData = {};
       data?.forEach(record => {
         const dayIndex = weekDates.indexOf(record.date);
         if (dayIndex !== -1) {
           weeklyData[dayIndex] = record.current_intake_ml / 1000; // Convert ml to L
+          weeklyIntakeValuesData[dayIndex] = {
+            intake1: record.intake1_ml || 250,
+            intake2: record.intake2_ml || 500
+          };
         }
       });
 
       setWeeklyIntakeData(weeklyData);
+      setWeeklyIntakeValues(weeklyIntakeValuesData);
     } catch (error) {
       console.error('Error loading weekly data:', error);
     }
@@ -146,6 +173,8 @@ const HydrationTrackerScreen = () => {
   const loadTodayData = async (userId) => {
     try {
       const today = getCurrentDate();
+      console.log('HydrationTracker - Loading today data for user:', userId);
+      console.log('HydrationTracker - Today date:', today);
       
       // Check if record exists for today
       const { data, error } = await supabase
@@ -154,6 +183,9 @@ const HydrationTrackerScreen = () => {
         .eq('user_id', userId)
         .eq('date', today)
         .single();
+
+      console.log('HydrationTracker - Today data:', data);
+      console.log('HydrationTracker - Today error:', error);
 
       if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
         throw error;
@@ -164,8 +196,13 @@ const HydrationTrackerScreen = () => {
         setCurrentIntake(data.current_intake_ml / 1000); // Convert ml to L
         setDailyGoal(data.daily_goal_ml / 1000); // Convert ml to L
         setRecordId(data.id);
+        // Load intake values if they exist
+        if (data.intake1_ml) setIntake1(data.intake1_ml);
+        if (data.intake2_ml) setIntake2(data.intake2_ml);
+        console.log('HydrationTracker - Today data loaded successfully');
       } else {
         // No record for today, create new one
+        console.log('HydrationTracker - No record for today, creating new one');
         await createTodayRecord(userId);
       }
     } catch (error) {
@@ -185,6 +222,8 @@ const HydrationTrackerScreen = () => {
           date: today,
           current_intake_ml: 0,
           daily_goal_ml: dailyGoal * 1000, // Convert L to ml
+          intake1_ml: intake1,
+          intake2_ml: intake2,
           goal_status: 'not achieved'
         })
         .select()
@@ -308,13 +347,69 @@ const HydrationTrackerScreen = () => {
 
   // Updated weekly data with dynamic today's progress and database data
   const weeklyData = [
-    { day: 'Mon', label: 'Mon', intake: todayIndex === 0 ? currentIntake : (weeklyIntakeData[0] || 0), isToday: todayIndex === 0, goalAchieved: todayIndex === 0 ? isGoalAchieved : (weeklyIntakeData[0] || 0) >= dailyGoal },
-    { day: 'Tue', label: 'Tue', intake: todayIndex === 1 ? currentIntake : (weeklyIntakeData[1] || 0), isToday: todayIndex === 1, goalAchieved: todayIndex === 1 ? isGoalAchieved : (weeklyIntakeData[1] || 0) >= dailyGoal },
-    { day: 'Wed', label: 'Wed', intake: todayIndex === 2 ? currentIntake : (weeklyIntakeData[2] || 0), isToday: todayIndex === 2, goalAchieved: todayIndex === 2 ? isGoalAchieved : (weeklyIntakeData[2] || 0) >= dailyGoal },
-    { day: 'Thu', label: 'Thu', intake: todayIndex === 3 ? currentIntake : (weeklyIntakeData[3] || 0), isToday: todayIndex === 3, goalAchieved: todayIndex === 3 ? isGoalAchieved : (weeklyIntakeData[3] || 0) >= dailyGoal },
-    { day: 'Fri', label: 'Fri', intake: todayIndex === 4 ? currentIntake : (weeklyIntakeData[4] || 0), isToday: todayIndex === 4, goalAchieved: todayIndex === 4 ? isGoalAchieved : (weeklyIntakeData[4] || 0) >= dailyGoal },
-    { day: 'Sat', label: 'Sat', intake: todayIndex === 5 ? currentIntake : (weeklyIntakeData[5] || 0), isToday: todayIndex === 5, goalAchieved: todayIndex === 5 ? isGoalAchieved : (weeklyIntakeData[5] || 0) >= dailyGoal },
-    { day: 'Sun', label: 'Sun', intake: todayIndex === 6 ? currentIntake : (weeklyIntakeData[6] || 0), isToday: todayIndex === 6, goalAchieved: todayIndex === 6 ? isGoalAchieved : (weeklyIntakeData[6] || 0) >= dailyGoal }
+    { 
+      day: 'Mon', 
+      label: 'Mon', 
+      intake: todayIndex === 0 ? currentIntake : (weeklyIntakeData[0] || 0), 
+      isToday: todayIndex === 0, 
+      goalAchieved: todayIndex === 0 ? isGoalAchieved : (weeklyIntakeData[0] || 0) >= dailyGoal,
+      intake1: todayIndex === 0 ? intake1 : (weeklyIntakeValues[0]?.intake1 || 250),
+      intake2: todayIndex === 0 ? intake2 : (weeklyIntakeValues[0]?.intake2 || 500)
+    },
+    { 
+      day: 'Tue', 
+      label: 'Tue', 
+      intake: todayIndex === 1 ? currentIntake : (weeklyIntakeData[1] || 0), 
+      isToday: todayIndex === 1, 
+      goalAchieved: todayIndex === 1 ? isGoalAchieved : (weeklyIntakeData[1] || 0) >= dailyGoal,
+      intake1: todayIndex === 1 ? intake1 : (weeklyIntakeValues[1]?.intake1 || 250),
+      intake2: todayIndex === 1 ? intake2 : (weeklyIntakeValues[1]?.intake2 || 500)
+    },
+    { 
+      day: 'Wed', 
+      label: 'Wed', 
+      intake: todayIndex === 2 ? currentIntake : (weeklyIntakeData[2] || 0), 
+      isToday: todayIndex === 2, 
+      goalAchieved: todayIndex === 2 ? isGoalAchieved : (weeklyIntakeData[2] || 0) >= dailyGoal,
+      intake1: todayIndex === 2 ? intake1 : (weeklyIntakeValues[2]?.intake1 || 250),
+      intake2: todayIndex === 2 ? intake2 : (weeklyIntakeValues[2]?.intake2 || 500)
+    },
+    { 
+      day: 'Thu', 
+      label: 'Thu', 
+      intake: todayIndex === 3 ? currentIntake : (weeklyIntakeData[3] || 0), 
+      isToday: todayIndex === 3, 
+      goalAchieved: todayIndex === 3 ? isGoalAchieved : (weeklyIntakeData[3] || 0) >= dailyGoal,
+      intake1: todayIndex === 3 ? intake1 : (weeklyIntakeValues[3]?.intake1 || 250),
+      intake2: todayIndex === 3 ? intake2 : (weeklyIntakeValues[3]?.intake2 || 500)
+    },
+    { 
+      day: 'Fri', 
+      label: 'Fri', 
+      intake: todayIndex === 4 ? currentIntake : (weeklyIntakeData[4] || 0), 
+      isToday: todayIndex === 4, 
+      goalAchieved: todayIndex === 4 ? isGoalAchieved : (weeklyIntakeData[4] || 0) >= dailyGoal,
+      intake1: todayIndex === 4 ? intake1 : (weeklyIntakeValues[4]?.intake1 || 250),
+      intake2: todayIndex === 4 ? intake2 : (weeklyIntakeValues[4]?.intake2 || 500)
+    },
+    { 
+      day: 'Sat', 
+      label: 'Sat', 
+      intake: todayIndex === 5 ? currentIntake : (weeklyIntakeData[5] || 0), 
+      isToday: todayIndex === 5, 
+      goalAchieved: todayIndex === 5 ? isGoalAchieved : (weeklyIntakeData[5] || 0) >= dailyGoal,
+      intake1: todayIndex === 5 ? intake1 : (weeklyIntakeValues[5]?.intake1 || 250),
+      intake2: todayIndex === 5 ? intake2 : (weeklyIntakeValues[5]?.intake2 || 500)
+    },
+    { 
+      day: 'Sun', 
+      label: 'Sun', 
+      intake: todayIndex === 6 ? currentIntake : (weeklyIntakeData[6] || 0), 
+      isToday: todayIndex === 6, 
+      goalAchieved: todayIndex === 6 ? isGoalAchieved : (weeklyIntakeData[6] || 0) >= dailyGoal,
+      intake1: todayIndex === 6 ? intake1 : (weeklyIntakeValues[6]?.intake1 || 250),
+      intake2: todayIndex === 6 ? intake2 : (weeklyIntakeValues[6]?.intake2 || 500)
+    }
   ];
 
   const addWater = async (amount) => {
@@ -354,12 +449,40 @@ const HydrationTrackerScreen = () => {
     }
   };
 
-  const handleIntakeChange = () => {
+  const handleIntakeChange = async () => {
     const val1 = parseInt(intakeInput1);
     const val2 = parseInt(intakeInput2);
     if (!isNaN(val1) && val1 > 0 && !isNaN(val2) && val2 > 0) {
       setIntake1(val1);
       setIntake2(val2);
+      
+      // Update the database with new intake values
+      if (recordId) {
+        try {
+          const { error } = await supabase
+            .from('daily_water_intake')
+            .update({
+              intake1_ml: val1,
+              intake2_ml: val2,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', recordId);
+
+          if (error) throw error;
+        } catch (error) {
+          console.error('Error updating intake values:', error);
+          Alert.alert('Error', 'Failed to update intake values');
+        }
+      }
+      
+      // Update weekly intake values for today
+      const updatedWeeklyIntakeValues = { ...weeklyIntakeValues };
+      updatedWeeklyIntakeValues[todayIndex] = {
+        intake1: val1,
+        intake2: val2
+      };
+      setWeeklyIntakeValues(updatedWeeklyIntakeValues);
+      
       setIntakeModalVisible(false);
     }
   };
@@ -420,6 +543,7 @@ const HydrationTrackerScreen = () => {
 
   return (
     <ScrollView style={styles.container}>
+      {console.log('HydrationTracker rendering - currentIntake:', currentIntake, 'dailyGoal:', dailyGoal, 'intake1:', intake1, 'intake2:', intake2)}
       <View style={styles.innerContainer}>
         
         <Text style={styles.subtitle}>Today's Progress</Text>
