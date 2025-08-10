@@ -316,15 +316,18 @@ const SleepTrackerScreen = () => {
     displayWakeTime = todayLog.end_time ? formatTime12h(todayLog.end_time) : '--:--';
   }
 
-  // Helper to get week days in order Sun-Sat
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  // Helper to get week days in order Mon-Sun
+  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const weekDateObjs = [];
   const today = new Date();
-  const sunday = new Date(today);
-  sunday.setDate(today.getDate() - today.getDay());
+  const monday = new Date(today);
+  // Get the most recent Monday (if today is Monday, use today)
+  const dayOfWeek = today.getDay();
+  const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 0, so subtract 6 to get Monday
+  monday.setDate(today.getDate() - daysToSubtract);
   for (let i = 0; i < 7; i++) {
-    const d = new Date(sunday);
-    d.setDate(sunday.getDate() + i);
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
     weekDateObjs.push(d);
   }
 
@@ -718,7 +721,7 @@ const SleepTrackerScreen = () => {
             {weekDateObjs.map((dateObj, idx) => {
               const dateStr = dateObj.toISOString().slice(0,10);
               const log = weekLogMap[dateStr];
-              const dayName = weekDays[dateObj.getDay()];
+              const dayName = weekDays[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1];
               const isToday = dateStr === todayStr;
               
               return (
