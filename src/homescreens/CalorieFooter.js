@@ -229,7 +229,8 @@ const CalorieFooter = ({ navigation, activeTab }) => {
             <View style={{ width: 48, height: 6, borderRadius: 3, backgroundColor: '#E0E0E0', marginBottom: 18 }} />
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#222', marginBottom: 18, textAlign: 'center' }}>How would you like to log your meal?</Text>
             <View style={{ width: '100%', alignItems: 'center' }}>
-              <TouchableOpacity onPress={handlePhotoLog} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 24, paddingVertical: 18, paddingHorizontal: 24, marginBottom: 16, width: '100%', shadowColor: '#1abc9c', shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 }}>
+              <TouchableOpacity onPress={handleTakePhoto}
+               activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 24, paddingVertical: 18, paddingHorizontal: 24, marginBottom: 16, width: '100%', shadowColor: '#1abc9c', shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 }}>
                 <Ionicons name="camera" size={28} color="#1abc9c" style={{ marginRight: 18 }} />
                 <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#1abc9c' }}>Take Photo</Text>
               </TouchableOpacity>
