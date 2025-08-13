@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -25,8 +26,15 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
   const [nutritionData, setNutritionData] = useState(null);
   const [transcribedText, setTranscribedText] = useState("");
   const [showListening, setShowListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [audioLevels, setAudioLevels] = useState(Array.from({ length: 20 }, () => 0));
   const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
   const genAI = new GoogleGenerativeAI(apiKey);
+  
+  // Animation values for waveform
+  const waveformAnimations = useRef(Array.from({ length: 20 }, () => new Animated.Value(0))).current;
+  const dotAnimations = useRef(Array.from({ length: 8 }, () => new Animated.Value(0))).current;
+  const audioLevelInterval = useRef(null);
 
   useEffect(() => {
     return () => {
@@ -36,6 +44,76 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
       }
     };
   }, []);
+
+  // Animation functions
+  const startDotAnimation = () => {
+    const animations = dotAnimations.map((anim, index) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 800,
+            delay: index * 150,
+            useNativeDriver: false,
+          }),
+          Animated.timing(anim, {
+            toValue: 0.3,
+            duration: 800,
+            useNativeDriver: false,
+          }),
+        ])
+      );
+    });
+    Animated.parallel(animations).start();
+  };
+
+  const startWaveformAnimation = () => {
+    // Start real-time audio level simulation
+    audioLevelInterval.current = setInterval(() => {
+      // Create more dynamic and realistic audio levels
+      const newLevels = audioLevels.map((_, index) => {
+        // Create a wave-like pattern that moves across the bars
+        const time = Date.now() * 0.005; // Time factor for wave movement
+        const position = index / 19; // Position factor (0 to 1)
+        
+        // Base wave pattern
+        const wave = Math.sin(time + position * Math.PI * 2) * 0.3;
+        
+        // Add some randomness for natural variation
+        const random = (Math.random() - 0.5) * 0.4;
+        
+        // Combine wave and randomness, ensure it stays within bounds
+        const level = Math.max(0.1, Math.min(1, 0.3 + wave + random));
+        
+        return level;
+      });
+      
+      setAudioLevels(newLevels);
+      
+      // Animate each bar to its new level with different speeds
+      newLevels.forEach((level, index) => {
+        Animated.timing(waveformAnimations[index], {
+          toValue: level,
+          duration: 50 + Math.random() * 100, // Varying animation speeds
+          useNativeDriver: false,
+        }).start();
+      });
+    }, 80); // Update every 80ms for smoother animation
+  };
+
+  const stopAnimations = () => {
+    // Clear the audio level interval
+    if (audioLevelInterval.current) {
+      clearInterval(audioLevelInterval.current);
+      audioLevelInterval.current = null;
+    }
+    
+    dotAnimations.forEach(anim => anim.stopAnimation());
+    waveformAnimations.forEach(anim => anim.stopAnimation());
+    dotAnimations.forEach(anim => anim.setValue(0));
+    waveformAnimations.forEach(anim => anim.setValue(0));
+    setAudioLevels(Array.from({ length: 20 }, () => 0));
+  };
 
   const startRecording = async () => {
     try {
@@ -56,6 +134,18 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
       setShowListening(true);
       setNutritionData(null);
       setTranscribedText("");
+      
+      // Start dot animation initially
+      startDotAnimation();
+      
+      // Switch to waveform animation after 500ms
+      setTimeout(() => {
+        if (isRecording) {
+          setIsSpeaking(true);
+          stopAnimations();
+          startWaveformAnimation();
+        }
+      }, 500);
     } catch (err) {
       Alert.alert("Recording Error", "Could not start recording.");
     }
@@ -63,6 +153,8 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
 
   const stopRecording = async () => {
     setIsRecording(false);
+    setIsSpeaking(false);
+    stopAnimations();
     if (!recordingRef.current) return;
     try {
       await recordingRef.current.stopAndUnloadAsync();
@@ -77,46 +169,71 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
   const handleVoiceToCalorie = async (uri) => {
     setIsLoading(true);
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-      const audioData = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      const prompt = `Analyze the food items in this audio. Your response MUST be a single valid JSON object and nothing else. Do not include markdown formatting like \`\`\`json. The JSON object must have this structure: { "transcription": "The full text of what you heard", "items": [ { "name": "food item", "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } ], "total": { "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } }`;
-      const result = await model.generateContent([
-        prompt,
-        { inlineData: { mimeType: "audio/mp4", data: audioData } },
-      ]);
-      const response = await result.response;
-      let text = response.text();
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const jsonString = jsonMatch[0];
-        const data = JSON.parse(jsonString);
-        if (!data.total || !Array.isArray(data.items) || !data.transcription) {
-          throw new Error("Invalid JSON structure from API.");
-        }
-        setTranscribedText(data.transcription);
-        setShowListening(false);
-        setNutritionData({ ...data.total, items: data.items });
-        navigation.replace('PostCalorieScreen', {
-          analysis: {
-            dish_name: 'Voice Meal',
-            total_nutrition: {
-              calories: data.total.calories,
-              protein: data.total.protein,
-              fat: data.total.fat,
-              carbs: data.total.carbs,
-              fiber: 0,
-            },
-            ingredients: data.items,
+      // Try different models if one fails
+      const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
+      let lastError = null;
+      
+      for (const modelName of models) {
+        try {
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const audioData = await FileSystem.readAsStringAsync(uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          const prompt = `Analyze the food items in this audio. Your response MUST be a single valid JSON object and nothing else. Do not include markdown formatting like \`\`\`json. The JSON object must have this structure: { "transcription": "The full text of what you heard", "items": [ { "name": "food item", "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } ], "total": { "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } }`;
+          
+          const result = await model.generateContent([
+            prompt,
+            { inlineData: { mimeType: "audio/mp4", data: audioData } },
+          ]);
+          const response = await result.response;
+          let text = response.text();
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          
+          if (jsonMatch) {
+            const jsonString = jsonMatch[0];
+            const data = JSON.parse(jsonString);
+            if (!data.total || !Array.isArray(data.items) || !data.transcription) {
+              throw new Error("Invalid JSON structure from API.");
+            }
+            setTranscribedText(data.transcription);
+            setShowListening(false);
+            setNutritionData({ ...data.total, items: data.items });
+            navigation.replace('PostCalorieScreen', {
+              analysis: {
+                dish_name: `You said: ${data.transcription}`,
+                total_nutrition: {
+                  calories: data.total.calories,
+                  protein: data.total.protein,
+                  fat: data.total.fat,
+                  carbs: data.total.carbs,
+                  fiber: data.total.fiber || 0,
+                },
+                ingredients: data.items,
+              }
+            });
+            return;
+          } else {
+            throw new Error("Invalid JSON format from API. No JSON object found.");
           }
-        });
-        return;
-      } else {
-        throw new Error("Invalid JSON format from API. No JSON object found.");
+        } catch (error) {
+          lastError = error;
+          console.log(`Model ${modelName} failed:`, error.message);
+          // Continue to next model
+        }
       }
+      
+      // If all models failed, show error
+      throw lastError || new Error("All AI models are currently unavailable.");
     } catch (error) {
-      Alert.alert("AI Error", "Could not analyze the audio. " + error.message);
+      let errorMessage = "Could not analyze the audio.";
+      if (error.message.includes("503") || error.message.includes("overloaded")) {
+        errorMessage = "AI service is temporarily overloaded. Please try again in a few moments.";
+      } else if (error.message.includes("API key")) {
+        errorMessage = "AI service configuration error. Please check your settings.";
+      } else {
+        errorMessage += " " + error.message;
+      }
+      Alert.alert("AI Error", errorMessage);
       setShowListening(false);
     } finally {
       setIsLoading(false);
@@ -167,60 +284,10 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
         <View style={{ width: 28 }} />
       </View>
       <View style={styles.content}>
-        {/* Mic and instructions */}
-        {!isRecording && !nutritionData && !isLoading && (
-          <>
-            <TouchableOpacity
-              onPress={startRecording}
-              style={styles.gradientMicWrap}
-            >
-              <LinearGradient
-                colors={["#7B61FF", "#43E0FF"]}
-                style={styles.gradientMic}
-              >
-                <Ionicons name="mic" size={44} color="#fff" />
-              </LinearGradient>
-            </TouchableOpacity>
-            <Text style={styles.instructions}>
-              Speak naturally – Kalry listens & structures it
-            </Text>
-            <Text style={styles.sampleText}>
-              Try: "I had a chicken sandwich and a juice"
-            </Text>
-          </>
-        )}
-        {/* Listening state */}
-        {isRecording && !nutritionData && !isLoading && (
-          <>
-            <TouchableOpacity
-              onPress={stopRecording}
-              style={styles.gradientMicWrap}
-            >
-              <LinearGradient
-                colors={["#7B61FF", "#43E0FF"]}
-                style={styles.gradientMic}
-              >
-                <Ionicons name="stop" size={44} color="#fff" />
-              </LinearGradient>
-            </TouchableOpacity>
-            <Text style={styles.listeningText}>Listening...</Text>
-            <Text style={styles.instructions}>
-              Speak naturally – Kalry listens & structures it
-            </Text>
-            <Text style={styles.sampleText}>
-              Try: "I had a chicken sandwich and a juice"
-            </Text>
-          </>
-        )}
-        {/* Loading spinner */}
-        {isLoading && (
-          <ActivityIndicator
-            size={50}
-            color="#7B61FF"
-            style={{ marginVertical: 16 }}
-          />
-        )}
-        {/* Results */}
+        {/* Top spacer for centering content */}
+        <View style={styles.topSpacer} />
+        
+        {/* Results - stays in center when showing */}
         {nutritionData && !isLoading && (
           <View style={styles.resultContainer}>
             <Text style={styles.transcribedText}>{transcribedText}</Text>
@@ -296,6 +363,121 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           </View>
         )}
+        
+        {/* Loading spinner - stays in center */}
+        {isLoading && (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator
+              size={50}
+              color="#7B61FF"
+              style={{ marginVertical: 16 }}
+            />
+          </View>
+        )}
+        
+        {/* Audio Animation */}
+        {isRecording && !isLoading && (
+          <View style={styles.animationContainer}>
+            {!isSpeaking ? (
+              // Dot animation when not speaking
+              <View style={styles.dotContainer}>
+                {dotAnimations.map((anim, index) => (
+                  <Animated.View
+                    key={index}
+                    style={[
+                      styles.dot,
+                      {
+                        opacity: anim,
+                        transform: [{ 
+                          scale: anim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.5, 1.5],
+                          })
+                        }],
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            ) : (
+              // Waveform animation when speaking
+              <View style={styles.waveformContainer}>
+                {waveformAnimations.map((anim, index) => (
+                  <Animated.View
+                    key={index}
+                    style={[
+                      styles.waveformBar,
+                      {
+                        height: anim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [4, 60], // Increased max height for more dramatic effect
+                        }),
+                        backgroundColor: `hsl(${240 + index * 8}, 70%, 60%)`,
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+        
+        {/* Instructions section at top */}
+        <View style={styles.instructionsSection}>
+          {!isRecording && !nutritionData && !isLoading && (
+            <>
+              <Text style={styles.instructions}>
+                Speak naturally – Kalry listens & structures it
+              </Text>
+              <Text style={styles.sampleText}>
+                Try: &quot;I had a chicken sandwich and a juice&quot;
+              </Text>
+            </>
+          )}
+          {isRecording && !nutritionData && !isLoading && (
+            <>
+              <Text style={styles.listeningText}>Listening...</Text>
+              <Text style={styles.instructions}>
+                Speak naturally – Kalry listens & structures it
+              </Text>
+              <Text style={styles.sampleText}>
+                Try: &quot;I had a chicken sandwich and a juice&quot;
+              </Text>
+            </>
+          )}
+        </View>
+        
+        {/* Bottom section with mic button */}
+        <View style={styles.bottomSection}>
+          {/* Mic button */}
+          {!isRecording && !nutritionData && !isLoading && (
+            <TouchableOpacity
+              onPress={startRecording}
+              style={styles.gradientMicWrap}
+            >
+              <LinearGradient
+                colors={["#7B61FF", "#43E0FF"]}
+                style={styles.gradientMic}
+              >
+                <Ionicons name="mic" size={44} color="#fff" />
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+          {/* Stop button */}
+          {isRecording && !nutritionData && !isLoading && (
+            <TouchableOpacity
+              onPress={stopRecording}
+              style={styles.gradientMicWrap}
+            >
+              <LinearGradient
+                colors={["#7B61FF", "#43E0FF"]}
+                style={styles.gradientMic}
+              >
+                <Ionicons name="stop" size={44} color="#fff" />
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
       {/* Fixed footer for action buttons */}
       {nutritionData && !isLoading && (
@@ -317,7 +499,52 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingTop: 32, paddingBottom: 18, borderBottomWidth: 1, borderColor: '#eee', backgroundColor: '#F3F0FF' },
   backButton: { marginRight: 12 },
   headerTitle: { flex: 1, fontSize: 22, fontWeight: 'bold', color: '#7B61FF', textAlign: 'center' },
-  content: { flex: 1, alignItems: 'center', paddingHorizontal: 24, paddingTop: 32, width: '100%' },
+  content: { flex: 1, alignItems: 'center', paddingHorizontal: 24, justifyContent: 'space-between', width: '100%' },
+  topSpacer: { flex: 1 },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  instructionsSection: {
+    width: '100%',
+    alignItems: 'center',
+    paddingTop: 40,
+    paddingBottom: 20,
+  },
+  bottomSection: { 
+    width: '100%', 
+    alignItems: 'center', 
+    paddingBottom: 40,
+    paddingTop: 20
+  },
+  animationContainer: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  dotContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 60,
+  },
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#7B61FF',
+    marginHorizontal: 6,
+  },
+  waveformContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 60,
+    gap: 3,
+  },
+  waveformBar: {
+    width: 4,
+    borderRadius: 2,
+    backgroundColor: '#7B61FF',
+  },
   gradientMicWrap: {
     marginVertical: 24,
     alignItems: "center",

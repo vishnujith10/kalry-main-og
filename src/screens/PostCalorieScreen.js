@@ -26,8 +26,8 @@ const PostCalorieScreen = ({ route, navigation }) => {
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => true; // Block hardware back
-      BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => backHandler.remove();
     }, [])
   );
 
@@ -82,9 +82,12 @@ const PostCalorieScreen = ({ route, navigation }) => {
       if (!user) throw new Error('User not logged in');
       const { calories } = analysis?.total_nutrition || {};
       const { protein, carbs, fat, fiber } = macros;
+      // Clean up the food name by removing "You said: " prefix if present
+      const cleanFoodName = mealNameState.replace(/^You said:\s*/i, '');
+      
       const logData = {
         user_id: user.id,
-        food_name: mealNameState,
+        food_name: cleanFoodName,
         serving_size: 1,
         calories: calories || 0,
         carbs: carbs || 0,
@@ -192,21 +195,6 @@ const PostCalorieScreen = ({ route, navigation }) => {
           <Ionicons name="checkmark" size={18} color="#fff" style={{ marginRight: 8 }} />
           <Text style={styles.doneBtnText}>{saving ? 'Logging...' : 'Log Food'}</Text>
         </TouchableOpacity>
-        {/* Add More Food and Cancel buttons side by side */}
-        <View style={{ flexDirection: 'row', width: '100%', marginTop: 8, gap: 12 }}>
-          <TouchableOpacity
-            style={{ flex: 1, backgroundColor: '#F3F4F6', borderRadius: 8, padding: 14, alignItems: 'center', justifyContent: 'center' }}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={{ color: '#222', fontWeight: 'bold', fontSize: 16 }}>Add More Food</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{ flex: 1, backgroundColor: '#F9DADA', borderRadius: 8, padding: 14, alignItems: 'center', justifyContent: 'center' }}
-            onPress={() => navigation.navigate('Home')}
-          >
-            <Text style={{ color: '#D32F2F', fontWeight: 'bold', fontSize: 16 }}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
