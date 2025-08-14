@@ -14,11 +14,15 @@ const screenWidth = Dimensions.get("window").width;
 function getCurrentWeekDates() {
   const today = new Date();
   const week = [];
-  const sunday = new Date(today);
-  sunday.setDate(today.getDate() - today.getDay());
+  // Get Monday of current week (Monday = 1, Sunday = 0, so we need to adjust)
+  const monday = new Date(today);
+  const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // If Sunday, go back 6 days; otherwise go back (dayOfWeek - 1) days
+  monday.setDate(today.getDate() - daysToMonday);
+  
   for (let i = 0; i < 7; i++) {
-    const d = new Date(sunday);
-    d.setDate(sunday.getDate() + i);
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
     week.push({
       date: d,
       dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
