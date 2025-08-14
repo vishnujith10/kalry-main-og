@@ -168,7 +168,9 @@ const SavedMealsScreen = ({ navigation, route }) => {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff', paddingTop: 0 }}>
       <View style={styles.headerRow}>
-        <Ionicons name="search" size={24} color="#222" style={{ marginRight: 12 }} />
+        <TouchableOpacity onPress={() => navigation.navigate('Home')} style={{ marginRight: 12 }}>
+          <Ionicons name="arrow-back" size={24} color="#222" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Saved Meals</Text>
         <TouchableOpacity style={styles.headerAddBtn}><Ionicons name="add" size={26} color="#222" /></TouchableOpacity>
       </View>
@@ -185,7 +187,6 @@ const SavedMealsScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           ))}
         </ScrollView>
-        <TouchableOpacity style={styles.smartSortBtn}><Ionicons name="time-outline" size={18} color="#4F46E5" /><Text style={styles.smartSortText}>Smart Sort</Text></TouchableOpacity>
       </View>
       {/* Search Bar */}
       <View style={styles.searchBarWrap}>

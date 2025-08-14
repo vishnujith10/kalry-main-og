@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, BackHandler, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import supabase from '../lib/supabase';
 
@@ -17,6 +17,18 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
   const [nameError, setNameError] = useState('');
   const [saving, setSaving] = useState(false);
   const [logging, setLogging] = useState(false);
+
+  // Update macros when analysis data changes
+  useEffect(() => {
+    if (analysis?.total) {
+      setMacros({
+        protein: analysis.total.protein || 0,
+        carbs: analysis.total.carbs || 0,
+        fat: analysis.total.fat || 0,
+        fiber: analysis.total.fiber || 0,
+      });
+    }
+  }, [analysis]);
 
   // Example health score and info
   const healthScore = 8.5;

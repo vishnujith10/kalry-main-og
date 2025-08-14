@@ -183,19 +183,30 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
 
 IMPORTANT RULES:
 1. If the audio does NOT contain any food items or is unclear, respond with: {"error": "No food items detected. Please speak clearly about what you ate."}
-2. Extract quantities and food names from natural speech. For example:
-   - "I had 2 breads and one omelette during breakfast" → extract "2 breads" and "1 omelette"
-   - "I ate three apples and a sandwich" → extract "3 apples" and "1 sandwich"
-   - "I had some rice with chicken" → extract "1 rice" and "1 chicken"
-3. ALWAYS include quantities in the food names (e.g., "2 breads", "1 omelette", "3 apples")
-4. If no specific quantity is mentioned, assume quantity of 1 (e.g., "1 sandwich", "1 rice")
-5. Convert words to numbers: "one" → "1", "two" → "2", "three" → "3", etc.
-6. Use CONSISTENT calorie values for similar foods:
+2. Extract ONLY the essential food name and quantity. REMOVE unnecessary words like:
+   - "plate of", "bowl of", "cup of", "piece of", "slice of"
+   - "some", "a bit of", "portion of"
+   - "with", "and", "plus", "along with"
+   - "during", "for", "at", "in"
+   - Any descriptive words that aren't part of the food name
+
+3. Examples of correct extraction:
+   - "I had 1 plate of chicken biryani" → extract "1 chicken biryani"
+   - "I ate 2 slices of bread" → extract "2 bread"
+   - "I had a bowl of rice with chicken" → extract "1 rice" and "1 chicken"
+   - "I ate some apples and a sandwich" → extract "1 apple" and "1 sandwich"
+   - "I had 3 pieces of pizza" → extract "3 pizza"
+
+4. ALWAYS include quantities in the food names (e.g., "2 bread", "1 omelette", "3 apple")
+5. If no specific quantity is mentioned, assume quantity of 1 (e.g., "1 sandwich", "1 rice")
+6. Convert words to numbers: "one" → "1", "two" → "2", "three" → "3", etc.
+7. Use CONSISTENT calorie values for similar foods:
    - "omelette", "mini omelette", "egg omelette" → use same calorie value (~90-120 calories per omelette)
    - "bread", "slice of bread", "bread slice" → use same calorie value (~80-100 calories per slice)
    - "apple", "red apple", "green apple" → use same calorie value (~80-100 calories per apple)
    - "rice", "white rice", "cooked rice" → use same calorie value (~200-250 calories per cup)
-7. Provide realistic, consistent nutrition values based on standard serving sizes.
+   - "biryani", "chicken biryani", "vegetable biryani" → use same calorie value (~300-400 calories per serving)
+8. Provide realistic, consistent nutrition values based on standard serving sizes.
 
 The JSON object must have this structure: 
 { "transcription": "The full text of what you heard", "items": [ { "name": "quantity + food item", "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } ], "total": { "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } }`;

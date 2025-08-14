@@ -40,6 +40,7 @@ const HomeScreen = ({ navigation }) => {
   const [totals, setTotals] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0 });
   const [userName, setUserName] = useState('User');
   const [recentMeals, setRecentMeals] = useState([]);
+  const [expandedMeal, setExpandedMeal] = useState(null);
   const { stepsToday, calories: stepCalories } = useTodaySteps();
   const { onboardingData } = useContext(OnboardingContext);
 
@@ -420,11 +421,10 @@ const HomeScreen = ({ navigation }) => {
   ) : (
     <View style={{ gap: 12 }}>
       {recentMeals.map((meal, i) => (
-        <View
+        <TouchableOpacity
           key={meal.id || i}
+          onPress={() => setExpandedMeal(expandedMeal === i ? null : i)}
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
             backgroundColor: '#fff',
             borderRadius: 16,
             padding: 12,
@@ -433,8 +433,11 @@ const HomeScreen = ({ navigation }) => {
             shadowOpacity: 0.06,
             shadowRadius: 10,
             elevation: 4,
+            transform: [{ scale: expandedMeal === i ? 1.02 : 1 }],
           }}
+          activeOpacity={0.8}
         >
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {/* Meal Image */}
           {meal.photo_url ? (
             <Image
@@ -482,7 +485,128 @@ const HomeScreen = ({ navigation }) => {
           >
             <Ionicons name="trash-outline" size={22} color="#FF3B30" />
           </TouchableOpacity>
-        </View>
+          </View>
+          
+          {/* Expanded Nutrition Details - Inside the same card */}
+          {expandedMeal === i && (
+            <View style={{
+              marginTop: 12,
+              paddingTop: 12,
+              borderTopWidth: 1,
+              borderTopColor: '#F0F0F0',
+            }}>
+              <Text style={{
+                fontFamily: 'Lexend-SemiBold',
+                fontSize: 14,
+                color: '#181A20',
+                marginBottom: 8,
+              }}>
+                 Nutrition Details
+              </Text>
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+              }}>
+                <View style={{
+                  alignItems: 'center',
+                  backgroundColor: '#E6F7EC',
+                  borderRadius: 8,
+                  padding: 8,
+                  minWidth: '22%',
+                  marginBottom: 4,
+                }}>
+                  <Text style={{
+                    fontFamily: 'Manrope-Bold',
+                    fontSize: 12,
+                    color: '#22C55E',
+                  }}>
+                    Protein
+                  </Text>
+                  <Text style={{
+                    fontFamily: 'Lexend-SemiBold',
+                    fontSize: 14,
+                    color: '#22C55E',
+                  }}>
+                    {meal.protein || 0}g
+                  </Text>
+                </View>
+                
+                <View style={{
+                  alignItems: 'center',
+                  backgroundColor: '#FFF2E2',
+                  borderRadius: 8,
+                  padding: 8,
+                  minWidth: '22%',
+                  marginBottom: 4,
+                }}>
+                  <Text style={{
+                    fontFamily: 'Manrope-Bold',
+                    fontSize: 12,
+                    color: '#FF9100',
+                  }}>
+                    Carbs
+                  </Text>
+                  <Text style={{
+                    fontFamily: 'Lexend-SemiBold',
+                    fontSize: 14,
+                    color: '#FF9100',
+                  }}>
+                    {meal.carbs || 0}g
+                  </Text>
+                </View>
+                
+                <View style={{
+                  alignItems: 'center',
+                  backgroundColor: '#EEE8FF',
+                  borderRadius: 8,
+                  padding: 8,
+                  minWidth: '22%',
+                  marginBottom: 4,
+                }}>
+                  <Text style={{
+                    fontFamily: 'Manrope-Bold',
+                    fontSize: 12,
+                    color: '#A084E8',
+                  }}>
+                    Fat
+                  </Text>
+                  <Text style={{
+                    fontFamily: 'Lexend-SemiBold',
+                    fontSize: 14,
+                    color: '#A084E8',
+                  }}>
+                    {meal.fat || 0}g
+                  </Text>
+                </View>
+                
+                <View style={{
+                  alignItems: 'center',
+                  backgroundColor: '#E8F5E8',
+                  borderRadius: 8,
+                  padding: 8,
+                  minWidth: '22%',
+                  marginBottom: 4,
+                }}>
+                  <Text style={{
+                    fontFamily: 'Manrope-Bold',
+                    fontSize: 12,
+                    color: '#28a745',
+                  }}>
+                    Fiber
+                  </Text>
+                  <Text style={{
+                    fontFamily: 'Lexend-SemiBold',
+                    fontSize: 14,
+                    color: '#28a745',
+                  }}>
+                    {meal.fiber || 0}g
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+        </TouchableOpacity>
       ))}
     </View>
   )}
