@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import React, { useCallback } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { OnboardingProvider } from './src/context/OnboardingContext';
@@ -11,7 +11,9 @@ import HomeScreen from './src/homescreens/HomeScreen';
 import MainDashboardScreen from './src/homescreens/MainDashboardScreen';
 import ActivityLevelScreen from './src/screens/ActivityLevelScreen';
 import AddWeightScreen from './src/screens/AddWeightScreen';
+import AllExercisesScreen from './src/screens/AllExercisesScreen';
 import AuthLoadingScreen from './src/screens/AuthLoadingScreen';
+import CardioPlayerScreen from './src/screens/CardioPlayerScreen';
 import CategoryWorkoutsScreen from './src/screens/CategoryWorkoutsScreen';
 import CreateWorkoutScreen from './src/screens/CreateWorkoutScreen';
 import CustomCameraScreen from './src/screens/CustomCameraScreen';
@@ -39,15 +41,13 @@ import StepTrackerScreen from './src/screens/StepTrackerScreen';
 import TargetSummaryScreen from './src/screens/TargetSummaryScreen';
 import TimePerDayScreen from './src/screens/TimePerDayScreen';
 import VoiceCalorieScreen from './src/screens/VoiceCalorieScreen';
+import VoicePostCalorieScreen from './src/screens/VoicePostCalorieScreen';
 import WeightGoalScreen from './src/screens/WeightGoalScreen';
 import WeightTrackerScreen from './src/screens/WeightTrackerScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import WorkoutHistoryScreen from './src/screens/WorkoutHistoryScreen';
 import WorkoutPreferencesScreen from './src/screens/WorkoutPreferencesScreen';
 import WorkoutSpaceScreen from './src/screens/WorkoutSpaceScreen';
-import AllExercisesScreen from './src/screens/AllExercisesScreen';
-import CardioPlayerScreen from './src/screens/CardioPlayerScreen';
-
 if (typeof global.structuredClone !== 'function') {
   global.structuredClone = (obj) => JSON.parse(JSON.stringify(obj));
 }
@@ -126,6 +126,7 @@ export default function App() {
             <Stack.Screen name="PhotoCalorieScreen" component={PhotoCalorieScreen} />
             <Stack.Screen name="ManualLogScreen" component={ManualLogScreen} />
             <Stack.Screen name="VoiceCalorieScreen" component={VoiceCalorieScreen} />
+            <Stack.Screen name="VoicePostCalorieScreen" component={VoicePostCalorieScreen} />
             <Stack.Screen name="MinimalSignupTest" component={MinimalSignupTestScreen} />
             <Stack.Screen name="Tabs" component={MainTabs} />
             <Stack.Screen name="Exercise" component={ExerciseScreen} />

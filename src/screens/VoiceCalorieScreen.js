@@ -179,7 +179,26 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
           const audioData = await FileSystem.readAsStringAsync(uri, {
             encoding: FileSystem.EncodingType.Base64,
           });
-          const prompt = `Analyze the food items in this audio. Your response MUST be a single valid JSON object and nothing else. Do not include markdown formatting like \`\`\`json. The JSON object must have this structure: { "transcription": "The full text of what you heard", "items": [ { "name": "food item", "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } ], "total": { "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } }`;
+          const prompt = `Analyze the food items in this audio. Your response MUST be a single valid JSON object and nothing else. Do not include markdown formatting like \`\`\`json.
+
+IMPORTANT RULES:
+1. If the audio does NOT contain any food items or is unclear, respond with: {"error": "No food items detected. Please speak clearly about what you ate."}
+2. Extract quantities and food names from natural speech. For example:
+   - "I had 2 breads and one omelette during breakfast" → extract "2 breads" and "1 omelette"
+   - "I ate three apples and a sandwich" → extract "3 apples" and "1 sandwich"
+   - "I had some rice with chicken" → extract "1 rice" and "1 chicken"
+3. ALWAYS include quantities in the food names (e.g., "2 breads", "1 omelette", "3 apples")
+4. If no specific quantity is mentioned, assume quantity of 1 (e.g., "1 sandwich", "1 rice")
+5. Convert words to numbers: "one" → "1", "two" → "2", "three" → "3", etc.
+6. Use CONSISTENT calorie values for similar foods:
+   - "omelette", "mini omelette", "egg omelette" → use same calorie value (~90-120 calories per omelette)
+   - "bread", "slice of bread", "bread slice" → use same calorie value (~80-100 calories per slice)
+   - "apple", "red apple", "green apple" → use same calorie value (~80-100 calories per apple)
+   - "rice", "white rice", "cooked rice" → use same calorie value (~200-250 calories per cup)
+7. Provide realistic, consistent nutrition values based on standard serving sizes.
+
+The JSON object must have this structure: 
+{ "transcription": "The full text of what you heard", "items": [ { "name": "quantity + food item", "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } ], "total": { "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } }`;
           
           const result = await model.generateContent([
             prompt,
@@ -192,24 +211,38 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
           if (jsonMatch) {
             const jsonString = jsonMatch[0];
             const data = JSON.parse(jsonString);
+            // Check for error response
+            if (data.error) {
+              throw new Error(data.error);
+            }
+            
             if (!data.total || !Array.isArray(data.items) || !data.transcription) {
               throw new Error("Invalid JSON structure from API.");
+            }
+            
+            // Check if any food items were detected
+            if (data.items.length === 0) {
+              throw new Error("No food items detected. Please speak clearly about what you ate.");
             }
             setTranscribedText(data.transcription);
             setShowListening(false);
             setNutritionData({ ...data.total, items: data.items });
-            navigation.replace('PostCalorieScreen', {
+            
+            // Create clean food name from extracted items (just quantities and food names)
+            const cleanFoodName = data.items.map(item => item.name).join(", ");
+            
+            navigation.replace('VoicePostCalorieScreen', {
               analysis: {
-                dish_name: `You said: ${data.transcription}`,
-                total_nutrition: {
+                total: {
                   calories: data.total.calories,
                   protein: data.total.protein,
                   fat: data.total.fat,
                   carbs: data.total.carbs,
                   fiber: data.total.fiber || 0,
                 },
-                ingredients: data.items,
-              }
+                items: data.items,
+              },
+              cleanFoodName: cleanFoodName
             });
             return;
           } else {
@@ -497,8 +530,8 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingTop: 32, paddingBottom: 18, borderBottomWidth: 1, borderColor: '#eee', backgroundColor: '#F3F0FF' },
-  backButton: { marginRight: 12 },
-  headerTitle: { flex: 1, fontSize: 22, fontWeight: 'bold', color: '#7B61FF', textAlign: 'center' },
+  backButton: { marginRight: 12,marginTop: 20 },
+  headerTitle: { flex: 1, fontSize: 22,marginTop: 20 , fontWeight: 'bold', color: '#7B61FF', textAlign: 'center' },
   content: { flex: 1, alignItems: 'center', paddingHorizontal: 24, justifyContent: 'space-between', width: '100%' },
   topSpacer: { flex: 1 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
