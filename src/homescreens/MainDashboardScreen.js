@@ -422,6 +422,31 @@ const MainDashboardScreen = () => {
     React.useCallback(() => {
       // Debug log for userId before fetching food logs
       console.log('Dashboard realUserId for food logs:', realUserId);
+      
+      // Fetch food logs for today
+      const fetchTodayFoodLogs = async () => {
+        if (!realUserId) return;
+        try {
+          const logs = await getFoodLogs(realUserId);
+          // Filter logs for today
+          const today = new Date();
+          const startOfDay = new Date(today);
+          startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay = new Date(today);
+          endOfDay.setHours(23, 59, 59, 999);
+          const filteredLogs = logs.filter(log => {
+            const logDate = new Date(log.created_at);
+            return logDate >= startOfDay && logDate <= endOfDay;
+          });
+          setRecentMeals(filteredLogs.slice(-5).reverse());
+          setMealsLogged(filteredLogs.length);
+          setCalories(filteredLogs.reduce((sum, log) => sum + (log.calories || 0), 0));
+          console.log('MainDashboard - Food logs fetched:', filteredLogs.length, 'meals,', filteredLogs.reduce((sum, log) => sum + (log.calories || 0), 0), 'calories');
+        } catch (error) {
+          console.error('Error fetching food logs:', error);
+        }
+      };
+      
       const fetchRecentSleepLogs = async () => {
         if (!realUserId) return;
         console.log('MainDashboard - Sleep User ID:', realUserId);
@@ -440,6 +465,8 @@ const MainDashboardScreen = () => {
         console.log('todayLog found:', todayLog);
         setTodaySleepLog(todayLog || null);
       };
+      
+      fetchTodayFoodLogs();
       fetchRecentSleepLogs();
     }, [realUserId, todayStr])
   );
@@ -573,7 +600,7 @@ const MainDashboardScreen = () => {
                   <Ionicons name="home-outline" size={20} color="#FF9100" style={{ marginRight: 8 }} />
                   <Text style={styles.statLabelCustom}>Calories{`\n`}Today</Text>
                 </View>
-                <Text style={styles.statValueCustom}>{calories} / {calorie_goal}</Text>
+                <Text style={styles.statValueCustom2}>{calories} / {calorie_goal}</Text>
                 <Text style={styles.statSubCustom}>{mealsLogged} meals logged</Text>
               </TouchableOpacity>
               {/* Strength Today Card */}
@@ -1208,6 +1235,12 @@ const styles = StyleSheet.create({
   statValueCustom: {
     fontFamily: 'Lexend-SemiBold',
     fontSize: 22,
+    color: '#11181C',
+    marginBottom: 4,
+  },
+  statValueCustom2: {
+    fontFamily: 'Lexend-SemiBold',
+    fontSize: 20,
     color: '#11181C',
     marginBottom: 4,
   },

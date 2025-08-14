@@ -207,9 +207,15 @@ IMPORTANT RULES:
    - "rice", "white rice", "cooked rice" → use same calorie value (~200-250 calories per cup)
    - "biryani", "chicken biryani", "vegetable biryani" → use same calorie value (~300-400 calories per serving)
 8. Provide realistic, consistent nutrition values based on standard serving sizes.
+9. IMPORTANT: Provide realistic fiber values based on the food type:
+   - Fruits and vegetables: 2-8g fiber per serving
+   - Whole grains and breads: 2-4g fiber per serving  
+   - Legumes and beans: 5-15g fiber per serving
+   - Nuts and seeds: 2-6g fiber per serving
+   - Processed foods: 0-2g fiber per serving
 
 The JSON object must have this structure: 
-{ "transcription": "The full text of what you heard", "items": [ { "name": "quantity + food item", "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } ], "total": { "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } }`;
+{ "transcription": "The full text of what you heard", "items": [ { "name": "quantity + food item", "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number>, "fiber": <number> } ], "total": { "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number>, "fiber": <number> } }`;
           
           const result = await model.generateContent([
             prompt,

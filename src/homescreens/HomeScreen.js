@@ -147,8 +147,9 @@ const HomeScreen = ({ navigation }) => {
       acc.protein += log.protein || 0;
       acc.carbs += log.carbs || 0;
       acc.fat += log.fat || 0;
+      acc.fiber += log.fiber || 0;
       return acc;
-    }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+    }, { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
     setTotals(newTotals);
   };
 
@@ -402,7 +403,7 @@ const HomeScreen = ({ navigation }) => {
                 <Ionicons name="restaurant" size={28} color="#222" style={styles.macroIconLarge} />
                 <Text style={styles.macroTitle}>Fiber</Text>
               </View>
-              <Text style={styles.macroValueLarge}>18g</Text>
+              <Text style={styles.macroValueLarge}>{Math.round(totals.fiber)}g</Text>
               <View style={styles.macroDivider} />
               <Text style={styles.macroGoalSmall}>Goal: 30g</Text>
             </View>

@@ -52,13 +52,21 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
               "calories": <number>,
               "protein": <number>,
               "fat": <number>,
-              "carbs": <number>
+              "carbs": <number>,
+              "fiber": <number>
             },
             "ingredients": [
               { "name": "ingredient name", "calories": <number> },
               { "name": "ingredient name", "calories": <number> }
             ]
           }
+          
+          IMPORTANT: Provide realistic fiber values based on the food type:
+          - Fruits and vegetables: 2-8g fiber per serving
+          - Whole grains and breads: 2-4g fiber per serving  
+          - Legumes and beans: 5-15g fiber per serving
+          - Nuts and seeds: 2-6g fiber per serving
+          - Processed foods: 0-2g fiber per serving
           
           Your response MUST be a valid JSON object only. Do not include any text outside of the JSON object.
         `;
@@ -124,7 +132,8 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
               "calories": <accurate number for ${editedFoodName.trim()}>,
               "protein": <accurate number for ${editedFoodName.trim()}>,
               "fat": <accurate number for ${editedFoodName.trim()}>,
-              "carbs": <accurate number for ${editedFoodName.trim()}>
+              "carbs": <accurate number for ${editedFoodName.trim()}>,
+              "fiber": <accurate number for ${editedFoodName.trim()}>
             },
             "ingredients": [
               { "name": "ingredient name", "calories": <number> },
@@ -133,6 +142,13 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
           }
           
           Provide accurate nutrition values for a standard serving size of ${editedFoodName.trim()}.
+          
+          IMPORTANT: Provide realistic fiber values based on the food type:
+          - Fruits and vegetables: 2-8g fiber per serving
+          - Whole grains and breads: 2-4g fiber per serving  
+          - Legumes and beans: 5-15g fiber per serving
+          - Nuts and seeds: 2-6g fiber per serving
+          - Processed foods: 0-2g fiber per serving
         `;
 
         const result = await model.generateContent([prompt, { inlineData: { mimeType: 'image/jpeg', data: imageBase64 } }]);
@@ -183,7 +199,7 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
             protein: total_nutrition.protein || 0,
             carbs: total_nutrition.carbs || 0,
             fat: total_nutrition.fat || 0,
-            fiber: 0, // Default value since we don't have fiber data
+            fiber: total_nutrition.fiber || 0,
           },
         ]);
         
