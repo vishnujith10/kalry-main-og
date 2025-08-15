@@ -751,7 +751,7 @@ const SleepTrackerScreen = () => {
                   />
                   <Text style={{ 
                     fontWeight: 'bold', 
-                    fontSize: 16, 
+                    fontSize: 13, 
                     color: isToday ? '#4F46E5' : '#222', 
                     marginBottom: 2 
                   }}>
