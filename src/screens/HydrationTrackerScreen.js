@@ -593,7 +593,7 @@ const HydrationTrackerScreen = () => {
             <Icon name="chevron-right" size={20} color="#ccc" />
           </TouchableOpacity>
           {/* Reminders Row */}
-          <View style={styles.cardRow}>
+          {/* <View style={styles.cardRow}>
             <View style={styles.iconCircle}>
               <Icon name="bell" size={18} color="#9333ea" />
             </View>
@@ -606,7 +606,7 @@ const HydrationTrackerScreen = () => {
                 style={[styles.toggleKnob, { transform: [{ translateX: remindersEnabled ? 22 : 2 }] }]}
               />
             </TouchableOpacity>
-          </View>
+          </View> */}
         </View>
         {/* Weekly Progress */}
         <View style={styles.weeklyCard}>

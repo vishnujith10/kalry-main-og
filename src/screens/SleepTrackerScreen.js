@@ -30,6 +30,11 @@ function getWeekDates() {
 const SleepTrackerScreen = () => {
   const { onboardingData } = useContext(OnboardingContext);
   const [sleepLogs, setSleepLogs] = useState([]);
+  
+  // Component mount effect - no need to reset sleepLogs
+  useEffect(() => {
+    console.log('Component mounted - sleepLogs will be populated by fetchSleepLogs');
+  }, []);
   const [lastSleep, setLastSleep] = useState(null);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -85,14 +90,24 @@ const SleepTrackerScreen = () => {
         return;
       }
 
-      console.log('Fetched sleep logs:', data);
-      setSleepLogs(data || []);
-      setLastSleep(data?.[0] || null);
+      console.log('Raw fetched sleep logs from Supabase:', data);
+      
+      // Filter out any logs with invalid or empty duration
+      const validData = (data || []).filter(log => {
+        if (!log || !log.duration) return false;
+        const mins = parseIntervalToMinutes(log.duration);
+        return mins > 0;
+      });
+      
+      console.log('Filtered valid sleep logs:', validData);
+      
+      setSleepLogs(validData);
+      setLastSleep(validData?.[0] || null);
       
       // Prepare week data
       const week = getWeekDates();
       const weekMap = {};
-      (data || []).forEach(log => { 
+      validData.forEach(log => { 
         const logDate = getDateOnly(log.date);
         weekMap[logDate] = log; 
       });
@@ -265,24 +280,75 @@ const SleepTrackerScreen = () => {
 
   // Calculate average sleep duration from sleepLogs
   function getAverageSleepDuration(logs) {
-    if (!logs || logs.length === 0) return '--';
+    console.log('=== AVERAGE SLEEP CALCULATION START ===');
+    console.log('Input logs:', logs);
+    console.log('Logs length:', logs?.length);
+    
+    if (!logs || logs.length === 0) {
+      console.log('No logs provided, returning --');
+      return '--';
+    }
+    
+         // Filter out logs with valid duration data AND only consider very recent logs (today or yesterday)
+     const today = new Date();
+     const yesterday = new Date(today);
+     yesterday.setDate(today.getDate() - 1);
+     
+     const recentValidLogs = logs.filter(log => {
+       console.log('Checking log:', log);
+       if (!log || !log.duration) {
+         console.log('Log or duration is null/undefined');
+         return false;
+       }
+       
+       // Check if log is from today or yesterday only
+       const logDate = new Date(log.date);
+       const isToday = logDate.toDateString() === today.toDateString();
+       const isYesterday = logDate.toDateString() === yesterday.toDateString();
+       const isRecent = isToday || isYesterday;
+       
+       console.log('Log date:', log.date, 'Is today:', isToday, 'Is yesterday:', isYesterday, 'Is recent (today/yesterday):', isRecent);
+       
+       if (!isRecent) {
+         console.log('Log is too old (not today or yesterday), skipping');
+         return false;
+       }
+       
+       const mins = parseIntervalToMinutes(log.duration);
+       console.log('Duration:', log.duration, 'Parsed minutes:', mins);
+       return mins > 0;
+     });
+    
+    console.log('Recent valid logs after filtering:', recentValidLogs);
+    console.log('Recent valid logs count:', recentValidLogs.length);
+    
+    if (recentValidLogs.length === 0) {
+      console.log('No recent valid logs found, returning --');
+      return '--';
+    }
+    
     let totalMinutes = 0;
-    let count = 0;
-    logs.forEach(log => {
+    recentValidLogs.forEach(log => {
       const mins = parseIntervalToMinutes(log.duration);
-      if (mins > 0) {
-        totalMinutes += mins;
-        count++;
-      }
+      totalMinutes += mins;
+      console.log('Adding minutes:', mins, 'Total so far:', totalMinutes);
     });
-    if (count === 0) return '--';
-    const avg = Math.round(totalMinutes / count);
+    
+    const avg = Math.round(totalMinutes / recentValidLogs.length);
     const avgH = Math.floor(avg / 60);
     const avgM = avg % 60;
-    if (avgH > 0 && avgM > 0) return `${avgH}h ${avgM}m`;
-    if (avgH > 0) return `${avgH}h`;
-    if (avgM > 0) return `${avgM}m`;
-    return '--';
+    
+    console.log('Final calculation:', { totalMinutes, recentValidLogsCount: recentValidLogs.length, avg, avgH, avgM });
+    
+    let result;
+    if (avgH > 0 && avgM > 0) result = `${avgH}h ${avgM}m`;
+    else if (avgH > 0) result = `${avgH}h`;
+    else if (avgM > 0) result = `${avgM}m`;
+    else result = '--';
+    
+    console.log('Returning result:', result);
+    console.log('=== AVERAGE SLEEP CALCULATION END ===');
+    return result;
   }
 
   // **FIXED**: Get today's log and calculate metrics properly
@@ -305,7 +371,23 @@ const SleepTrackerScreen = () => {
     hitGoal = todayMinutes >= sleepGoal * 60;
   }
 
+  console.log('=== BEFORE AVERAGE CALCULATION ===');
+  console.log('sleepLogs state:', sleepLogs);
+  console.log('sleepLogs length:', sleepLogs.length);
+  console.log('sleepLogs type:', typeof sleepLogs);
+  console.log('sleepLogs is array:', Array.isArray(sleepLogs));
+  
   const averageSleep = getAverageSleepDuration(sleepLogs);
+  
+  // Debug logging for average sleep calculation
+  console.log('Sleep logs for average calculation:', sleepLogs.map(log => ({
+    id: log.id,
+    duration: log.duration,
+    date: log.date,
+    hasValidDuration: log.duration && parseIntervalToMinutes(log.duration) > 0
+  })));
+  console.log('Calculated average sleep:', averageSleep);
+  console.log('=== AFTER AVERAGE CALCULATION ===');
 
   // **FIXED**: Get latest log's bedtime and wake time
   let displayBedtime = '--:--';
@@ -414,11 +496,16 @@ const SleepTrackerScreen = () => {
             <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#222' }}>{sleepGoal}h target</Text>
             <Text style={{ color: '#888', fontSize: 13 }}>Sleep Goal</Text>
           </View>
-          <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 16, marginLeft: 8, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 1 }}>
-            <Ionicons name="trending-up-outline" size={22} color="#4F46E5" style={{ marginBottom: 4 }} />
-            <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#222' }}>{averageSleep}</Text>
-            <Text style={{ color: '#888', fontSize: 13 }}>Average Sleep</Text>
-          </View>
+                     <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 16, marginLeft: 8, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 1 }}>
+             <Ionicons name="trending-up-outline" size={22} color="#4F46E5" style={{ marginBottom: 4 }} />
+             <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#222' }}>
+               {(() => {
+                 console.log('Rendering average sleep in UI:', averageSleep);
+                 return averageSleep;
+               })()}
+             </Text>
+             <Text style={{ color: '#888', fontSize: 13 }}>Average Sleep</Text>
+           </View>
         </View>
 
         {/* Bedtime & Wakeup Cards - FIXED to show actual logged times */}
@@ -545,30 +632,108 @@ const SleepTrackerScreen = () => {
             />
           </View>
 
-          {/* Time Markers */}
-          <View style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            marginBottom: 28,
-            paddingHorizontal: 4,
-          }}>
-            {['6h', '8h', '10h'].map((time, index) => (
-              <View key={time} style={{
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderRadius: 12,
-                backgroundColor: index === 1 ? '#EEF2FF' : 'transparent',
-              }}>
-                <Text style={{ 
-                  fontSize: 12, 
-                  color: index === 1 ? '#4F46E5' : '#94A3B8',
-                  fontWeight: index === 1 ? '600' : '500',
-                }}>
-                  {time}
-                </Text>
-              </View>
-            ))}
-          </View>
+                                           {/* Time Markers - Horizontal Scrollable Picker */}
+            <View style={{ marginBottom: 28, alignItems: 'center' }}>
+             
+                                                                                   {/* Navigation Arrows - Positioned inside the Sleep Goal card */}
+                <View style={{ flexDirection: 'row', marginTop: 16, alignItems: 'center', justifyContent: 'space-between' }}>
+                  {/* Left Arrow - positioned inside the card */}
+                  <TouchableOpacity 
+                    onPress={() => {
+                      const newGoal = Math.max(1, sleepGoal - 1);
+                      setSleepGoal(newGoal);
+                    }}
+                    disabled={sleepGoal <= 1}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 16,
+                      backgroundColor: sleepGoal <= 1 ? '#E5E7EB' : '#4F46E5',
+                    }}
+                  >
+                    <Text style={{ 
+                      color: sleepGoal <= 1 ? '#9CA3AF' : '#fff',
+                      fontWeight: '600',
+                      fontSize: 12,
+                    }}>
+                      ←
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  {/* Hour values container */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {Array.from({ length: 3 }, (_, i) => {
+                      // Calculate which 3 hours to show based on current sleepGoal
+                      let hour;
+                      if (sleepGoal <= 2) {
+                        // For 1h and 2h, show 1h, 2h, 3h
+                        hour = i + 1;
+                      } else if (sleepGoal >= 23) {
+                        // For 23h and 24h, show 22h, 23h, 24h
+                        hour = 22 + i;
+                      } else {
+                        // For other values, show the hour before, current, and after
+                        hour = sleepGoal - 1 + i;
+                      }
+                      
+                      const isSelected = hour === sleepGoal;
+                      return (
+                        <View 
+                          key={hour} 
+                          style={{
+                            width: 70,
+                            alignItems: 'center',
+                            marginHorizontal: 6,
+                          }}
+                        >
+                          <View style={{
+                            paddingHorizontal: 14,
+                            paddingVertical: 8,
+                            borderRadius: 18,
+                            backgroundColor: isSelected ? '#EEF2FF' : 'transparent',
+                            borderWidth: isSelected ? 2 : 0,
+                            borderColor: isSelected ? '#4F46E5' : 'transparent',
+                            minWidth: 50,
+                            alignItems: 'center',
+                            transform: [{ scale: isSelected ? 1.1 : 1 }],
+                          }}>
+                            <Text style={{ 
+                              fontSize: 15, 
+                              color: isSelected ? '#4F46E5' : '#94A3B8',
+                              fontWeight: isSelected ? '700' : '500',
+                            }}>
+                              {hour}h
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                  
+                  {/* Right Arrow - positioned inside the card */}
+                  <TouchableOpacity 
+                    onPress={() => {
+                      const newGoal = Math.min(24, sleepGoal + 1);
+                      setSleepGoal(newGoal);
+                    }}
+                    disabled={sleepGoal >= 24}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 16,
+                      backgroundColor: sleepGoal >= 24 ? '#E5E7EB' : '#4F46E5',
+                    }}
+                  >
+                    <Text style={{ 
+                      color: sleepGoal >= 24 ? '#9CA3AF' : '#fff',
+                      fontWeight: '600',
+                      fontSize: 12,
+                    }}>
+                      →
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+           </View>
 
           {/* Reminder Cards */}
           <View style={{ gap: 16 }}>
