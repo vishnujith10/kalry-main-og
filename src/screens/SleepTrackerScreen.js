@@ -52,6 +52,7 @@ const SleepTrackerScreen = () => {
   const [showBedtimeReminderPicker, setShowBedtimeReminderPicker] = useState(false);
   const [showWakeReminderPicker, setShowWakeReminderPicker] = useState(false);
   const [sleepGoal, setSleepGoal] = useState(8); // default 8 hours
+  const [isLoadingGoal, setIsLoadingGoal] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [editingLogId, setEditingLogId] = useState(null);
   const [showAlreadyLoggedModal, setShowAlreadyLoggedModal] = useState(false);
@@ -71,6 +72,7 @@ const SleepTrackerScreen = () => {
   useEffect(() => {
     if (realUserId) {
       fetchSleepLogs();
+      fetchSleepGoal(); // Also fetch the saved sleep goal
     }
   }, [realUserId]);
 
@@ -114,6 +116,94 @@ const SleepTrackerScreen = () => {
       setWeekData(week.map(d => weekMap[d.toISOString().slice(0,10)] || null));
     } catch (err) {
       console.log('Error fetching sleep logs:', err);
+    }
+  }
+
+  // NEW: Fetch user's saved sleep goal from database
+  async function fetchSleepGoal() {
+    if (!realUserId) return;
+    try {
+      // First try to get the goal from the most recent sleep log
+      const { data: recentLog, error: recentError } = await supabase
+        .from('sleep_logs')
+        .select('sleep_goal')
+        .eq('user_id', realUserId)
+        .not('sleep_goal', 'is', null)
+        .order('date', { ascending: false })
+        .limit(1);
+
+      if (recentError) {
+        console.log('Error fetching recent sleep goal:', recentError);
+        return;
+      }
+
+      if (recentLog && recentLog.length > 0 && recentLog[0].sleep_goal) {
+        console.log('Found saved sleep goal:', recentLog[0].sleep_goal);
+        setSleepGoal(recentLog[0].sleep_goal);
+      } else {
+        console.log('No saved sleep goal found, using default 8h');
+        setSleepGoal(8);
+      }
+      
+      setIsLoadingGoal(false);
+    } catch (err) {
+      console.log('Error fetching sleep goal:', err);
+      setIsLoadingGoal(false);
+    }
+  }
+
+  // NEW: Save sleep goal to database
+  async function saveSleepGoal(newGoal) {
+    if (!realUserId) return;
+    try {
+      // Update the most recent sleep log with the new goal
+      const { data: recentLog, error: recentError } = await supabase
+        .from('sleep_logs')
+        .select('id')
+        .eq('user_id', realUserId)
+        .order('date', { ascending: false })
+        .limit(1);
+
+      if (recentError) {
+        console.log('Error fetching recent log for goal update:', recentError);
+        return;
+      }
+
+      if (recentLog && recentLog.length > 0) {
+        // Update existing log with new goal
+        const { error: updateError } = await supabase
+          .from('sleep_logs')
+          .update({ sleep_goal: newGoal })
+          .eq('id', recentLog[0].id);
+
+        if (updateError) {
+          console.log('Error updating sleep goal:', updateError);
+        } else {
+          console.log('Sleep goal updated to:', newGoal);
+        }
+      } else {
+        // Create a new log entry with the goal if no logs exist
+        const { error: insertError } = await supabase
+          .from('sleep_logs')
+          .insert([{
+            user_id: realUserId,
+            date: getTodayString(),
+            sleep_goal: newGoal,
+            start_time: null,
+            end_time: null,
+            duration: null,
+            quality: null,
+            mood: null,
+          }]);
+
+        if (insertError) {
+          console.log('Error creating sleep goal entry:', insertError);
+        } else {
+          console.log('Sleep goal entry created with goal:', newGoal);
+        }
+      }
+    } catch (err) {
+      console.log('Error saving sleep goal:', err);
     }
   }
 
@@ -167,16 +257,17 @@ const SleepTrackerScreen = () => {
           mood,
         }).eq('id', editingLogId));
       } else {
-        // Insert new log
-        ({ error } = await supabase.from('sleep_logs').insert([{
-          user_id: realUserId,
-          date: dateStr,
-          start_time: startTime,
-          end_time: endTime,
-          duration,
-          quality,
-          mood,
-        }]));
+              // Insert new log
+      ({ error } = await supabase.from('sleep_logs').insert([{
+        user_id: realUserId,
+        date: dateStr,
+        start_time: startTime,
+        end_time: endTime,
+        duration,
+        quality,
+        mood,
+        sleep_goal: sleepGoal, // Include the current sleep goal
+      }]));
       }
       
       if (error) throw error;
@@ -493,7 +584,9 @@ const SleepTrackerScreen = () => {
         <View style={{ flexDirection: 'row', marginBottom: 12 }}>
           <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 16, marginRight: 8, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 1 }}>
             <Ionicons name="timer-outline" size={22} color="#4F46E5" style={{ marginBottom: 4 }} />
-            <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#222' }}>{sleepGoal}h target</Text>
+                         <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#222' }}>
+               {isLoadingGoal ? '...' : `${sleepGoal}h target`}
+             </Text>
             <Text style={{ color: '#888', fontSize: 13 }}>Sleep Goal</Text>
           </View>
                      <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 16, marginLeft: 8, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 1 }}>
@@ -642,6 +735,7 @@ const SleepTrackerScreen = () => {
                     onPress={() => {
                       const newGoal = Math.max(1, sleepGoal - 1);
                       setSleepGoal(newGoal);
+                      saveSleepGoal(newGoal); // Save the new goal to database
                     }}
                     disabled={sleepGoal <= 1}
                     style={{
@@ -715,6 +809,7 @@ const SleepTrackerScreen = () => {
                     onPress={() => {
                       const newGoal = Math.min(24, sleepGoal + 1);
                       setSleepGoal(newGoal);
+                      saveSleepGoal(newGoal); // Save the new goal to database
                     }}
                     disabled={sleepGoal >= 24}
                     style={{
@@ -935,7 +1030,7 @@ const SleepTrackerScreen = () => {
         </ScrollView>
 
         {/* Apple Health Sync Card */}
-        <View style={{ 
+        {/* <View style={{ 
           backgroundColor: '#fff', 
           borderRadius: 14, 
           padding: 16, 
@@ -968,7 +1063,7 @@ const SleepTrackerScreen = () => {
           >
             <Text style={{ color: '#4F46E5', fontWeight: 'bold' }}>Sync</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
 
         {/* Log Sleep Button */}
         <TouchableOpacity 
