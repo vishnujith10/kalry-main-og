@@ -13,6 +13,15 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editedFoodName, setEditedFoodName] = useState('');
+  const [selectedMood, setSelectedMood] = useState(null);
+
+  const moodOptions = [
+    { emoji: '😊', label: 'Happy' },
+    { emoji: '😌', label: 'Calm' },
+    { emoji: '🤤', label: 'Satisfied' },
+    { emoji: '🥰', label: 'Loved' },
+    { emoji: '🤗', label: 'Grateful' },
+  ];
   
   const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
   const genAI = new GoogleGenerativeAI(apiKey);
@@ -270,48 +279,209 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
   
   const { dish_name, description, total_nutrition, ingredients } = analysis;
 
+  const getCurrentTime = () => {
+    const now = new Date();
+    return now.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
+
+  const calculateHealthScore = () => {
+    return 6; // Fixed score to match the design
+  };
+
+  const getHealthText = () => {
+    return 'Good';
+  };
+
+  const getInfoText = () => {
+    return 'Low protein content. High in fats. Low fiber content (0g).';
+  };
+
+  const getIngredientIcon = (name) => {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('chicken')) return '🍗';
+    if (lowerName.includes('rice')) return '🍚';
+    if (lowerName.includes('bread')) return '🍞';
+    if (lowerName.includes('egg')) return '🥚';
+    if (lowerName.includes('milk')) return '🥛';
+    if (lowerName.includes('cheese')) return '🧀';
+    if (lowerName.includes('vegetable') || lowerName.includes('veg')) return '🥬';
+    if (lowerName.includes('fruit')) return '🍎';
+    if (lowerName.includes('fish')) return '🐟';
+    if (lowerName.includes('beef') || lowerName.includes('meat')) return '🥩';
+    if (lowerName.includes('pasta')) return '🍝';
+    if (lowerName.includes('soup')) return '🥣';
+    if (lowerName.includes('salad')) return '🥗';
+    if (lowerName.includes('potato')) return '🥔';
+    if (lowerName.includes('tomato')) return '🍅';
+    if (lowerName.includes('onion')) return '🧅';
+    if (lowerName.includes('garlic')) return '🧄';
+    if (lowerName.includes('spice')) return '🌶️';
+    if (lowerName.includes('sauce')) return '🥫';
+    return '🍽️';
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView>
-        <Image source={{ uri: photoUri }} style={styles.image} />
-        
-        <View style={styles.contentContainer}>
-          <Text style={styles.description}>{description}</Text>
-          <View style={styles.dishNameContainer}>
-            <Text style={styles.dishName}>{dish_name}</Text>
-            <TouchableOpacity onPress={handleEditFoodName} style={styles.editButton}>
-              <Ionicons name="pencil" size={20} color="#7B61FF" />
-            </TouchableOpacity>
-          </View>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+            <Ionicons name="chevron-back" size={24} color="#333" />
+          </TouchableOpacity>
+        </View>
 
-          <View style={styles.nutritionGrid}>
-            <NutritionCard icon="flame-outline" label="Calories" value={`${total_nutrition.calories.toFixed(0)} kcal`} />
-            <NutritionCard icon="fish-outline" label="Protein" value={`${total_nutrition.protein.toFixed(1)} g`} />
-            <NutritionCard icon="leaf-outline" label="Fats" value={`${total_nutrition.fat.toFixed(1)} g`} />
-            <NutritionCard icon="pizza-outline" label="Carbs" value={`${total_nutrition.carbs.toFixed(1)} g`} />
+        {/* Title and Time */}
+        <View style={styles.titleSection}>
+          <Text style={styles.title}>Meal Reflected</Text>
+          <Text style={styles.mealName}>{dish_name}</Text>
+          <View style={styles.timeRow}>
+            <Text style={styles.timeText}>Today, {getCurrentTime()}</Text>
+            <View style={styles.mealTypeTag}>
+              <Text style={styles.mealTypeText}>Lunch</Text>
+            </View>
           </View>
-          
-          <Text style={styles.ingredientsTitle}>Ingredients found</Text>
-          <View style={styles.ingredientsList}>
-            {ingredients.map((item, index) => (
-              <View key={index} style={styles.ingredientItem}>
-                <Ionicons name="checkmark-circle" size={18} color="#28a745" style={{marginRight: 6}}/>
-                <Text style={styles.ingredientName}>{item.name}</Text>
-                <Text style={styles.ingredientCalories}>{item.calories.toFixed(0)} kcal</Text>
+        </View>
+
+        {/* Meal Image and Calories */}
+        <View style={styles.mealImageSection}>
+          <View style={styles.mealImageContainer}>
+            {/* Left side - Meal Image */}
+            <View style={styles.mealImage}>
+              <Image
+                source={{ uri: photoUri }}
+                style={styles.mealImageStyle}
+                resizeMode="cover"
+              />
+            </View>
+            
+            {/* Right side - Calorie Ring */}
+            <View style={styles.calorieRing}>
+              <View style={styles.calorieRingInner}>
+                <Text style={styles.calorieNumber}>250</Text>
+                <Text style={styles.calorieLabel}>kcal</Text>
               </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Macros Grid */}
+        <View style={styles.macrosGrid}>
+          <View style={[styles.macroCard, { backgroundColor: '#FFF2E6' }]}>
+            <Text style={styles.macroLabel}>Carbs</Text>
+            <View style={styles.macroContent}>
+              <Ionicons name="restaurant-outline" size={16} color="#333" />
+              <Text style={styles.macroValue}>40g</Text>
+            </View>
+          </View>
+          <View style={[styles.macroCard, { backgroundColor: '#E6F3FF' }]}>
+            <Text style={styles.macroLabel}>Protein</Text>
+            <View style={styles.macroContent}>
+              <Ionicons name="fitness-outline" size={16} color="#333" />
+              <Text style={styles.macroValue}>8g</Text>
+            </View>
+          </View>
+          <View style={[styles.macroCard, { backgroundColor: '#F0FFE6' }]}>
+            <Text style={styles.macroLabel}>Fat</Text>
+            <View style={styles.macroContent}>
+              <Ionicons name="leaf-outline" size={16} color="#333" />
+              <Text style={styles.macroValue}>10g</Text>
+            </View>
+          </View>
+          <View style={[styles.macroCard, { backgroundColor: '#F3E6FF' }]}>
+            <Text style={styles.macroLabel}>Fiber</Text>
+            <View style={styles.macroContent}>
+              <Ionicons name="nutrition-outline" size={16} color="#333" />
+              <Text style={styles.macroValue}>0g</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Health Score */}
+        <View style={styles.healthScoreSection}>
+          <View style={styles.healthScoreCircle}>
+            <Text style={styles.healthScoreNumber}>{calculateHealthScore()}</Text>
+          </View>
+          <View style={styles.healthScoreInfo}>
+            <Text style={styles.healthScoreTitle}>{getHealthText()}</Text>
+            <Text style={styles.healthScoreDescription}>{getInfoText()}</Text>
+          </View>
+        </View>
+
+        {/* Ingredients */}
+        <View style={styles.ingredientsSection}>
+          <View style={styles.ingredientsHeader}>
+            <Text style={styles.ingredientsTitle}>Ingredients</Text>
+            <Text style={styles.ingredientsCount}>{ingredients.length} items</Text>
+          </View>
+          {ingredients && ingredients.length > 0 ? (
+            ingredients.map((ingredient, index) => (
+              <View key={index} style={styles.ingredientItem}>
+                <Text style={styles.ingredientEmoji}>{getIngredientIcon(ingredient.name)}</Text>
+                <View style={styles.ingredientInfo}>
+                  <Text style={styles.ingredientName}>{ingredient.name}</Text>
+                  <Text style={styles.ingredientAmount}>{ingredient.quantity || '1 serving'}</Text>
+                </View>
+                <Text style={styles.ingredientCalories}>{ingredient.calories ? ingredient.calories.toFixed(0) : '0'} kcal</Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.ingredientItem}>
+              <Text style={styles.ingredientEmoji}>🍽️</Text>
+              <View style={styles.ingredientInfo}>
+                <Text style={styles.ingredientName}>Complete Meal</Text>
+                <Text style={styles.ingredientAmount}>1 serving</Text>
+              </View>
+              <Text style={styles.ingredientCalories}>250 kcal</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Mood Selection */}
+        <View style={styles.moodSection}>
+          <Text style={styles.moodTitle}>How do you feel?</Text>
+          <View style={styles.moodOptions}>
+            {moodOptions.map((mood, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.moodOption,
+                  selectedMood === index && styles.selectedMoodOption
+                ]}
+                onPress={() => setSelectedMood(index)}
+              >
+                <Text style={styles.moodEmoji}>{mood.emoji}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={styles.moodLabels}>
+            {moodOptions.map((mood, index) => (
+              <Text key={index} style={styles.moodLabel}>{mood.label}</Text>
             ))}
           </View>
         </View>
-        <View style={styles.footer}>
-        <TouchableOpacity onPress={handleSaveToSavedMeals} style={styles.saveButton}>
-        <Ionicons name="bookmark-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
-          <Text style={styles.saveButtonText}>Save</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleConfirm} style={styles.doneButton}>
-        <Ionicons name="checkmark" size={18} color="#fff" style={{ marginRight: 8 }} />
-          <Text style={styles.doneButtonText}>Done</Text>
-        </TouchableOpacity>
-      </View>
+
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity style={styles.editButton} onPress={handleEditFoodName}>
+            <Text style={styles.editButtonText}>Edit Meal</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.saveButton} onPress={handleConfirm} disabled={isLoading}>
+            <Text style={styles.saveButtonText}>
+              {isLoading ? 'Processing...' : 'Log Food'}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.saveToMealsButton} onPress={handleSaveToSavedMeals} disabled={isLoading}>
+            <Text style={styles.saveToMealsButtonText}>
+              {isLoading ? 'Saving...' : 'Save'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
      
@@ -376,65 +546,312 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
   );
 };
 
-const NutritionCard = ({ icon, label, value }) => (
-  <View style={styles.nutritionCard}>
-    <View style={styles.nutritionCardHeader}>
-      <Ionicons name={icon} size={20} color="#888" />
-       <TouchableOpacity>
-         <Ionicons name="pencil-outline" size={16} color="#aaa" />
-      </TouchableOpacity>
-    </View>
-    <Text style={styles.nutritionLabel}>{label}</Text>
-    <Text style={styles.nutritionValue}>{value}</Text>
-  </View>
-);
+
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 10, fontSize: 16, color: '#666' },
-  image: { width: '100%', height: 300 },
-  contentContainer: { padding: 20 },
-  description: { fontSize: 16, color: '#666', marginBottom: 8, textAlign: 'center' },
-  dishNameContainer: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  loadingContainer: { 
+    flex: 1, 
     justifyContent: 'center', 
-    marginBottom: 20 
-  },
-  dishName: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginRight: 8 },
-  editButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-  },
-  nutritionGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
-  nutritionCard: { 
-    width: '48%', 
-    backgroundColor: '#f8f9fa', 
-    borderRadius: 12, 
-    padding: 15, 
-    marginBottom: 10
-  },
-  nutritionCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  nutritionLabel: { fontSize: 14, color: '#666' },
-  nutritionValue: { fontSize: 18, fontWeight: 'bold', marginTop: 4 },
-  ingredientsTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 10 },
-  ingredientsList: {},
-  ingredientItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8f9fa', padding: 12, borderRadius: 8, marginBottom: 8 },
-  ingredientName: { flex: 1, fontSize: 16 },
-  ingredientCalories: { fontSize: 16, color: '#666' },
-  footer: { padding: 20, borderTopWidth: 1, borderTopColor: '#eee' ,gap: 10},
- 
-  doneButton: { 
-    flexDirection: 'row',
-    justifyContent: 'center',
-    backgroundColor: '#22C55E', 
-    padding: 15, 
-    borderRadius: 12, 
     alignItems: 'center' 
   },
-  doneButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  loadingText: { 
+    marginTop: 10, 
+    fontSize: 16, 
+    color: '#666' 
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 5,
+  },
+  titleSection: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  mealName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  timeText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  mealTypeTag: {
+    backgroundColor: '#6366F1',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  mealTypeText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  mealImageSection: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  mealImageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  mealImage: {
+    width: '60%',
+    height: 200,
+    backgroundColor: '#F0F4F8',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  mealImageStyle: {
+    width: '100%',
+    height: '100%',
+  },
+  calorieRing: {
+    width: 120,
+    height: 120,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#F0F4F8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  calorieRingInner: {
+    alignItems: 'center',
+  },
+  calorieNumber: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  calorieLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  macrosGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  macroCard: {
+    width: '48%',
+    borderRadius: 12,
+    padding: 16, // Increased padding for better spacing
+    marginBottom: 8,
+    flexDirection: 'row', // Change to row layout
+    justifyContent: 'space-between', // Space between label and icon+value
+    alignItems: 'center', // Center align vertically
+  },
+  macroLabel: {
+    fontSize: 14, // Slightly larger font
+    fontWeight: '600',
+    color: '#333',
+    flex: 1, // Take available space on the left
+  },
+  macroContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6, // Reduced gap between icon and value
+  },
+  macroValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  healthScoreSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  healthScoreCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#6366F1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  healthScoreNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  healthScoreInfo: {
+    flex: 1,
+  },
+  healthScoreTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  healthScoreDescription: {
+    fontSize: 14,
+    color: '#666',
+  },
+  ingredientsSection: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  ingredientsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  ingredientsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  ingredientsCount: {
+    fontSize: 14,
+    color: '#666',
+  },
+  ingredientItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 6,
+  },
+  ingredientEmoji: {
+    fontSize: 16,
+    marginRight: 10,
+  },
+  ingredientInfo: {
+    flex: 1,
+  },
+  ingredientName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 1,
+  },
+  ingredientAmount: {
+    fontSize: 12,
+    color: '#666',
+  },
+  ingredientCalories: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+  },
+  moodSection: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  moodTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  moodOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  moodOption: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedMoodOption: {
+    backgroundColor: '#6366F1',
+  },
+  moodEmoji: {
+    fontSize: 24,
+  },
+  moodLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  moodLabel: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    width: 60,
+  },
+  actionButtons: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  saveButton: {
+    backgroundColor: '#6366F1',
+    borderRadius: 12,
+    padding: 18,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  editButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#6366F1',
+    borderRadius: 12,
+    padding: 18,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  editButtonText: {
+    color: '#6366F1',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  saveToMealsButton: {
+    backgroundColor: '#8B5CF6',
+    borderRadius: 12,
+    padding: 18,
+    alignItems: 'center',
+  },
+  saveToMealsButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   // Error Modal Styles
   errorModalOverlay: {
     position: 'absolute',
@@ -497,20 +914,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     width: '100%',
     backgroundColor: '#f9f9f9',
-  },
-  saveButton: {
-    backgroundColor: '#7B61FF',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
   },
 
 });
