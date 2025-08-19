@@ -391,28 +391,36 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
     if (!validateMealName()) return;
     setSaving(true);
     try {
+      console.log('Saving meal to saved_meal table...');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not logged in');
       const { calories } = analysis?.total || {};
       const { protein, carbs, fat, fiber } = macros;
       const { description } = analysis || {};
-      const { error } = await supabase.from('saved_meal').insert([
-        {
-          user_id: user.id,
-          dish_name: mealNameState,
-          description: description || '',
-          calories: calories || 0,
-          protein: protein || 0,
-          carbs: carbs || 0,
-          fat: fat || 0,
-          fiber: fiber || 0,
-        },
-      ]);
-      if (error) throw error;
+      
+      const mealData = {
+        user_id: user.id,
+        dish_name: mealNameState,
+        description: description || '',
+        calories: calories || 0,
+        protein: protein || 0,
+        carbs: carbs || 0,
+        fat: fat || 0,
+        fiber: fiber || 0,
+        created_at: new Date().toISOString(),
+      };
+      
+      console.log('Meal data to save:', mealData);
+      const { error } = await supabase.from('saved_meal').insert([mealData]);
+      if (error) {
+        console.error('Error saving meal:', error);
+        throw error;
+      }
+      console.log('Meal saved successfully!');
       Alert.alert('Success', 'Meal saved successfully!', [
         {
           text: 'OK',
-          onPress: () => navigation.navigate('SavedMeals'),
+          onPress: () => navigation.replace('SavedMeals'),
         },
       ]);
     } catch (err) {
@@ -514,27 +522,35 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
 
          {/* Macros Grid */}
          <View style={styles.macrosGrid}>
-           <View style={[styles.macroCard, { backgroundColor: '#FFF2E6' }]}>
-             <Text style={styles.macroLabel}>Carbs</Text>
-             <Ionicons name="restaurant-outline" size={20} color="#333" style={styles.macroIcon} />
-             <Text style={styles.macroValue}>{macros.carbs}g</Text>
-           </View>
-           <View style={[styles.macroCard, { backgroundColor: '#E6F3FF' }]}>
-             <Text style={styles.macroLabel}>Protein</Text>
-             <Ionicons name="fitness-outline" size={20} color="#333" style={styles.macroIcon} />
-             <Text style={styles.macroValue}>{macros.protein}g</Text>
-           </View>
-           <View style={[styles.macroCard, { backgroundColor: '#F0FFE6' }]}>
-             <Text style={styles.macroLabel}>Fat</Text>
-             <Ionicons name="leaf-outline" size={20} color="#333" style={styles.macroIcon} />
-             <Text style={styles.macroValue}>{macros.fat}g</Text>
-           </View>
-           <View style={[styles.macroCard, { backgroundColor: '#F3E6FF' }]}>
-             <Text style={styles.macroLabel}>Fiber</Text>
-             <Ionicons name="nutrition-outline" size={20} color="#333" style={styles.macroIcon} />
-             <Text style={styles.macroValue}>{macros.fiber}g</Text>
-           </View>
-         </View>
+  <View style={[styles.macroCard, { backgroundColor: '#FFF2E6' }]}>
+    <View style={styles.macroIconColumn}>
+      <Ionicons name="restaurant-outline" size={20} color="#333" />
+      <Text style={styles.macroValue}>{Math.round(macros.carbs)}g</Text>
+    </View>
+    <Text style={styles.macroLabel}>Carbs</Text>
+  </View>
+  <View style={[styles.macroCard, { backgroundColor: '#E6F3FF' }]}>
+    <View style={styles.macroIconColumn}>
+      <Ionicons name="fitness-outline" size={20} color="#333" />
+      <Text style={styles.macroValue}>{Math.round(macros.protein)}g</Text>
+    </View>
+    <Text style={styles.macroLabel}>Protein</Text>
+  </View>
+  <View style={[styles.macroCard, { backgroundColor: '#F0FFE6' }]}>
+    <View style={styles.macroIconColumn}>
+      <Ionicons name="leaf-outline" size={20} color="#333" />
+      <Text style={styles.macroValue}>{Math.round(macros.fat)}g</Text>
+    </View>
+    <Text style={styles.macroLabel}>Fat</Text>
+  </View>
+  <View style={[styles.macroCard, { backgroundColor: '#F3E6FF' }]}>
+    <View style={styles.macroIconColumn}>
+      <Ionicons name="nutrition-outline" size={20} color="#333" />
+      <Text style={styles.macroValue}>{Math.round(macros.fiber)}g</Text>
+    </View>
+    <Text style={styles.macroLabel}>Fiber</Text>
+  </View>
+</View>
 
         {/* Health Score */}
         <View style={styles.healthScoreSection}>
@@ -723,22 +739,27 @@ const styles = StyleSheet.create({
   macroCard: {
     width: '48%',
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'row', // Row layout for icon column and name
+    alignItems: 'flex-start', // Align to top
   },
-  macroIcon: {
-    marginRight: 8,
+  macroIconColumn: {
+    alignItems: 'center', // Center icon and value
+    marginRight: 12, // Space between icon column and name
   },
   macroLabel: {
-    fontSize: 12,
-    color: '#666',
-    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    alignSelf: 'flex-start', // Align name to top
+    marginTop: 2, // Small adjustment to align with icon
+  },
+  macroContent: {
+    // Remove this style as we're restructuring
   },
   macroValue: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
   },
