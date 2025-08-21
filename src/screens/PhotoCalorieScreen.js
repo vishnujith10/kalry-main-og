@@ -14,6 +14,61 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editedFoodName, setEditedFoodName] = useState('');
   const [selectedMood, setSelectedMood] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [ingredients, setIngredients] = useState([]);
+  const [macros, setMacros] = useState({
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    fiber: 0,
+  });
+
+  // Helper function to get ingredient icon
+  const getIngredientIcon = (name) => {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('chicken')) return '🍗';
+    if (lowerName.includes('rice')) return '🍚';
+    if (lowerName.includes('bread')) return '🍞';
+    if (lowerName.includes('egg')) return '🥚';
+    if (lowerName.includes('milk')) return '🥛';
+    if (lowerName.includes('cheese')) return '🧀';
+    if (lowerName.includes('vegetable') || lowerName.includes('veg')) return '🥬';
+    if (lowerName.includes('fruit')) return '🍎';
+    if (lowerName.includes('fish')) return '🐟';
+    if (lowerName.includes('beef') || lowerName.includes('meat')) return '🥩';
+    if (lowerName.includes('pasta')) return '🍝';
+    if (lowerName.includes('soup')) return '🥣';
+    if (lowerName.includes('salad')) return '🥗';
+    if (lowerName.includes('potato')) return '🥔';
+    if (lowerName.includes('tomato')) return '🍅';
+    if (lowerName.includes('onion')) return '🧅';
+    if (lowerName.includes('garlic')) return '🧄';
+    if (lowerName.includes('spice')) return '🌶️';
+    if (lowerName.includes('sauce')) return '🥫';
+    return '🍽️';
+  };
+
+  // Initialize state from analysis
+  useEffect(() => {
+    if (analysis) {
+      setMacros({
+        protein: analysis?.total_nutrition?.protein || 0,
+        carbs: analysis?.total_nutrition?.carbs || 0,
+        fat: analysis?.total_nutrition?.fat || 0,
+        fiber: analysis?.total_nutrition?.fiber || 0,
+      });
+      
+      if (analysis?.ingredients && Array.isArray(analysis.ingredients)) {
+        const newIngredients = analysis.ingredients.map(item => ({
+          name: item?.name || 'Unknown Ingredient',
+          amount: '1 serving',
+          calories: Math.round(item?.calories || 0),
+          icon: getIngredientIcon(item?.name || ''),
+        }));
+        setIngredients(newIngredients);
+      }
+    }
+  }, [analysis]);
 
   const moodOptions = [
     { emoji: '😊', label: 'Happy' },
@@ -228,20 +283,26 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
   const handleConfirm = async () => {
     if (!analysis) return;
     try {
-        const { total_nutrition, dish_name } = analysis;
+        const { dish_name } = analysis;
         const { data: { session } } = await supabase.auth.getSession();
         const user_id = session?.user?.id;
         if (!user_id) {
           Alert.alert('You must be logged in to log food.');
           return;
         }
+        
+        // Get selected mood emoji
+        const selectedMoodEmoji = selectedMood !== null ? moodOptions[selectedMood].emoji : null;
+        
         const logData = {
             meal_type: mealType,
             food_name: dish_name,
             calories: total_nutrition.calories,
-            protein: total_nutrition.protein,
-            carbs: total_nutrition.carbs,
-            fat: total_nutrition.fat,
+            protein: macros.protein,
+            carbs: macros.carbs,
+            fat: macros.fat,
+            fiber: macros.fiber,
+            mood: selectedMoodEmoji,
             user_id,
         };
         await createFoodLog(logData);
@@ -277,7 +338,7 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
     );
   }
   
-  const { dish_name, description, total_nutrition, ingredients } = analysis;
+  const { dish_name, description, total_nutrition, ingredients: analysisIngredients } = analysis;
 
   const getCurrentTime = () => {
     const now = new Date();
@@ -300,28 +361,28 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
     return 'Low protein content. High in fats. Low fiber content (0g).';
   };
 
-  const getIngredientIcon = (name) => {
-    const lowerName = name.toLowerCase();
-    if (lowerName.includes('chicken')) return '🍗';
-    if (lowerName.includes('rice')) return '🍚';
-    if (lowerName.includes('bread')) return '🍞';
-    if (lowerName.includes('egg')) return '🥚';
-    if (lowerName.includes('milk')) return '🥛';
-    if (lowerName.includes('cheese')) return '🧀';
-    if (lowerName.includes('vegetable') || lowerName.includes('veg')) return '🥬';
-    if (lowerName.includes('fruit')) return '🍎';
-    if (lowerName.includes('fish')) return '🐟';
-    if (lowerName.includes('beef') || lowerName.includes('meat')) return '🥩';
-    if (lowerName.includes('pasta')) return '🍝';
-    if (lowerName.includes('soup')) return '🥣';
-    if (lowerName.includes('salad')) return '🥗';
-    if (lowerName.includes('potato')) return '🥔';
-    if (lowerName.includes('tomato')) return '🍅';
-    if (lowerName.includes('onion')) return '🧅';
-    if (lowerName.includes('garlic')) return '🧄';
-    if (lowerName.includes('spice')) return '🌶️';
-    if (lowerName.includes('sauce')) return '🥫';
-    return '🍽️';
+  const handleMacroChange = (key, value) => {
+    setMacros({ ...macros, [key]: value });
+  };
+
+  const handleIngredientChange = (index, field, value) => {
+    const newIngredients = [...ingredients];
+    newIngredients[index] = { ...newIngredients[index], [field]: value };
+    setIngredients(newIngredients);
+  };
+
+  const addIngredient = () => {
+    setIngredients([...ingredients, {
+      name: '',
+      amount: '',
+      calories: 0,
+      icon: '🍽️'
+    }]);
+  };
+
+  const removeIngredient = (index) => {
+    const newIngredients = ingredients.filter((_, i) => i !== index);
+    setIngredients(newIngredients);
   };
 
   return (
@@ -337,7 +398,16 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
         {/* Title and Time */}
         <View style={styles.titleSection}>
           <Text style={styles.title}>Meal Reflected</Text>
-          <Text style={styles.mealName}>{dish_name}</Text>
+          {isEditing ? (
+            <TextInput
+              style={[styles.mealName, styles.editableText]}
+              value={dish_name}
+              onChangeText={(value) => setAnalysis({...analysis, dish_name: value})}
+              placeholder="Enter meal name"
+            />
+          ) : (
+            <Text style={styles.mealName}>{dish_name}</Text>
+          )}
           <View style={styles.timeRow}>
             <Text style={styles.timeText}>Today, {getCurrentTime()}</Text>
             <View style={styles.mealTypeTag}>
@@ -374,28 +444,64 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
             <Text style={styles.macroLabel}>Carbs</Text>
             <View style={styles.macroContent}>
               <Ionicons name="restaurant-outline" size={16} color="#333" />
-              <Text style={styles.macroValue}>40g</Text>
+              {isEditing ? (
+                <TextInput
+                  style={[styles.macroValue, styles.editableText]}
+                  value={Math.round(macros.carbs).toString()}
+                  onChangeText={(value) => handleMacroChange('carbs', parseFloat(value) || 0)}
+                  keyboardType="numeric"
+                />
+              ) : (
+                <Text style={styles.macroValue}>{Math.round(macros.carbs)}g</Text>
+              )}
             </View>
           </View>
           <View style={[styles.macroCard, { backgroundColor: '#E6F3FF' }]}>
             <Text style={styles.macroLabel}>Protein</Text>
             <View style={styles.macroContent}>
               <Ionicons name="fitness-outline" size={16} color="#333" />
-              <Text style={styles.macroValue}>8g</Text>
+              {isEditing ? (
+                <TextInput
+                  style={[styles.macroValue, styles.editableText]}
+                  value={Math.round(macros.protein).toString()}
+                  onChangeText={(value) => handleMacroChange('protein', parseFloat(value) || 0)}
+                  keyboardType="numeric"
+                />
+              ) : (
+                <Text style={styles.macroValue}>{Math.round(macros.protein)}g</Text>
+              )}
             </View>
           </View>
           <View style={[styles.macroCard, { backgroundColor: '#F0FFE6' }]}>
             <Text style={styles.macroLabel}>Fat</Text>
             <View style={styles.macroContent}>
               <Ionicons name="leaf-outline" size={16} color="#333" />
-              <Text style={styles.macroValue}>10g</Text>
+              {isEditing ? (
+                <TextInput
+                  style={[styles.macroValue, styles.editableText]}
+                  value={Math.round(macros.fat).toString()}
+                  onChangeText={(value) => handleMacroChange('fat', parseFloat(value) || 0)}
+                  keyboardType="numeric"
+                />
+              ) : (
+                <Text style={styles.macroValue}>{Math.round(macros.fat)}g</Text>
+              )}
             </View>
           </View>
           <View style={[styles.macroCard, { backgroundColor: '#F3E6FF' }]}>
             <Text style={styles.macroLabel}>Fiber</Text>
             <View style={styles.macroContent}>
               <Ionicons name="nutrition-outline" size={16} color="#333" />
-              <Text style={styles.macroValue}>0g</Text>
+              {isEditing ? (
+                <TextInput
+                  style={[styles.macroValue, styles.editableText]}
+                  value={Math.round(macros.fiber).toString()}
+                  onChangeText={(value) => handleMacroChange('fiber', parseFloat(value) || 0)}
+                  keyboardType="numeric"
+                />
+              ) : (
+                <Text style={styles.macroValue}>{Math.round(macros.fiber)}g</Text>
+              )}
             </View>
           </View>
         </View>
@@ -415,29 +521,61 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
         <View style={styles.ingredientsSection}>
           <View style={styles.ingredientsHeader}>
             <Text style={styles.ingredientsTitle}>Ingredients</Text>
-            <Text style={styles.ingredientsCount}>{ingredients.length} items</Text>
-          </View>
-          {ingredients && ingredients.length > 0 ? (
-            ingredients.map((ingredient, index) => (
-              <View key={index} style={styles.ingredientItem}>
-                <Text style={styles.ingredientEmoji}>{getIngredientIcon(ingredient.name)}</Text>
-                <View style={styles.ingredientInfo}>
-                  <Text style={styles.ingredientName}>{ingredient.name}</Text>
-                  <Text style={styles.ingredientAmount}>{ingredient.quantity || '1 serving'}</Text>
-                </View>
-                <Text style={styles.ingredientCalories}>{ingredient.calories ? ingredient.calories.toFixed(0) : '0'} kcal</Text>
-              </View>
-            ))
-          ) : (
-            <View style={styles.ingredientItem}>
-              <Text style={styles.ingredientEmoji}>🍽️</Text>
-              <View style={styles.ingredientInfo}>
-                <Text style={styles.ingredientName}>Complete Meal</Text>
-                <Text style={styles.ingredientAmount}>1 serving</Text>
-              </View>
-              <Text style={styles.ingredientCalories}>250 kcal</Text>
+            <View style={styles.ingredientsHeaderRight}>
+              <Text style={styles.ingredientsCount}>{ingredients.length} items</Text>
+              {isEditing && (
+                <TouchableOpacity onPress={addIngredient} style={styles.addIngredientButton}>
+                  <Ionicons name="add-circle" size={24} color="#6366F1" />
+                </TouchableOpacity>
+              )}
             </View>
-          )}
+          </View>
+          {ingredients.map((ingredient, index) => (
+            <View key={index} style={styles.ingredientItem}>
+              <Text style={styles.ingredientEmoji}>{ingredient.icon}</Text>
+              <View style={styles.ingredientInfo}>
+                {isEditing ? (
+                  <>
+                    <TextInput
+                      style={[styles.ingredientName, styles.editableText]}
+                      value={ingredient.name}
+                      onChangeText={(value) => handleIngredientChange(index, 'name', value)}
+                      placeholder="Ingredient name"
+                    />
+                    <TextInput
+                      style={[styles.ingredientAmount, styles.editableText]}
+                      value={ingredient.amount}
+                      onChangeText={(value) => handleIngredientChange(index, 'amount', value)}
+                      placeholder="Amount"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.ingredientName}>{ingredient.name}</Text>
+                    <Text style={styles.ingredientAmount}>{ingredient.amount}</Text>
+                  </>
+                )}
+              </View>
+              <View style={styles.ingredientRight}>
+                {isEditing ? (
+                  <TextInput
+                    style={[styles.ingredientCalories, styles.editableText]}
+                    value={ingredient.calories.toString()}
+                    onChangeText={(value) => handleIngredientChange(index, 'calories', parseInt(value) || 0)}
+                    keyboardType="numeric"
+                    placeholder="0"
+                  />
+                ) : (
+                  <Text style={styles.ingredientCalories}>{ingredient.calories} kcal</Text>
+                )}
+                {isEditing && (
+                  <TouchableOpacity onPress={() => removeIngredient(index)} style={styles.removeIngredientButton}>
+                    <Ionicons name="close-circle" size={20} color="#FF6B6B" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          ))}
         </View>
 
         {/* Mood Selection */}
@@ -466,8 +604,8 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.editButton} onPress={handleEditFoodName}>
-            <Text style={styles.editButtonText}>Edit Meal</Text>
+          <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(!isEditing)}>
+            <Text style={styles.editButtonText}>{isEditing ? 'Done' : 'Edit Meal'}</Text>
           </TouchableOpacity>
           
           <View style={styles.bottomButtonsRow}>
@@ -590,6 +728,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#666',
     marginBottom: 8,
+  },
+  editableText: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   timeRow: {
     flexDirection: 'row',
@@ -743,6 +889,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  ingredientsHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addIngredientButton: {
+    padding: 4,
+  },
   ingredientItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -772,6 +926,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#333',
+  },
+  ingredientRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  removeIngredientButton: {
+    padding: 2,
   },
   moodSection: {
     paddingHorizontal: 20,
@@ -835,7 +997,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#6366F1',
     borderRadius: 12,
-    padding: 18,
+    padding: 15,
     alignItems: 'center',
   },
   editButtonText: {

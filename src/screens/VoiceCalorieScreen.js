@@ -215,6 +215,16 @@ IMPORTANT RULES:
     - Nuts and seeds: 2-6g fiber per serving
     - Processed foods: 0-2g fiber per serving
 
+11. CRITICAL: For complex dishes, break them down into their main ingredients:
+    - "masala dosa" → break into: "1 dosa", "100g potato masala", "50ml sambar", "30ml chutney"
+    - "chicken biryani" → break into: "200g basmati rice", "150g chicken", "10g biryani spices"
+    - "pizza" → break into: "2-3 pizza slices", "60g cheese", "80g toppings"
+    - "burger" → break into: "1 burger bun", "120g patty", "50g vegetables & sauce"
+    - "curry with rice" → break into: "200g curry", "150g rice"
+    - "sandwich" → break into: "2 bread slices", "100g filling", "30g cheese"
+    - "pasta" → break into: "150g pasta", "100g sauce", "40g cheese"
+    - "salad" → break into: "150g mixed greens", "100g protein", "30ml dressing"
+
 The JSON object must have this structure: 
 { "transcription": "The full text of what you heard", "items": [ { "name": "quantity + food item", "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number>, "fiber": <number> } ], "total": { "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number>, "fiber": <number> } }`;
           

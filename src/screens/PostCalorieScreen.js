@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, BackHandler, Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, BackHandler, Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import supabase from '../lib/supabase';
 
 const PostCalorieScreen = ({ route, navigation }) => {
@@ -27,8 +27,10 @@ const PostCalorieScreen = ({ route, navigation }) => {
   const [mealNameState, setMealNameState] = useState(analysis?.dish_name || mealName || '');
   const [nameError, setNameError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [logging, setLogging] = useState(false);
   const [selectedMood, setSelectedMood] = useState(null);
   const [macrosLoaded, setMacrosLoaded] = useState(false);
+  const [ingredients, setIngredients] = useState([]);
 
   // Update macros when analysis data changes
   useEffect(() => {
@@ -320,67 +322,75 @@ const PostCalorieScreen = ({ route, navigation }) => {
     return ingredients;
   };
 
-  // Real ingredients data from analysis
-  const ingredients = (() => {
-    try {
-      console.log('Analysis data:', analysis);
-      console.log('Analysis items:', analysis?.items);
-      
-      // First, try to get ingredients from analysis
-      if (analysis?.items && Array.isArray(analysis.items) && analysis.items.length > 0) {
-        return analysis.items.map(item => ({
-          name: item?.name || 'Unknown Ingredient',
-          amount: item?.quantity || '1 serving',
-          calories: Math.round(item?.calories || 0),
-          icon: getIngredientIcon(item?.name || ''),
-        }));
-      }
-      
-      // If no analysis items, extract main ingredients from meal name
-      const mealNameToUse = mealNameState || analysis?.dish_name || 'Meal';
-      const totalCalories = analysis?.total?.calories || analysis?.total_nutrition?.calories || 0;
-      
-      console.log('Meal name for ingredients:', mealNameToUse);
-      console.log('Total calories:', totalCalories);
-      
-      // Extract main ingredients from meal name
-      const mainIngredients = extractMainIngredients(mealNameToUse);
-      console.log('Extracted main ingredients:', mainIngredients);
-      
-      if (mainIngredients.length > 0) {
-        console.log('Using extracted main ingredients');
-        // Distribute calories among main ingredients proportionally
-        const caloriesPerIngredient = Math.round(totalCalories / mainIngredients.length);
+  // Initialize ingredients from analysis
+  useEffect(() => {
+    const initializeIngredients = () => {
+      try {
+        console.log('Analysis data:', analysis);
+        console.log('Analysis items:', analysis?.items);
         
-        return mainIngredients.map((ingredient, index) => ({
-          name: ingredient.name,
-          amount: ingredient.amount,
-          calories: index === mainIngredients.length - 1 ? 
-            totalCalories - (caloriesPerIngredient * (mainIngredients.length - 1)) : 
-            caloriesPerIngredient,
-          icon: ingredient.icon
-        }));
+        // First, try to get ingredients from analysis
+        if (analysis?.items && Array.isArray(analysis.items) && analysis.items.length > 0) {
+          const newIngredients = analysis.items.map(item => ({
+            name: item?.name || 'Unknown Ingredient',
+            amount: item?.quantity || '1 serving',
+            calories: Math.round(item?.calories || 0),
+            icon: getIngredientIcon(item?.name || ''),
+          }));
+          setIngredients(newIngredients);
+          return;
+        }
+        
+        // If no analysis items, extract main ingredients from meal name
+        const mealNameToUse = mealNameState || analysis?.dish_name || 'Meal';
+        const totalCalories = analysis?.total?.calories || analysis?.total_nutrition?.calories || 0;
+        
+        console.log('Meal name for ingredients:', mealNameToUse);
+        console.log('Total calories:', totalCalories);
+        
+        // Extract main ingredients from meal name
+        const mainIngredients = extractMainIngredients(mealNameToUse);
+        console.log('Extracted main ingredients:', mainIngredients);
+        
+        if (mainIngredients.length > 0) {
+          console.log('Using extracted main ingredients');
+          // Distribute calories among main ingredients proportionally
+          const caloriesPerIngredient = Math.round(totalCalories / mainIngredients.length);
+          
+          const newIngredients = mainIngredients.map((ingredient, index) => ({
+            name: ingredient.name,
+            amount: ingredient.amount,
+            calories: index === mainIngredients.length - 1 ? 
+              totalCalories - (caloriesPerIngredient * (mainIngredients.length - 1)) : 
+              caloriesPerIngredient,
+            icon: ingredient.icon
+          }));
+          setIngredients(newIngredients);
+          return;
+        }
+        
+        // Final fallback - only if no main ingredients could be extracted
+        console.log('Using final fallback ingredient');
+        setIngredients([{
+          name: mealNameToUse || 'Complete Meal',
+          amount: '1 serving',
+          calories: totalCalories,
+          icon: '🍽️'
+        }]);
+        
+      } catch (error) {
+        console.log('Error processing ingredients:', error);
+        setIngredients([{ 
+          name: 'Complete Meal', 
+          amount: '1 serving', 
+          calories: analysis?.total_nutrition?.calories || 0, 
+          icon: '🍽️' 
+        }]);
       }
-      
-      // Final fallback - only if no main ingredients could be extracted
-      console.log('Using final fallback ingredient');
-      return [{
-        name: mealNameToUse || 'Complete Meal',
-        amount: '1 serving',
-        calories: totalCalories,
-        icon: '🍽️'
-      }];
-      
-    } catch (error) {
-      console.log('Error processing ingredients:', error);
-      return [{ 
-        name: 'Complete Meal', 
-        amount: '1 serving', 
-        calories: analysis?.total_nutrition?.calories || 0, 
-        icon: '🍽️' 
-      }];
-    }
-  })();
+    };
+    
+    initializeIngredients();
+  }, [analysis, mealNameState]);
 
   const moodOptions = [
     { emoji: '😊', label: 'High Protein' },
@@ -401,6 +411,26 @@ const PostCalorieScreen = ({ route, navigation }) => {
 
   const handleMacroChange = (key, value) => {
     setMacros({ ...macros, [key]: value });
+  };
+
+  const handleIngredientChange = (index, field, value) => {
+    const newIngredients = [...ingredients];
+    newIngredients[index] = { ...newIngredients[index], [field]: value };
+    setIngredients(newIngredients);
+  };
+
+  const addIngredient = () => {
+    setIngredients([...ingredients, {
+      name: '',
+      amount: '',
+      calories: 0,
+      icon: '🍽️'
+    }]);
+  };
+
+  const removeIngredient = (index) => {
+    const newIngredients = ingredients.filter((_, i) => i !== index);
+    setIngredients(newIngredients);
   };
 
   const validateMealName = () => {
@@ -437,7 +467,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
       Alert.alert('Success', 'Meal saved successfully!', [
         {
           text: 'OK',
-          onPress: () => navigation.navigate('SavedMeals'),
+          onPress: () => navigation.navigate('SavedMealsScreen'),
         },
       ]);
     } catch (err) {
@@ -449,13 +479,16 @@ const PostCalorieScreen = ({ route, navigation }) => {
 
   const handleDone = async () => {
     if (!validateMealName()) return;
-    setSaving(true);
+    setLogging(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not logged in');
       const { calories } = analysis?.total || analysis?.total_nutrition || {};
       const { protein, carbs, fat, fiber } = macros;
       const cleanFoodName = mealNameState.replace(/^You said:\s*/i, '');
+      
+      // Get selected mood emoji
+      const selectedMoodEmoji = selectedMood !== null ? moodOptions[selectedMood].emoji : null;
       
       const logData = {
         user_id: user.id,
@@ -466,6 +499,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
         protein: protein || 0,
         fat: fat || 0,
         fiber: fiber || 0,
+        mood: selectedMoodEmoji,
         date_time: new Date().toISOString().split('T')[0],
         meal_type: 'Quick Log',
         notes: '',
@@ -478,7 +512,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
     } catch (err) {
       Alert.alert('Error', err.message);
     } finally {
-      setSaving(false);
+      setLogging(false);
     }
   };
 
@@ -506,7 +540,16 @@ const PostCalorieScreen = ({ route, navigation }) => {
         {/* Title and Time */}
         <View style={styles.titleSection}>
           <Text style={styles.title}>Meal Reflected</Text>
-          <Text style={styles.mealName}>{mealNameState || analysis?.dish_name || 'Meal'}</Text>
+          {isEditing ? (
+            <TextInput
+              style={[styles.mealName, styles.editableText]}
+              value={mealNameState}
+              onChangeText={setMealNameState}
+              placeholder="Enter meal name"
+            />
+          ) : (
+            <Text style={styles.mealName}>{mealNameState || analysis?.dish_name || 'Meal'}</Text>
+          )}
           <View style={styles.timeRow}>
             <Text style={styles.timeText}>Today, {getCurrentTime()}</Text>
             <View style={styles.mealTypeTag}>
@@ -543,22 +586,58 @@ const PostCalorieScreen = ({ route, navigation }) => {
             <View style={[styles.macroCard, { backgroundColor: '#FFF2E6' }]}>
               <Text style={styles.macroLabel}>Carbs</Text>
               <Ionicons name="restaurant-outline" size={20} color="#333" style={styles.macroIcon} />
-              <Text style={styles.macroValue}>{Math.round(macros.carbs)}g</Text>
+              {isEditing ? (
+                <TextInput
+                  style={[styles.macroValue, styles.editableText]}
+                  value={Math.round(macros.carbs).toString()}
+                  onChangeText={(value) => handleMacroChange('carbs', parseFloat(value) || 0)}
+                  keyboardType="numeric"
+                />
+              ) : (
+                <Text style={styles.macroValue}>{Math.round(macros.carbs)}g</Text>
+              )}
             </View>
             <View style={[styles.macroCard, { backgroundColor: '#E6F3FF' }]}>
               <Text style={styles.macroLabel}>Protein</Text>
               <Ionicons name="fitness-outline" size={20} color="#333" style={styles.macroIcon} />
-              <Text style={styles.macroValue}>{Math.round(macros.protein)}g</Text>
+              {isEditing ? (
+                <TextInput
+                  style={[styles.macroValue, styles.editableText]}
+                  value={Math.round(macros.protein).toString()}
+                  onChangeText={(value) => handleMacroChange('protein', parseFloat(value) || 0)}
+                  keyboardType="numeric"
+                />
+              ) : (
+                <Text style={styles.macroValue}>{Math.round(macros.protein)}g</Text>
+              )}
             </View>
             <View style={[styles.macroCard, { backgroundColor: '#F0FFE6' }]}>
               <Text style={styles.macroLabel}>Fat</Text>
               <Ionicons name="leaf-outline" size={20} color="#333" style={styles.macroIcon} />
-              <Text style={styles.macroValue}>{Math.round(macros.fat)}g</Text>
+              {isEditing ? (
+                <TextInput
+                  style={[styles.macroValue, styles.editableText]}
+                  value={Math.round(macros.fat).toString()}
+                  onChangeText={(value) => handleMacroChange('fat', parseFloat(value) || 0)}
+                  keyboardType="numeric"
+                />
+              ) : (
+                <Text style={styles.macroValue}>{Math.round(macros.fat)}g</Text>
+              )}
             </View>
             <View style={[styles.macroCard, { backgroundColor: '#F3E6FF' }]}>
               <Text style={styles.macroLabel}>Fiber</Text>
               <Ionicons name="nutrition-outline" size={20} color="#333" style={styles.macroIcon} />
-              <Text style={styles.macroValue}>{Math.round(macros.fiber)}g</Text>
+              {isEditing ? (
+                <TextInput
+                  style={[styles.macroValue, styles.editableText]}
+                  value={Math.round(macros.fiber).toString()}
+                  onChangeText={(value) => handleMacroChange('fiber', parseFloat(value) || 0)}
+                  keyboardType="numeric"
+                />
+              ) : (
+                <Text style={styles.macroValue}>{Math.round(macros.fiber)}g</Text>
+              )}
             </View>
           </View>
         )}
@@ -586,16 +665,59 @@ const PostCalorieScreen = ({ route, navigation }) => {
         <View style={styles.ingredientsSection}>
           <View style={styles.ingredientsHeader}>
             <Text style={styles.ingredientsTitle}>Ingredients</Text>
-            <Text style={styles.ingredientsCount}>{ingredients.length} items</Text>
+            <View style={styles.ingredientsHeaderRight}>
+              <Text style={styles.ingredientsCount}>{ingredients.length} items</Text>
+              {isEditing && (
+                <TouchableOpacity onPress={addIngredient} style={styles.addIngredientButton}>
+                  <Ionicons name="add-circle" size={24} color="#6366F1" />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
           {ingredients.map((ingredient, index) => (
             <View key={index} style={styles.ingredientItem}>
               <Text style={styles.ingredientEmoji}>{ingredient.icon}</Text>
               <View style={styles.ingredientInfo}>
-                <Text style={styles.ingredientName}>{ingredient.name}</Text>
-                <Text style={styles.ingredientAmount}>{ingredient.amount}</Text>
+                {isEditing ? (
+                  <>
+                    <TextInput
+                      style={[styles.ingredientName, styles.editableText]}
+                      value={ingredient.name}
+                      onChangeText={(value) => handleIngredientChange(index, 'name', value)}
+                      placeholder="Ingredient name"
+                    />
+                    <TextInput
+                      style={[styles.ingredientAmount, styles.editableText]}
+                      value={ingredient.amount}
+                      onChangeText={(value) => handleIngredientChange(index, 'amount', value)}
+                      placeholder="Amount"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.ingredientName}>{ingredient.name}</Text>
+                    <Text style={styles.ingredientAmount}>{ingredient.amount}</Text>
+                  </>
+                )}
               </View>
-              <Text style={styles.ingredientCalories}>{ingredient.calories} kcal</Text>
+              <View style={styles.ingredientRight}>
+                {isEditing ? (
+                  <TextInput
+                    style={[styles.ingredientCalories, styles.editableText]}
+                    value={ingredient.calories.toString()}
+                    onChangeText={(value) => handleIngredientChange(index, 'calories', parseInt(value) || 0)}
+                    keyboardType="numeric"
+                    placeholder="0"
+                  />
+                ) : (
+                  <Text style={styles.ingredientCalories}>{ingredient.calories} kcal</Text>
+                )}
+                {isEditing && (
+                  <TouchableOpacity onPress={() => removeIngredient(index)} style={styles.removeIngredientButton}>
+                    <Ionicons name="close-circle" size={20} color="#FF6B6B" />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           ))}
         </View>
@@ -627,7 +749,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(!isEditing)}>
-            <Text style={styles.editButtonText}>Edit Meal</Text>
+            <Text style={styles.editButtonText}>{isEditing ? 'Done' : 'Edit Meal'}</Text>
           </TouchableOpacity>
           
           <View style={styles.bottomButtonsRow}>
@@ -637,9 +759,9 @@ const PostCalorieScreen = ({ route, navigation }) => {
               </Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.saveButton} onPress={handleDone} disabled={saving}>
+            <TouchableOpacity style={styles.saveButton} onPress={handleDone} disabled={logging}>
               <Text style={styles.saveButtonText}>
-                {saving ? 'Logging...' : 'Log Food'}
+                {logging ? 'Logging...' : 'Log Food'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -901,6 +1023,30 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     width: 60,
+  },
+  editableText: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  ingredientsHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addIngredientButton: {
+    padding: 4,
+  },
+  ingredientRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  removeIngredientButton: {
+    padding: 2,
   },
   actionButtons: {
     paddingHorizontal: 20,
