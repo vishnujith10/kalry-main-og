@@ -151,7 +151,7 @@ const CalorieFooter = ({ navigation, activeTab }) => {
   };
   const handleTextLog = () => {
     setModalVisible(false);
-    navigation.navigate('ManualLogScreen', { mealType: 'Quick Log' });
+    navigation.navigate('QuickLogScreen', { mealType: 'Quick Log' });
   };
   const handleVoiceLog = () => {
     setModalVisible(false);

@@ -51,10 +51,26 @@ const ManualLogScreen = ({ route, navigation }) => {
         {
           "dish_name": "A concise and appealing name for the dish",
           "description": "A one-sentence savory description of the dish.",
-          "total_nutrition": { "calories": <number>, "protein": <number>, "fat": <number>, "carbs": <number> },
-          "ingredients": [ { "name": "ingredient name", "calories": <number> } ]
+          "total_nutrition": { "calories": <number>, "protein": <number>, "fat": <number>, "carbs": <number>, "fiber": <number> },
+          "ingredients": [ { "name": "EXACT_QUANTITY + ingredient name", "calories": <number> } ]
         }
-        Provide a reasonable estimate for a standard serving size.
+        
+        CRITICAL INSTRUCTIONS:
+        1. The quantities provided (like "200g", "1 cup", "2 slices") are EXACT and must be used for calculations
+        2. DO NOT convert to standard serving sizes - use the quantities as provided
+        3. Calculate nutrition values proportionally based on the exact quantities:
+           - If "200g black beans" is provided, and 100g typically has 20g carbs, then 200g = 40g carbs
+           - If "1.5 cups rice" is provided, and 1 cup typically has 200 calories, then 1.5 cups = 300 calories
+        4. Preserve the exact quantities in ingredient names (e.g., "200g black beans", not "1 black beans")
+        
+        IMPORTANT: Provide realistic fiber values based on the food type:
+        - Fruits and vegetables: 2-8g fiber per serving
+        - Whole grains and breads: 2-4g fiber per serving  
+        - Legumes and beans: 5-15g fiber per serving
+        - Nuts and seeds: 2-6g fiber per serving
+        - Processed foods: 0-2g fiber per serving
+        
+        EXAMPLE: If user enters "200g black beans", calculate nutrition for exactly 200g, not for a standard serving size.
       `;
 
       const result = await model.generateContent(prompt);
@@ -90,7 +106,7 @@ const ManualLogScreen = ({ route, navigation }) => {
         carbs: total_nutrition.carbs,
         protein: total_nutrition.protein,
         fat: total_nutrition.fat,
-        fiber: null,
+        fiber: total_nutrition.fiber || 0,
         sugar: null,
         sodium: null,
         date_time: new Date().toISOString().split('T')[0],
@@ -145,7 +161,42 @@ const ManualLogScreen = ({ route, navigation }) => {
       }
       // Build a prompt for the AI based on the foodItems array
       const foodList = foodItems.map(item => `${item.qty} ${item.unit} ${item.name}`).join(', ');
-      const prompt = `Analyze the following meal: ${foodList}. Your response MUST be a valid JSON object and nothing else. Do not include markdown formatting. The JSON object should have the following structure: { "dish_name": "A concise and appealing name for the dish", "description": "A one-sentence savory description of the dish.", "total_nutrition": { "calories": <number>, "protein": <number>, "fat": <number>, "carbs": <number> }, "ingredients": [ { "name": "ingredient name", "calories": <number> } ] } Provide a reasonable estimate for a standard serving size.`;
+      console.log('ManualLogScreen - Food list being sent to AI:', foodList);
+      
+      const prompt = `Analyze the following meal with EXACT quantities: ${foodList}. Your response MUST be a valid JSON object and nothing else. Do not include markdown formatting. 
+
+CRITICAL INSTRUCTIONS:
+1. The quantities provided (like "200g", "1 cup", "2 slices") are EXACT and must be used for calculations
+2. DO NOT convert to standard serving sizes - use the quantities as provided
+3. Calculate nutrition values proportionally based on the exact quantities:
+   - If "200g black beans" is provided, and 100g typically has 20g carbs, then 200g = 40g carbs
+   - If "1.5 cups rice" is provided, and 1 cup typically has 200 calories, then 1.5 cups = 300 calories
+4. Preserve the exact quantities in ingredient names (e.g., "200g black beans", not "1 black beans")
+
+The JSON object should have this structure: 
+{ 
+  "dish_name": "A concise and appealing name for the dish", 
+  "description": "A one-sentence savory description of the dish.", 
+  "total_nutrition": { 
+    "calories": <number>, 
+    "protein": <number>, 
+    "fat": <number>, 
+    "carbs": <number>, 
+    "fiber": <number> 
+  }, 
+  "ingredients": [ 
+    { "name": "EXACT_QUANTITY + ingredient name", "calories": <number> } 
+  ] 
+}
+
+IMPORTANT: Provide realistic fiber values based on the food type:
+- Fruits and vegetables: 2-8g fiber per serving
+- Whole grains and breads: 2-4g fiber per serving  
+- Legumes and beans: 5-15g fiber per serving
+- Nuts and seeds: 2-6g fiber per serving
+- Processed foods: 0-2g fiber per serving
+
+EXAMPLE: If user enters "200g black beans", calculate nutrition for exactly 200g, not for a standard serving size.`;
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent(prompt);
       const response = await result.response;

@@ -611,17 +611,19 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
             <Text style={styles.editButtonText}>Edit Meal</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.saveButton} onPress={handleDone} disabled={saving}>
-            <Text style={styles.saveButtonText}>
-              {saving ? 'Logging...' : 'Log Food'}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.saveToMealsButton} onPress={handleSave} disabled={saving}>
-            <Text style={styles.saveToMealsButtonText}>
-              {saving ? 'Saving...' : 'Save'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.bottomButtonsRow}>
+            <TouchableOpacity style={styles.saveToMealsButton} onPress={handleSave} disabled={saving}>
+              <Text style={styles.saveToMealsButtonText}>
+                {saving ? 'Saving...' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.saveButton} onPress={handleDone} disabled={saving}>
+              <Text style={styles.saveButtonText}>
+                {saving ? 'Logging...' : 'Log Food'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -895,7 +897,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 18,
     alignItems: 'center',
-    marginBottom: 12,
+    flex: 1,
+    marginLeft: 6,
   },
   saveButtonText: {
     color: 'white',
@@ -920,12 +923,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 18,
     alignItems: 'center',
-    marginTop: 12,
+    flex: 1,
+    marginRight: 6,
   },
   saveToMealsButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  bottomButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    gap: 12,
   },
 });
 

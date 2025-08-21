@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, BackHandler, Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import supabase from '../lib/supabase';
 
@@ -11,21 +11,54 @@ const PostCalorieScreen = ({ route, navigation }) => {
   if (!route.params) {
     console.log('No route params found, using defaults');
   }
+  
+  console.log('PostCalorieScreen - Route params:', route.params);
+  console.log('PostCalorieScreen - Analysis:', analysis);
+  console.log('PostCalorieScreen - Analysis total:', analysis?.total);
+  console.log('PostCalorieScreen - Analysis total_nutrition:', analysis?.total_nutrition);
+  
   const [macros, setMacros] = useState({
-    protein: analysis?.total_nutrition?.protein || 0,
-    carbs: analysis?.total_nutrition?.carbs || 0,
-    fat: analysis?.total_nutrition?.fat || 0,
-    fiber: analysis?.total_nutrition?.fiber || 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    fiber: 0,
   });
   const [isEditing, setIsEditing] = useState(false);
   const [mealNameState, setMealNameState] = useState(analysis?.dish_name || mealName || '');
   const [nameError, setNameError] = useState('');
   const [saving, setSaving] = useState(false);
   const [selectedMood, setSelectedMood] = useState(null);
+  const [macrosLoaded, setMacrosLoaded] = useState(false);
+
+  // Update macros when analysis data changes
+  useEffect(() => {
+    console.log('useEffect triggered with analysis:', analysis);
+    if (analysis) {
+      const newMacros = {
+        protein: analysis?.total?.protein || analysis?.total_nutrition?.protein || 0,
+        carbs: analysis?.total?.carbs || analysis?.total_nutrition?.carbs || 0,
+        fat: analysis?.total?.fat || analysis?.total_nutrition?.fat || 0,
+        fiber: analysis?.total?.fiber || analysis?.total_nutrition?.fiber || 0,
+      };
+      console.log('Updating macros with:', newMacros);
+      console.log('Fiber value specifically:', newMacros.fiber);
+      setMacros(newMacros);
+      setMacrosLoaded(true); // Set loaded to true after macros are updated
+    } else {
+      console.log('No analysis data available');
+      setMacrosLoaded(true); // Ensure loaded is true even if no analysis
+    }
+  }, [analysis]);
+
+  // Debug effect to log macros state changes
+  useEffect(() => {
+    console.log('Macros state changed to:', macros);
+    console.log('Current fiber value:', macros.fiber);
+  }, [macros]);
 
   // Calculate dynamic health score based on food data and user profile
   const calculateHealthScore = () => {
-    const { calories, protein, carbs, fat, fiber } = analysis?.total_nutrition || {};
+    const { calories, protein, carbs, fat, fiber } = analysis?.total || analysis?.total_nutrition || {};
     
     if (!calories || calories === 0) return { score: 0, text: 'No Data', info: 'No nutritional data available' };
     
@@ -305,7 +338,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
       
       // If no analysis items, extract main ingredients from meal name
       const mealNameToUse = mealNameState || analysis?.dish_name || 'Meal';
-      const totalCalories = analysis?.total_nutrition?.calories || 0;
+      const totalCalories = analysis?.total?.calories || analysis?.total_nutrition?.calories || 0;
       
       console.log('Meal name for ingredients:', mealNameToUse);
       console.log('Total calories:', totalCalories);
@@ -385,7 +418,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not logged in');
-      const { calories } = analysis?.total_nutrition || {};
+      const { calories } = analysis?.total || analysis?.total_nutrition || {};
       const { protein, carbs, fat, fiber } = macros;
       const { description } = analysis || {};
       const { error } = await supabase.from('saved_meal').insert([
@@ -420,7 +453,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not logged in');
-      const { calories } = analysis?.total_nutrition || {};
+      const { calories } = analysis?.total || analysis?.total_nutrition || {};
       const { protein, carbs, fat, fiber } = macros;
       const cleanFoodName = mealNameState.replace(/^You said:\s*/i, '');
       
@@ -497,7 +530,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
              {/* Right side - Calorie Ring */}
              <View style={styles.calorieRing}>
                <View style={styles.calorieRingInner}>
-                 <Text style={styles.calorieNumber}>{analysis?.total_nutrition?.calories || 785}</Text>
+                 <Text style={styles.calorieNumber}>{analysis?.total?.calories || analysis?.total_nutrition?.calories || 785}</Text>
                  <Text style={styles.calorieLabel}>kcal</Text>
                </View>
              </View>
@@ -505,28 +538,38 @@ const PostCalorieScreen = ({ route, navigation }) => {
          </View>
 
          {/* Macros Grid */}
-         <View style={styles.macrosGrid}>
-           <View style={[styles.macroCard, { backgroundColor: '#FFF2E6' }]}>
-             <Text style={styles.macroLabel}>Carbs</Text>
-             <Ionicons name="restaurant-outline" size={20} color="#333" style={styles.macroIcon} />
-             <Text style={styles.macroValue}>{macros.carbs}g</Text>
-           </View>
-           <View style={[styles.macroCard, { backgroundColor: '#E6F3FF' }]}>
-             <Text style={styles.macroLabel}>Protein</Text>
-             <Ionicons name="fitness-outline" size={20} color="#333" style={styles.macroIcon} />
-             <Text style={styles.macroValue}>{macros.protein}g</Text>
-           </View>
-           <View style={[styles.macroCard, { backgroundColor: '#F0FFE6' }]}>
-             <Text style={styles.macroLabel}>Fat</Text>
-             <Ionicons name="leaf-outline" size={20} color="#333" style={styles.macroIcon} />
-             <Text style={styles.macroValue}>{macros.fat}g</Text>
-           </View>
-           <View style={[styles.macroCard, { backgroundColor: '#F3E6FF' }]}>
-             <Text style={styles.macroLabel}>Fiber</Text>
-             <Ionicons name="nutrition-outline" size={20} color="#333" style={styles.macroIcon} />
-             <Text style={styles.macroValue}>{macros.fiber}g</Text>
-           </View>
-         </View>
+        {macrosLoaded && (
+          <View style={styles.macrosGrid}>
+            <View style={[styles.macroCard, { backgroundColor: '#FFF2E6' }]}>
+              <Text style={styles.macroLabel}>Carbs</Text>
+              <Ionicons name="restaurant-outline" size={20} color="#333" style={styles.macroIcon} />
+              <Text style={styles.macroValue}>{Math.round(macros.carbs)}g</Text>
+            </View>
+            <View style={[styles.macroCard, { backgroundColor: '#E6F3FF' }]}>
+              <Text style={styles.macroLabel}>Protein</Text>
+              <Ionicons name="fitness-outline" size={20} color="#333" style={styles.macroIcon} />
+              <Text style={styles.macroValue}>{Math.round(macros.protein)}g</Text>
+            </View>
+            <View style={[styles.macroCard, { backgroundColor: '#F0FFE6' }]}>
+              <Text style={styles.macroLabel}>Fat</Text>
+              <Ionicons name="leaf-outline" size={20} color="#333" style={styles.macroIcon} />
+              <Text style={styles.macroValue}>{Math.round(macros.fat)}g</Text>
+            </View>
+            <View style={[styles.macroCard, { backgroundColor: '#F3E6FF' }]}>
+              <Text style={styles.macroLabel}>Fiber</Text>
+              <Ionicons name="nutrition-outline" size={20} color="#333" style={styles.macroIcon} />
+              <Text style={styles.macroValue}>{Math.round(macros.fiber)}g</Text>
+            </View>
+          </View>
+        )}
+        
+        {!macrosLoaded && (
+          <View style={styles.macrosGrid}>
+            <View style={[styles.macroCard, { backgroundColor: '#F8FAFC' }]}>
+              <Text style={styles.macroLabel}>Loading...</Text>
+            </View>
+          </View>
+        )}
 
         {/* Health Score */}
         <View style={styles.healthScoreSection}>
@@ -587,17 +630,19 @@ const PostCalorieScreen = ({ route, navigation }) => {
             <Text style={styles.editButtonText}>Edit Meal</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.saveButton} onPress={handleDone} disabled={saving}>
-            <Text style={styles.saveButtonText}>
-              {saving ? 'Logging...' : 'Log Food'}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.saveToMealsButton} onPress={handleSave} disabled={saving}>
-            <Text style={styles.saveToMealsButtonText}>
-              {saving ? 'Saving...' : 'Save'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.bottomButtonsRow}>
+            <TouchableOpacity style={styles.saveToMealsButton} onPress={handleSave} disabled={saving}>
+              <Text style={styles.saveToMealsButtonText}>
+                {saving ? 'Saving...' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.saveButton} onPress={handleDone} disabled={saving}>
+              <Text style={styles.saveButtonText}>
+                {saving ? 'Logging...' : 'Log Food'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -866,7 +911,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 18,
     alignItems: 'center',
-    marginBottom: 12,
+    flex: 1,
+    marginLeft: 6,
   },
   saveButtonText: {
     color: 'white',
@@ -878,7 +924,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#6366F1',
     borderRadius: 12,
-    padding: 18,
+    padding: 15,
     alignItems: 'center',
   },
   editButtonText: {
@@ -891,12 +937,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 18,
     alignItems: 'center',
-    marginTop: 12,
+    flex: 1,
+    marginRight: 6,
   },
   saveToMealsButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  bottomButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    gap: 12,
   },
 });
 
