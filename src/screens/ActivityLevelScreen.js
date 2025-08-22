@@ -169,7 +169,6 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     backgroundColor: ACCENT,
-    borderColor: PRIMARY,
   },
   cardIconContainer: {
     width: 60,

@@ -1,12 +1,15 @@
+import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import React, { useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { OnboardingContext } from '../context/OnboardingContext';
 
 const PRIMARY = '#000000';
-const ORANGE = '#ff8800';
+const SECONDARY = '#666666';
 const BACKGROUND = '#ffffff';
 const GRAY_LIGHT = '#f5f5f5';
+const GRAY_MEDIUM = '#e0e0e0';
+const ACCENT = '#FAD89B';
+const INPUT_BG = '#F8F8F8';
 
 const GoalSummaryScreen = ({ navigation }) => {
   const { onboardingData } = useContext(OnboardingContext);
@@ -59,19 +62,19 @@ const GoalSummaryScreen = ({ navigation }) => {
           <MaterialIcons name="arrow-back" size={28} color={PRIMARY} />
         </TouchableOpacity>
         <View style={styles.iconCircle}>
-          <MaterialCommunityIcons name="target" size={48} color={ORANGE} />
+          <MaterialCommunityIcons name="target" size={48} color={ACCENT} />
         </View>
         <Text style={styles.goalText}>Goal: {goalText}</Text>
         <View style={styles.infoRow}>
-          <MaterialIcons name="calendar-today" size={24} color={ORANGE} style={styles.infoIcon} />
+          <MaterialIcons name="calendar-today" size={24} color={ACCENT} style={styles.infoIcon} />
           <Text style={styles.infoText}>Estimated Time: {estimatedTime}</Text>
         </View>
         <View style={styles.infoRow}>
-          <MaterialCommunityIcons name="heart-pulse" size={24} color={ORANGE} style={styles.infoIcon} />
+          <MaterialCommunityIcons name="heart-pulse" size={24} color={ACCENT} style={styles.infoIcon} />
           <Text style={styles.infoText}>{total_days_per_week} workouts/week</Text>
         </View>
         <View style={styles.infoRow}>
-          <MaterialCommunityIcons name="food-apple-outline" size={24} color={ORANGE} style={styles.infoIcon} />
+          <MaterialCommunityIcons name="food-apple-outline" size={24} color={ACCENT} style={styles.infoIcon} />
           <Text style={styles.infoText}>Guided meal tracking</Text>
         </View>
         <Text style={styles.motivationText}>
@@ -79,7 +82,7 @@ const GoalSummaryScreen = ({ navigation }) => {
         </Text>
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.button} onPress={handleFinishOnboarding}>
-            <Text style={styles.buttonText}>Let's Make It Happen <MaterialIcons name="arrow-forward" size={18} color={BACKGROUND} /></Text>
+            <Text style={styles.buttonText}>Let's Make It Happen</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -101,8 +104,6 @@ const styles = StyleSheet.create({
     top: 50,
     left: 16,
     zIndex: 2,
-    backgroundColor: GRAY_LIGHT,
-    borderRadius: 20,
     padding: 4,
   },
   iconCircle: {
@@ -110,11 +111,11 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 3,
-    borderColor: ORANGE,
+    borderColor: ACCENT,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-    marginTop: 60,
+    marginTop: 110,
     marginBottom: 24,
   },
   goalText: {
@@ -140,7 +141,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-Regular',
   },
   motivationText: {
-    color: ORANGE,
+    color: ACCENT,
     fontWeight: 'bold',
     fontSize: 22,
     textAlign: 'center',
@@ -155,14 +156,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   button: {
-    backgroundColor: PRIMARY,
+    backgroundColor: ACCENT,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     width: '100%',
   },
   buttonText: {
-    color: BACKGROUND,
+    color: PRIMARY,
     fontSize: 16,
     fontWeight: 'bold',
     fontFamily: 'Lexend-Bold',
