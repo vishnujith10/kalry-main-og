@@ -264,6 +264,7 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
             carbs: total_nutrition.carbs || 0,
             fat: total_nutrition.fat || 0,
             fiber: total_nutrition.fiber || 0,
+            photo_url: photoUri, // Save the photo URL
           },
         ]);
         

@@ -9,7 +9,7 @@ const FILTERS = [
   'Under 400 kcal',
 ];
 
-const placeholderImg = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80';
+const placeholderImg = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop';
 
 const SavedMealsScreen = ({ navigation, route }) => {
   const [meals, setMeals] = useState([]);
@@ -48,7 +48,7 @@ const SavedMealsScreen = ({ navigation, route }) => {
           carbs: Number(log.carbs || 0),
           fat: Number(log.fat || 0),
         },
-        image: placeholderImg,
+        image: log.photo_url || placeholderImg, // Use photo_url if available, otherwise use placeholder
       }));
       setMeals(mapped);
       setLoading(false);

@@ -148,6 +148,29 @@ CREATE TABLE IF NOT EXISTS public.routine_exercises (
 );
 
 -- =============================
+-- Saved Meals Table
+-- =============================
+
+CREATE TABLE IF NOT EXISTS public.saved_meal (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id uuid REFERENCES auth.users NOT NULL,
+    dish_name text NOT NULL,
+    description text,
+    calories numeric DEFAULT 0,
+    protein numeric DEFAULT 0,
+    carbs numeric DEFAULT 0,
+    fat numeric DEFAULT 0,
+    fiber numeric DEFAULT 0,
+    photo_url text,
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+);
+
+-- Enable RLS for saved_meal
+ALTER TABLE public.saved_meal ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can access their own saved meals" ON public.saved_meal
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- =============================
 -- Row Level Security (RLS) Policies
 -- =============================
 
