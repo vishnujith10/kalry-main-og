@@ -42,7 +42,7 @@ const HomeScreen = ({ navigation }) => {
   const [user, setUser] = useState({ id: null });
   const [foodLogs, setFoodLogs] = useState([]);
   const [totals, setTotals] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0 });
-  const [userName, setUserName] = useState('User');
+  const [userName, setUserName] = useState(onboardingData?.name || 'User');
   const [recentMeals, setRecentMeals] = useState([]);
   const [expandedMeal, setExpandedMeal] = useState(null);
   const { stepsToday, calories: stepCalories } = useTodaySteps();
@@ -104,13 +104,23 @@ const HomeScreen = ({ navigation }) => {
 
   useEffect(() => {
     const fetchUserAndGoal = async () => {
-      setUserName('User');
       if (onboardingData.daily_calorie_goal) {
         calorie_goal = onboardingData.daily_calorie_goal;
       }
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.id) {
         setUser({ id: session.user.id });
+        
+        // Fetch user's name from database
+        const { data: profileData } = await supabase
+          .from('user_profile')
+          .select('name')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profileData?.name) {
+          setUserName(profileData.name);
+        }
       }
     };
     fetchUserAndGoal();
@@ -281,28 +291,37 @@ const HomeScreen = ({ navigation }) => {
 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 12, paddingHorizontal: 10 }}>
           {weekDates.map((d, i) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dateToCheck = new Date(d.date);
+            dateToCheck.setHours(0, 0, 0, 0);
+            const isFutureDate = dateToCheck > today;
+            
             const isSelected =
               selectedDate.getDate() === d.date.getDate() &&
               selectedDate.getMonth() === d.date.getMonth() &&
               selectedDate.getFullYear() === d.date.getFullYear();
+            
             return (
               <TouchableOpacity
                 key={i}
-                onPress={() => setSelectedDate(d.date)}
+                onPress={() => !isFutureDate && setSelectedDate(d.date)}
                 style={{ alignItems: 'center', flex: 1 }}
+                disabled={isFutureDate}
               >
                 <View
                   style={{
-                    backgroundColor: isSelected ? '#7B61FF' : '#F6F6F6',
+                    backgroundColor: isSelected ? '#7B61FF' : isFutureDate ? '#F0F0F0' : '#F6F6F6',
                     borderRadius: 24,
                     paddingVertical: 8,
                     paddingHorizontal: 0,
                     minWidth: 44,
+                    opacity: isFutureDate ? 0.5 : 1,
                   }}
                 >
                   <Text
                     style={{
-                      color: isSelected ? '#fff' : '#888',
+                      color: isSelected ? '#fff' : isFutureDate ? '#CCC' : '#888',
                       fontFamily: 'Lexend-SemiBold',
                       fontSize: 14,
                       textAlign: 'center',
@@ -312,7 +331,7 @@ const HomeScreen = ({ navigation }) => {
                   </Text>
                   <Text
                     style={{
-                      color: isSelected ? '#fff' : '#222',
+                      color: isSelected ? '#fff' : isFutureDate ? '#CCC' : '#222',
                       fontFamily: 'Lexend-Bold',
                       fontSize: 18,
                       textAlign: 'center',
