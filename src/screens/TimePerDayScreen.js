@@ -1,15 +1,15 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useContext, useState } from 'react';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { OnboardingContext } from '../context/OnboardingContext';
 
 const PRIMARY = '#000000';
-const BACKGROUND = '#ffffff';
-const ORANGE = '#ff8800';
-const GRAY_MEDIUM = '#e0e0e0';
-const GRAY_LIGHT = '#f5f5f5';
 const SECONDARY = '#666666';
+const BACKGROUND = '#ffffff';
+const GRAY_LIGHT = '#f5f5f5';
+const GRAY_MEDIUM = '#e0e0e0';
+const ACCENT = '#FAD89B';
+const INPUT_BG = '#F8F8F8';
 
 const options = [
   '10–20 mins',
@@ -80,8 +80,6 @@ const styles = StyleSheet.create({
     top: 50,
     left: 16,
     zIndex: 2,
-    backgroundColor: GRAY_LIGHT,
-    borderRadius: 20,
     padding: 4,
   },
   spacer: {
@@ -89,7 +87,7 @@ const styles = StyleSheet.create({
   },
   header: {
     fontSize: 25,
-    fontWeight: 'bold',
+    fontFamily: 'Lexend-Bold',
     color: PRIMARY,
     marginTop: 60,
     marginBottom: 4,
@@ -97,6 +95,7 @@ const styles = StyleSheet.create({
   },
   subheader: {
     fontSize: 16,
+    fontFamily: 'Manrope-Regular',
     color: SECONDARY,
     marginBottom: 32,
     textAlign: 'center',
@@ -106,25 +105,24 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   optionBtn: {
-    borderWidth: 2,
-    borderColor: ORANGE,
+    borderWidth: 0,
     borderRadius: 12,
     paddingVertical: 16,
     marginBottom: 12,
     alignItems: 'center',
-    backgroundColor: BACKGROUND,
+    backgroundColor: INPUT_BG,
   },
   optionBtnSelected: {
-    backgroundColor: ORANGE,
+    backgroundColor: ACCENT,
   },
   optionText: {
     color: PRIMARY,
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'Manrope-Regular',
   },
   optionTextSelected: {
-    color: BACKGROUND,
-    fontWeight: 'bold',
+    color: PRIMARY,
+    fontFamily: 'Lexend-Bold',
   },
   buttonContainer: {
     width: '100%',
@@ -133,16 +131,16 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   button: {
-    backgroundColor: PRIMARY,
+    backgroundColor: ACCENT,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     width: '100%',
   },
   buttonText: {
-    color: BACKGROUND,
+    color: PRIMARY,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Lexend-Bold',
   },
   buttonDisabled: {
     backgroundColor: GRAY_MEDIUM,

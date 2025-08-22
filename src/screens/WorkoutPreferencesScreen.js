@@ -1,18 +1,20 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import { MaterialIcons, MaterialCommunityIcons, FontAwesome5, Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { OnboardingContext } from '../context/OnboardingContext';
+import { Feather, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useContext, useState } from 'react';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { OnboardingContext } from '../context/OnboardingContext';
 
-const PRIMARY = '#18181B';
-const SECONDARY = '#6B7280';
-const CARD_BG = '#F8F8FC';
-const GRADIENT = ['#a18cd1', '#fbc2eb'];
-const GRADIENT_BTN = ['#7F7FD5', '#86A8E7', '#91EAE4'];
-const ACCENT = '#7F7FD5';
-const WHITE = '#fff';
-const GRAY = '#E5E7EB';
+const PRIMARY = '#000000';
+const SECONDARY = '#666666';
+const BACKGROUND = '#ffffff';
+const GRAY_LIGHT = '#f5f5f5';
+const GRAY_MEDIUM = '#e0e0e0';
+const ACCENT = '#FAD89B';
+const INPUT_BG = '#F8F8F8';
+const CARD_BG = '#F8F8F8';
+const WHITE = '#ffffff';
+const GRAY = '#f5f5f5';
 const PURPLE = '#7F7FD5';
 const BLUE = '#86A8E7';
 
@@ -77,6 +79,9 @@ const WorkoutPreferencesScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <MaterialIcons name="arrow-back" size={28} color={PRIMARY} />
+        </TouchableOpacity>
         <Text style={styles.header}>Let's shape your workout rhythm</Text>
         <Text style={styles.subheader}>Choose what feels right. You can always change it later.</Text>
 
@@ -93,14 +98,14 @@ const WorkoutPreferencesScreen = ({ navigation }) => {
                 activeOpacity={0.85}
               >
                 <LinearGradient
-                  colors={selected ? GRADIENT : [WHITE, WHITE]}
+                  colors={selected ? [ACCENT, ACCENT] : [WHITE, WHITE]}
                   style={styles.workoutIconWrap}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 >
-                  {option.icon(selected ? PURPLE : SECONDARY)}
+                  {option.icon(selected ? PRIMARY : SECONDARY)}
                 </LinearGradient>
-                <Text style={[styles.workoutCardLabel, selected && { color: PURPLE }]}>{option.label}</Text>
+                <Text style={[styles.workoutCardLabel, selected && { color: PRIMARY }]}>{option.label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -131,9 +136,9 @@ const WorkoutPreferencesScreen = ({ navigation }) => {
                 onPress={() => toggleTime(idx)}
                 activeOpacity={0.85}
               >
-                <View style={styles.timeIconWrap}>{option.icon(selected ? PURPLE : SECONDARY)}</View>
+                <View style={styles.timeIconWrap}>{option.icon(selected ? PRIMARY : SECONDARY)}</View>
                 <View>
-                  <Text style={[styles.timeCardLabel, selected && { color: PURPLE }]}>{option.label}</Text>
+                  <Text style={[styles.timeCardLabel, selected && { color: PRIMARY }]}>{option.label}</Text>
                   <Text style={styles.timeCardSub}>{option.sub}</Text>
                 </View>
               </TouchableOpacity>
@@ -141,20 +146,17 @@ const WorkoutPreferencesScreen = ({ navigation }) => {
           })}
         </View>
 
-        <LinearGradient colors={['#e0e7ff', '#fbc2eb']} style={styles.summaryCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-          <TouchableOpacity style={styles.summaryBackBtn} onPress={() => nav.goBack()}>
-            <MaterialIcons name="arrow-back" size={22} color={PURPLE} />
-          </TouchableOpacity>
+        <View style={styles.summaryCard}>
           <View style={styles.summaryRowCentered}>
-            <MaterialIcons name="check-circle" size={22} color={PURPLE} style={{ marginRight: 8 }} />
+            <MaterialIcons name="check-circle" size={22} color={PRIMARY} style={{ marginRight: 8 }} />
             <Text style={styles.summaryText}>{summary}</Text>
           </View>
-        </LinearGradient>
+        </View>
 
         <TouchableOpacity style={styles.ctaBtn} onPress={handleContinue} disabled={!canContinue} activeOpacity={0.9}>
-          <LinearGradient colors={GRADIENT_BTN} style={styles.ctaBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <View style={styles.ctaBtnGradient}>
             <Text style={styles.ctaBtnText}>Set My Workout Rhythm</Text>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
         <Text style={styles.ctaSub}>You can change any of this anytime</Text>
       </ScrollView>
@@ -165,35 +167,93 @@ const WorkoutPreferencesScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: WHITE },
   scrollContent: { flexGrow: 1, paddingBottom: 16, paddingHorizontal: 0 },
-  header: { fontSize: 26, fontWeight: 'bold', color: PRIMARY, marginTop: 50, marginBottom: 0, textAlign: 'left', paddingHorizontal: 24, fontFamily: 'Lexend-Bold' },
+  header: { 
+    fontSize: 26, 
+    fontWeight: 'bold', 
+    color: PRIMARY, 
+    marginTop: 90, 
+    marginBottom: 0, 
+    textAlign: 'left', 
+    paddingHorizontal: 24, 
+    fontFamily: 'Lexend-Bold' 
+  },
   subheader: { fontSize: 16, color: SECONDARY, marginBottom: 5, textAlign: 'left', paddingHorizontal: 24, fontFamily: 'Manrope-Regular' },
   sectionTitle: { fontSize: 18, fontWeight: 'regular', color: PRIMARY, marginTop:0, marginBottom: 5, textAlign: 'left', paddingHorizontal: 24, fontFamily: 'Lexend-Bold' },
   sectionSub: { fontSize: 14, color: SECONDARY, marginBottom: 8, textAlign: 'left', paddingHorizontal: 24, fontFamily: 'Manrope-Regular' },
   workoutGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginBottom: -140, paddingHorizontal: 8 },
   workoutCard: { width: '44%', aspectRatio: 1.1, backgroundColor: CARD_BG, borderRadius: 18, alignItems: 'center', justifyContent: 'center', margin: '2%', marginBottom: 8, elevation: 1, borderWidth: 0 },
-  workoutCardSelected: { borderWidth: 2, borderColor: PURPLE, backgroundColor: WHITE, elevation: 3 },
+  workoutCardSelected: { 
+    borderWidth: 2, 
+    borderColor: ACCENT, 
+    backgroundColor: WHITE, 
+    elevation: 3 
+  },
   workoutIconWrap: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   workoutCardLabel: { fontSize: 15, color: PRIMARY, fontWeight: 'bold', textAlign: 'center', fontFamily: 'Manrope-Regular' },
   daysRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, marginBottom: 0, paddingHorizontal: 16 },
   dayCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: GRAY, alignItems: 'center', justifyContent: 'center', marginHorizontal: 1 },
-  dayCircleSelected: { backgroundColor: PURPLE },
+  dayCircleSelected: { 
+    backgroundColor: ACCENT 
+  },
   dayCircleText: { fontSize: 16, color: PRIMARY, fontWeight: 'bold', fontFamily: 'Lexend-Bold' },
   dayCircleTextSelected: { color: WHITE },
   daysSub: { fontSize: 13, color: SECONDARY, marginBottom: 4,marginTop: 10, textAlign: 'left', paddingHorizontal: 24, fontFamily: 'Manrope-Regular' },
   timeGrid: { marginTop: 4, marginBottom: 4, paddingHorizontal: 8 },
   timeCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: CARD_BG, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 6, elevation: 1, borderWidth: 0, minWidth: '96%', alignSelf: 'center' },
-  timeCardSelected: { borderWidth: 2, borderColor: PURPLE, backgroundColor: WHITE, elevation: 3 },
+  timeCardSelected: { 
+    borderWidth: 2, 
+    borderColor: ACCENT, 
+    backgroundColor: WHITE, 
+    elevation: 3 
+  },
   timeIconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12, backgroundColor: '#F3F3FA' },
   timeCardLabel: { fontSize: 15, color: PRIMARY, fontWeight: 'bold', fontFamily: 'Manrope-Regular' },
   timeCardSub: { fontSize: 12, color: SECONDARY, fontFamily: 'Manrope-Regular' },
-  summaryCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 32, marginHorizontal: 8, marginTop: 10, marginBottom: 10, paddingVertical: 14, paddingHorizontal: 16, elevation: 4, shadowColor: '#7F7FD5', shadowOpacity: 0.12, shadowRadius: 8, backgroundColor: 'transparent', width: '96%', alignSelf: 'center' },
-  summaryBackBtn: { marginRight: 10, padding: 6, borderRadius: 20, backgroundColor: '#f3f3fa', alignItems: 'center', justifyContent: 'center' },
-  summaryRowCentered: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flex: 1 },
+  summaryCard: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    borderRadius: 32, 
+    marginHorizontal: 8, 
+    marginTop: 10, 
+    marginBottom: 10, 
+    paddingVertical: 14, 
+    paddingHorizontal: 16, 
+    elevation: 4, 
+    shadowColor: PRIMARY, 
+    shadowOpacity: 0.12, 
+    shadowRadius: 8, 
+    backgroundColor: ACCENT, 
+    width: '96%', 
+    alignSelf: 'center' 
+  },
+  summaryRowCentered: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    flex: 1 
+  },
   summaryText: { color: PRIMARY, fontSize: 16, fontWeight: 'bold', fontFamily: 'Lexend-Bold', textAlign: 'center', flexShrink: 1 },
   ctaBtn: { marginHorizontal: 24, marginTop: 4, borderRadius: 24, overflow: 'hidden' },
-  ctaBtnGradient: { paddingVertical: 14, alignItems: 'center', borderRadius: 24 },
-  ctaBtnText: { color: WHITE, fontWeight: 'bold', fontSize: 17, fontFamily: 'Lexend-Bold' },
+  ctaBtnGradient: { 
+    paddingVertical: 14, 
+    alignItems: 'center', 
+    borderRadius: 24, 
+    backgroundColor: ACCENT 
+  },
+  ctaBtnText: { 
+    color: PRIMARY, 
+    fontWeight: 'bold', 
+    fontSize: 17, 
+    fontFamily: 'Lexend-Bold' 
+  },
   ctaSub: { color: SECONDARY, fontSize: 12, textAlign: 'center', marginTop: 4, fontFamily: 'Manrope-Regular' },
+  backButton: { 
+    position: 'absolute', 
+    top: 50, 
+    left: 16, 
+    zIndex: 10, 
+    padding: 4 
+  },
 });
 
 export default WorkoutPreferencesScreen;

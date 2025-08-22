@@ -1,8 +1,7 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import { MaterialIcons, FontAwesome5, Feather } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { Feather, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useContext, useState } from 'react';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { OnboardingContext } from '../context/OnboardingContext';
 
 const PRIMARY = '#000000';
@@ -10,6 +9,8 @@ const SECONDARY = '#666666';
 const BACKGROUND = '#ffffff';
 const GRAY_LIGHT = '#f5f5f5';
 const GRAY_MEDIUM = '#e0e0e0';
+const ACCENT = '#FAD89B';
+const INPUT_BG = '#F8F8F8';
 
 const activityLevels = [
   {
@@ -127,8 +128,6 @@ const styles = StyleSheet.create({
     top: 50,
     left: 16,
     zIndex: 1,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 20,
     padding: 4,
   },
   scrollContent: {
@@ -138,13 +137,14 @@ const styles = StyleSheet.create({
   },
   header: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'Lexend-Bold',
     color: PRIMARY,
     marginBottom: 4,
     textAlign: 'center',
   },
   subheader: {
     fontSize: 16,
+    fontFamily: 'Manrope-Regular',
     color: SECONDARY,
     marginBottom: 20,
     textAlign: 'center',
@@ -168,14 +168,14 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   cardSelected: {
-    backgroundColor: GRAY_LIGHT,
+    backgroundColor: ACCENT,
     borderColor: PRIMARY,
   },
   cardIconContainer: {
     width: 60,
     height: 70,
     borderRadius: 8,
-    backgroundColor: GRAY_LIGHT,
+    backgroundColor: INPUT_BG,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -185,12 +185,13 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Lexend-Bold',
     color: PRIMARY,
     marginBottom: 2,
   },
   cardDesc: {
     fontSize: 14,
+    fontFamily: 'Manrope-Regular',
     color: SECONDARY,
     marginBottom: 4,
   },
@@ -206,7 +207,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   progressDotActive: {
-    backgroundColor: PRIMARY,
+    backgroundColor: ACCENT,
   },
   progressDotInactive: {
     backgroundColor: GRAY_LIGHT,
@@ -220,7 +221,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   button: {
-    backgroundColor: PRIMARY,
+    backgroundColor: ACCENT,
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
@@ -230,9 +231,9 @@ const styles = StyleSheet.create({
     backgroundColor: GRAY_MEDIUM,
   },
   buttonText: {
-    color: BACKGROUND,
+    color: PRIMARY,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Lexend-Bold',
   },
 });
 

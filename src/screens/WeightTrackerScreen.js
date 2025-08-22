@@ -1,9 +1,8 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useContext, useEffect, useState } from 'react';
+import { Alert, FlatList, Alert as RNAlert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { OnboardingContext } from '../context/OnboardingContext';
 import supabase from '../lib/supabase';
-import { Alert as RNAlert } from 'react-native';
 
 const PRIMARY = '#7B61FF';
 const CARD_BG = '#F8F6FC';

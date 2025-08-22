@@ -1,14 +1,17 @@
-import React, { useState, useRef, useContext } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import { MaterialIcons, FontAwesome, FontAwesome5, AntDesign, Feather, Entypo } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useContext, useRef, useState } from 'react';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { OnboardingContext } from '../context/OnboardingContext';
 
-const PRIMARY = '#222';
-const ACCENT = '#F57C1C';
-const OPTION_BG = '#e7ded9';
-const INFO_TEXT = '#888';
+const PRIMARY = '#000000';
+const SECONDARY = '#666666';
+const BACKGROUND = '#ffffff';
+const GRAY_LIGHT = '#f5f5f5';
+const GRAY_MEDIUM = '#e0e0e0';
+const ACCENT = '#FAD89B';
+const OPTION_BG = '#f5f5f5';
+const INFO_TEXT = '#666666';
 
 const options = [
   { label: 'Instagram' },
@@ -105,21 +108,14 @@ const ReferralSourceScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: BACKGROUND,
   },
   backButton: {
     position: 'absolute',
     top: 48,
     left: 16,
     zIndex: 10,
-    backgroundColor: 'rgba(240,240,240,0.9)',
-    borderRadius: 20,
     padding: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
   },
   contentWrapper: {
     flex: 1,
@@ -139,7 +135,7 @@ const styles = StyleSheet.create({
   subheader: {
     fontSize: 16,
     fontFamily: 'Manrope-Regular',
-    color: PRIMARY,
+    color: SECONDARY,
     marginBottom: 24,
     textAlign: 'left',
     alignSelf: 'flex-start',
@@ -150,7 +146,7 @@ const styles = StyleSheet.create({
   },
   optionBtn: {
     width: '100%',
-    backgroundColor: OPTION_BG,
+    backgroundColor: GRAY_LIGHT,
     borderRadius: 16,
     paddingVertical: 18,
     alignItems: 'flex-start',
@@ -160,16 +156,16 @@ const styles = StyleSheet.create({
   optionBtnSelected: {
     borderWidth: 2,
     borderColor: ACCENT,
-    backgroundColor: '#f5e7d9',
+    backgroundColor: ACCENT,
   },
   optionLabel: {
     fontSize: 16,
     fontFamily: 'Manrope-Regular',
-    color: PRIMARY,
+    color: SECONDARY,
   },
   otherInput: {
     width: '100%',
-    backgroundColor: '#f6f0ea',
+    backgroundColor: GRAY_LIGHT,
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -178,7 +174,7 @@ const styles = StyleSheet.create({
     color: PRIMARY,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e7ded9',
+    borderColor: GRAY_MEDIUM,
   },
   infoText: {
     fontSize: 13,
@@ -211,13 +207,13 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   buttonText: {
-    color: '#fff',
+    color: PRIMARY,
     fontSize: 16,
     fontFamily: 'Lexend-Bold',
     fontWeight: '600',
   },
   buttonDisabled: {
-    backgroundColor: '#f3ede7',
+    backgroundColor: GRAY_MEDIUM,
   },
 });
 
