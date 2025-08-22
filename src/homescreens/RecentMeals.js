@@ -81,9 +81,11 @@ const RecentMeals = ({ recentMeals = [], handleDeleteMeal }) => {
                     style={{ width: 64, height: 64, borderRadius: 32, marginRight: 18, backgroundColor: '#F3F0FF' }}
                   />
                 ) : (
-                  <View style={{ width: 64, height: 64, borderRadius: 32, marginRight: 18, backgroundColor: '#F3F0FF', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="fast-food-outline" size={32} color="#B0B0B0" />
-                  </View>
+                  <Image
+                    source={{ uri: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop' }}
+                    style={{ width: 64, height: 64, borderRadius: 32, marginRight: 18, backgroundColor: '#F3F0FF' }}
+                    defaultSource={{ uri: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop' }}
+                  />
                 )}
 
                 {/* Info */}

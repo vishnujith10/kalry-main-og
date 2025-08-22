@@ -469,8 +469,10 @@ const HomeScreen = ({ navigation }) => {
               style={{ width: 60, height: 60, borderRadius: 12, backgroundColor: '#F3F0FF' }}
             />
           ) : (
-            <View
+            <Image
+              source={{ uri: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop' }}
               style={{ width: 60, height: 60, borderRadius: 12, backgroundColor: '#F3F0FF' }}
+              defaultSource={{ uri: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop' }}
             />
           )}
 

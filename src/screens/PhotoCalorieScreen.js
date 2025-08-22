@@ -294,6 +294,45 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
         // Get selected mood emoji
         const selectedMoodEmoji = selectedMood !== null ? moodOptions[selectedMood].emoji : null;
         
+        // Store photo URL (for now, use local URI until storage is configured)
+        let photoUrl = photoUri;
+        
+        // TODO: Uncomment when Supabase storage is properly configured
+        // Upload photo to Supabase storage
+        /*
+        let photoUrl = null;
+        if (photoUri) {
+          try {
+            const fileName = `food-photos/${user_id}/${Date.now()}.jpg`;
+            
+            // Convert photo URI to blob for upload
+            const response = await fetch(photoUri);
+            const blob = await response.blob();
+            
+            const { data, error } = await supabase.storage
+              .from('food-photos')
+              .upload(fileName, blob, {
+                contentType: 'image/jpeg'
+              });
+            
+            if (error) {
+              console.error('Error uploading photo:', error);
+              // Fallback to local URI if upload fails
+              photoUrl = photoUri;
+            } else {
+              const { data: { publicUrl } } = supabase.storage
+                .from('food-photos')
+                .getPublicUrl(fileName);
+              photoUrl = publicUrl;
+            }
+          } catch (uploadError) {
+            console.error('Error uploading photo:', uploadError);
+            // Fallback to local URI if upload fails
+            photoUrl = photoUri;
+          }
+        }
+        */
+        
         const logData = {
             meal_type: mealType,
             food_name: dish_name,
@@ -303,9 +342,11 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
             fat: macros.fat,
             fiber: macros.fiber,
             mood: selectedMoodEmoji,
+            photo_url: photoUrl,
             user_id,
         };
         await createFoodLog(logData);
+        console.log('Food logged successfully with photo URL:', photoUrl);
         Alert.alert('Success', 'Food logged successfully!');
         navigation.navigate('Home'); 
     } catch (error) {
