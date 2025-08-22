@@ -5,14 +5,14 @@ import * as FileSystem from "expo-file-system";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import supabase from "../lib/supabase";
 import { createFoodLog } from "../utils/api";
@@ -336,12 +336,51 @@ The JSON object must have this structure:
     }
   };
 
+  const handleBackPress = () => {
+    if (isRecording) {
+      Alert.alert(
+        "Stop Recording?",
+        "Are you sure you want to stop recording and go back?",
+        [
+          {
+            text: "No",
+            style: "cancel",
+            onPress: () => {
+              // Continue recording - do nothing
+            }
+          },
+          {
+            text: "Yes",
+            style: "destructive",
+            onPress: async () => {
+              // Stop recording and go back to home
+              if (recordingRef.current) {
+                try {
+                  await recordingRef.current.stopAndUnloadAsync();
+                  recordingRef.current = null;
+                } catch (error) {
+                  // ignore
+                }
+              }
+              setIsRecording(false);
+              setIsSpeaking(false);
+              stopAnimations();
+              navigation.navigate("Home");
+            }
+          }
+        ]
+      );
+    } else {
+      navigation.goBack();
+    }
+  };
+
   // UI rendering logic
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={handleBackPress}
           style={styles.backButton}
         >
           <Ionicons name="arrow-back" size={28} color="#7B61FF" />
