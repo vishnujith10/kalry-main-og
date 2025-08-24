@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const PRIMARY = '#7B61FF';
 const PURPLE = '#A084E8';
@@ -88,6 +88,18 @@ export default function ExerciseScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
+      {/* Header with back button */}
+      <View style={styles.topHeader}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('MainDashboard')}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={28} color="#7B61FF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Exercise</Text>
+        <View style={{ width: 28 }} />
+      </View>
+      
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 80, paddingTop: 20 }}>
         <Text style={styles.header}>Weekly Activity</Text>
         {/* Days Row */}
@@ -201,6 +213,26 @@ export default function ExerciseScreen() {
 }
 
 const styles = StyleSheet.create({
+  topHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+    backgroundColor: '#F3F0FF',
+  },
+  backButton: {
+    marginRight: 12,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#7B61FF',
+    textAlign: 'center',
+  },
   header: { fontFamily: 'Lexend-SemiBold', fontSize: 22, color: '#181A20', marginTop: 24, marginBottom: 8, marginLeft: 18 },
   daysRow: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: 8, marginBottom: 38 , marginTop:20 },
   dayCol: { alignItems: 'center', flex: 1, marginHorizontal: 2 },

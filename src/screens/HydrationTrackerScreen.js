@@ -101,6 +101,13 @@ const HydrationTrackerScreen = () => {
     return () => clearInterval(interval);
   }, [recordId, userId, currentIntake, dailyGoal]);
 
+  // Monitor changes in currentIntake and dailyGoal to automatically update goal status
+  useEffect(() => {
+    if (recordId && userId) {
+      checkAndUpdateGoalStatus();
+    }
+  }, [currentIntake, dailyGoal, recordId, userId]);
+
   // Function to update intake values for new day
   const updateIntakeValuesForNewDay = () => {
     const updatedWeeklyIntakeValues = { ...weeklyIntakeValues };
@@ -199,6 +206,16 @@ const HydrationTrackerScreen = () => {
         // Load intake values if they exist
         if (data.intake1_ml) setIntake1(data.intake1_ml);
         if (data.intake2_ml) setIntake2(data.intake2_ml);
+        
+        // Check and update goal status if needed
+        if (data.goal_status) {
+          const currentStatus = data.goal_status;
+          const shouldBeStatus = (data.current_intake_ml / 1000) >= (data.daily_goal_ml / 1000) ? 'achieved' : 'not achieved';
+          if (currentStatus !== shouldBeStatus) {
+            await updateGoalStatus(shouldBeStatus);
+          }
+        }
+        
         console.log('HydrationTracker - Today data loaded successfully');
       } else {
         // No record for today, create new one
@@ -283,6 +300,14 @@ const HydrationTrackerScreen = () => {
     } catch (error) {
       console.error('Error updating goal status:', error);
     }
+  };
+
+  // Function to automatically check and update goal status
+  const checkAndUpdateGoalStatus = async () => {
+    if (!recordId) return;
+    
+    const newStatus = currentIntake >= dailyGoal ? 'achieved' : 'not achieved';
+    await updateGoalStatus(newStatus);
   };
 
   const updateDailyGoal = async (newGoalL) => {
@@ -416,6 +441,11 @@ const HydrationTrackerScreen = () => {
     const newIntake = Math.min(currentIntake + amount, dailyGoal);
     setCurrentIntake(newIntake);
     await updateWaterIntake(newIntake);
+    
+    // Check if goal is achieved and update goal status
+    if (newIntake >= dailyGoal) {
+      await updateGoalStatus('achieved');
+    }
   };
 
   const getBarHeight = (intake, isToday) => {
@@ -442,9 +472,22 @@ const HydrationTrackerScreen = () => {
   const handleGoalChange = async () => {
     const newGoal = parseFloat(goalInput);
     if (!isNaN(newGoal) && newGoal > 0) {
+      const oldGoal = dailyGoal;
       setDailyGoal(newGoal);
-      setCurrentIntake(prev => Math.min(prev, newGoal));
+      const adjustedIntake = Math.min(currentIntake, newGoal);
+      setCurrentIntake(adjustedIntake);
       await updateDailyGoal(newGoal);
+      
+      // Update the water intake in database with adjusted value
+      await updateWaterIntake(adjustedIntake);
+      
+      // Check and update goal status based on new goal and current intake
+      if (adjustedIntake >= newGoal) {
+        await updateGoalStatus('achieved');
+      } else {
+        await updateGoalStatus('not achieved');
+      }
+      
       setModalVisible(false);
     }
   };
@@ -587,7 +630,7 @@ const HydrationTrackerScreen = () => {
           {/* Change Daily Intakes Row */}
           <TouchableOpacity style={styles.cardRow} onPress={() => { setIntakeInput1(intake1.toString()); setIntakeInput2(intake2.toString()); setIntakeModalVisible(true); }}>
             <View style={styles.iconCircle}>
-              <Icon name="edit-2" size={18} color="#9333ea" />
+              <Icon name="edit-2" size={18} color="#ccc" />
             </View>
             <Text style={styles.cardText}>Change daily intakes</Text>
             <Icon name="chevron-right" size={20} color="#ccc" />
