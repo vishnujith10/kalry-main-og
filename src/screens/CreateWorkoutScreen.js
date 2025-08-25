@@ -1,780 +1,1599 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Switch, ScrollView, Alert, ActivityIndicator, Modal, Image, FlatList } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import DraggableFlatList from 'react-native-draggable-flatlist';
-import supabase from '../lib/supabase';
-import { useNavigation } from '@react-navigation/native';
-import { fetchExercises } from '../lib/workoutApi';
-import Slider from '@react-native-community/slider';
-import { saveCardioSession, updateCardioSession } from '../lib/cardioSessionApi';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, Animated, Dimensions, FlatList, Modal, ScrollView, StatusBar, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+const { width, height } = Dimensions.get('window');
+
+// Enhanced Color Palette
 const COLORS = {
-  primary: '#22C55E', // green
-  background: '#F9FAFB',
-  card: '#FFFFFF',
-  cardBorder: '#E5E7EB',
-  white: '#fff',
-  gray: '#B0B0B0',
-  dark: '#181A20',
-  border: '#E5E7EB',
-  blue: '#2563EB',
-  blueLight: '#EFF6FF',
-  text: '#181A20',
-  textSecondary: '#6B7280',
-  icon: '#22C55E',
+  primary: '#7c3aed',
+  secondary: '#a855f7',
+  accent: '#c084fc',
+  success: '#2ed573',
+  warning: '#ffa502',
+  error: '#ff4757',
+  background: '#f8fafc',
+  backgroundDark: '#1e293b',
+  card: '#ffffff',
+  cardDark: '#334155',
+  cardBorder: '#e2e8f0',
+  white: '#ffffff',
+  gray: '#64748b',
+  grayLight: '#94a3b8',
+  dark: '#0f172a',
+  text: '#1e293b',
+  textSecondary: '#64748b',
+  textLight: '#94a3b8',
+  glassBg: 'rgba(255,255,255,0.25)',
+  glassStroke: 'rgba(255,255,255,0.3)',
 };
 
-const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const SOUND_OPTIONS = [
-  { key: 'ding', label: 'Ding' },
-  { key: 'gong', label: 'Gong' },
-  { key: 'voice', label: 'Voice' },
+// Exercise Library with enhanced data
+const EXERCISE_LIBRARY = [
+  { 
+    id: '1', 
+    name: 'Running in Place', 
+    icon: '🏃', 
+    baseCalories: 8, 
+    baseDuration: 60, 
+    type: 'cardio', 
+    tags: ['Speed', 'Endurance'],
+    difficulty: 'Easy',
+    muscleGroups: ['Legs', 'Core']
+  },
+  { 
+    id: '2', 
+    name: 'Jump Rope', 
+    icon: '🪢', 
+    baseCalories: 10, 
+    baseDuration: 60, 
+    type: 'cardio', 
+    tags: ['Speed', 'HIIT'],
+    difficulty: 'Moderate',
+    muscleGroups: ['Full Body']
+  },
+  { 
+    id: '3', 
+    name: 'Burpees', 
+    icon: '💪', 
+    baseCalories: 12, 
+    baseDuration: 30, 
+    type: 'strength', 
+    baseReps: 10, 
+    tags: ['Power', 'HIIT'],
+    difficulty: 'Hard',
+    muscleGroups: ['Full Body']
+  },
+  { 
+    id: '4', 
+    name: 'High Knees', 
+    icon: '🦵', 
+    baseCalories: 9, 
+    baseDuration: 45, 
+    type: 'cardio', 
+    tags: ['Speed', 'Agility'],
+    difficulty: 'Easy',
+    muscleGroups: ['Legs', 'Core']
+  },
+  { 
+    id: '5', 
+    name: 'Mountain Climbers', 
+    icon: '⛰️', 
+    baseCalories: 11, 
+    baseDuration: 45, 
+    type: 'cardio', 
+    tags: ['Power', 'HIIT'],
+    difficulty: 'Moderate',
+    muscleGroups: ['Core', 'Arms']
+  },
+  { 
+    id: '6', 
+    name: 'Jumping Jacks', 
+    icon: '🤸', 
+    baseCalories: 7, 
+    baseDuration: 60, 
+    type: 'cardio', 
+    tags: ['Speed', 'Coordination'],
+    difficulty: 'Easy',
+    muscleGroups: ['Full Body']
+  },
 ];
 
-export default function CreateWorkoutScreen({ route }) {
-  const navigation = useNavigation();
-  // If editing, get session from route params
-  const editingSession = route?.params?.session || null;
-  // Session type and intensity
-  const SESSION_TYPES = [
-    'Jogging', 'Dance Cardio', 'Warm-Up Flow', 'HIIT', 'Cycling', 'Custom'
-  ];
-  const INTENSITIES = ['Low', 'Medium', 'High'];
-  const [sessionType, setSessionType] = useState(editingSession ? editingSession.session_type || '' : '');
-  const [customSessionType, setCustomSessionType] = useState(editingSession && editingSession.session_type && !SESSION_TYPES.includes(editingSession.session_type) ? editingSession.session_type : '');
-  const [intensity, setIntensity] = useState(editingSession ? editingSession.intensity || '' : '');
-  const [workoutName, setWorkoutName] = useState(editingSession ? editingSession.name : '');
-  const [exercises, setExercises] = useState(editingSession ? (editingSession.exercises || []) : []); // {id, name, type, img, duration, rest}
-  const [selectedDays, setSelectedDays] = useState([0, 2, 4]);
-  const [reminderTime, setReminderTime] = useState('07:00');
-  const [autoRepeat, setAutoRepeat] = useState(editingSession ? !!editingSession.auto_repeat : true);
-  const [notes, setNotes] = useState(editingSession ? editingSession.notes : '');
-  const [loading, setLoading] = useState(false);
+// Session Type Options
+const SESSION_TYPES = [
+  'Jogging',
+  'Dance Cardio', 
+  'Warm-up Flow',
+  'HIIT',
+  'Cycling',
+  'Custom'
+];
+
+// Session Templates
+const SESSION_TEMPLATES = {
+  hiit: {
+    name: 'HIIT Blast',
+    exercises: ['3', '5', '2', '4'], // Burpees, Mountain Climbers, Jump Rope, High Knees
+    intensity: 85,
+    rounds: 4,
+    restBetweenRounds: 60
+  },
+  endurance: {
+    name: 'Endurance Builder',
+    exercises: ['1', '6', '4'], // Running in Place, Jumping Jacks, High Knees
+    intensity: 60,
+    rounds: 3,
+    restBetweenRounds: 45
+  },
+  warmup: {
+    name: 'Dynamic Warm-up',
+    exercises: ['6', '4'], // Jumping Jacks, High Knees
+    intensity: 40,
+    rounds: 2,
+    restBetweenRounds: 30
+  }
+};
+
+export default function CardioSessionBuilder() {
+  // State management
+  const [sessionType, setSessionType] = useState('');
+  const [customSessionType, setCustomSessionType] = useState('');
+  const [showSessionTypeModal, setShowSessionTypeModal] = useState(false);
+  const [exercises, setExercises] = useState([]);
+  const [intensity, setIntensity] = useState(50);
+  const [sliderActive, setSliderActive] = useState(false);
+  const [totalRounds, setTotalRounds] = useState(3);
+  const [restBetweenRounds, setRestBetweenRounds] = useState(60);
+  const [soundAlerts, setSoundAlerts] = useState(true);
+  const [autoRepeat, setAutoRepeat] = useState(true);
+  const [notes, setNotes] = useState('');
+  
+  // Modal states
   const [addModalVisible, setAddModalVisible] = useState(false);
-  const [exerciseSearch, setExerciseSearch] = useState('');
-  const [exerciseResults, setExerciseResults] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  // Session-wide settings
-  const [totalRounds, setTotalRounds] = useState(editingSession ? editingSession.total_rounds || 3 : 3);
-  const [restBetweenRounds, setRestBetweenRounds] = useState(editingSession ? editingSession.rest_between_rounds || 60 : 60);
-  const [soundAlerts, setSoundAlerts] = useState(editingSession ? !!editingSession.sound_alerts : true);
-  const [soundOption, setSoundOption] = useState(editingSession ? editingSession.sound_option || 'ding' : 'ding');
-  const [summary, setSummary] = useState({ totalTime: 0, totalCalories: 0 });
+  const [templateModalVisible, setTemplateModalVisible] = useState(false);
+  const [workoutPlayerVisible, setWorkoutPlayerVisible] = useState(false);
+  
+  // Search and selection
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedExercise, setSelectedExercise] = useState(null);
-  const [modalDuration, setModalDuration] = useState('');
-  const [modalRest, setModalRest] = useState('');
-  const [modalType, setModalType] = useState('time'); // 'time' or 'reps'
-  const [modalReps, setModalReps] = useState('');
-  const [modalMusicCue, setModalMusicCue] = useState('');
-  const [editIndex, setEditIndex] = useState(null); // Track which block is being edited
-  const [showTypeModal, setShowTypeModal] = useState(false);
-  const [showIntensityModal, setShowIntensityModal] = useState(false);
+  const [exerciseDuration, setExerciseDuration] = useState('');
+  const [exerciseRest, setExerciseRest] = useState('');
+  
+  // Workout player states
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  const [currentRound, setCurrentRound] = useState(1);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [isResting, setIsResting] = useState(false);
+  
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(height)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  
+  // Timer ref
+  const timerRef = useRef(null);
 
-  useEffect(() => {
-    if (!addModalVisible) return;
-    setSearchLoading(true);
-    fetchExercises({ search: exerciseSearch })
-      .then(data => setExerciseResults(data || []))
-      .catch(e => { console.log('Error fetching exercises:', e); setExerciseResults([]); })
-      .finally(() => setSearchLoading(false));
-  }, [exerciseSearch, addModalVisible]);
+  // Calculate session summary
+  const calculateSummary = () => {
+    const totalCalories = exercises.reduce((sum, ex) => {
+      const exerciseData = EXERCISE_LIBRARY.find(e => e.id === ex.id);
+      const intensityMultiplier = intensity / 50;
+      const baseTime = ex.blockType === 'time' ? ex.duration : (ex.reps * 2);
+      const exerciseTime = baseTime / 60;
+      return sum + (exerciseData?.baseCalories || 8) * intensityMultiplier * exerciseTime;
+    }, 0) * totalRounds;
 
-  // Auto-calculate session summary
-  useEffect(() => {
-    // Calculate total time (in seconds)
-    const perRoundTime = exercises.reduce(
-      (sum, ex) => sum + (parseInt(ex.duration) || 0) + (parseInt(ex.rest) || 0),
-      0
+    const perRoundTime = exercises.reduce((sum, ex) => 
+      sum + (parseInt(ex.duration) || ex.reps * 2 || 30) + (parseInt(ex.rest) || 15), 0
     );
-    const totalTime = perRoundTime * totalRounds + (totalRounds - 1) * restBetweenRounds;
+    const totalTime = (perRoundTime * totalRounds + (totalRounds - 1) * restBetweenRounds) / 60;
 
-    // Calculate total calories (if you have per-exercise kcal, otherwise set to 0)
-    const totalCalories = exercises.reduce(
-      (sum, ex) => sum + (parseInt(ex.kcal) || 0),
-      0
-    ) * totalRounds;
+    return {
+      totalTime: Math.round(totalTime),
+      totalCalories: Math.round(totalCalories),
+      difficulty: totalCalories > 400 ? 'Hard' : totalCalories > 200 ? 'Moderate' : 'Easy'
+    };
+  };
 
-    setSummary({ totalTime, totalCalories });
-  }, [exercises, totalRounds, restBetweenRounds]);
+  const summary = calculateSummary();
 
-  // Modal state reset helper
-  const closeAddModal = () => {
+  // Filter exercises based on search
+  const filteredExercises = EXERCISE_LIBRARY.filter(ex =>
+    ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    ex.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  // Animation effects
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  // Progress animation based on calories
+  useEffect(() => {
+    const progress = Math.min(summary.totalCalories / 500, 1);
+    Animated.timing(progressAnim, {
+      toValue: progress,
+      duration: 500,
+      useNativeDriver: false,
+    }).start();
+  }, [summary.totalCalories]);
+
+  // Template loading
+  const loadTemplate = (templateKey) => {
+    const template = SESSION_TEMPLATES[templateKey];
+    if (!template) return;
+
+    const templateExercises = template.exercises.map((exerciseId, index) => {
+      const exerciseData = EXERCISE_LIBRARY.find(e => e.id === exerciseId);
+      return {
+        id: exerciseId,
+        name: exerciseData.name,
+        icon: exerciseData.icon,
+        blockType: 'time',
+        duration: exerciseData.baseDuration || 45,
+        rest: 15,
+        order: index
+      };
+    });
+
+            setSessionType(template.name);
+    setExercises(templateExercises);
+    setIntensity(template.intensity);
+    setTotalRounds(template.rounds);
+    setRestBetweenRounds(template.restBetweenRounds);
+    setTemplateModalVisible(false);
+
+    // Show success animation
+    Animated.sequence([
+      Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      Animated.delay(1500),
+      Animated.timing(slideAnim, { toValue: -100, duration: 300, useNativeDriver: true })
+    ]).start();
+  };
+
+  // Add exercise to session
+  const addExercise = () => {
+    if (!selectedExercise || (!exerciseDuration && selectedExercise.baseReps === undefined)) {
+      Alert.alert('Error', 'Please select an exercise and set duration');
+      return;
+    }
+
+    const newExercise = {
+      id: selectedExercise.id,
+      name: selectedExercise.name,
+      icon: selectedExercise.icon,
+      blockType: selectedExercise.baseReps ? 'reps' : 'time',
+      duration: exerciseDuration || selectedExercise.baseDuration,
+      reps: selectedExercise.baseReps,
+      rest: exerciseRest || 15,
+      order: exercises.length
+    };
+
+    setExercises([...exercises, newExercise]);
     setAddModalVisible(false);
     setSelectedExercise(null);
-    setModalDuration('');
-    setModalRest('');
-    setModalType('time'); // Reset block type
-    setModalReps('');
-    setModalMusicCue('');
-    setEditIndex(null);
-    setExerciseSearch('');
-  };
-
-  // Add Exercise: open modal
-  const openAddModal = () => {
-    closeAddModal();
-    setAddModalVisible(true);
-  };
-
-  // When user selects an exercise, show duration/rest fields
-  const handleSelectExercise = (ex) => {
-    setSelectedExercise(ex);
-    setModalDuration('');
-    setModalRest('');
-    setModalType('time'); // Default to time for new exercise
-    setModalReps('');
-    setModalMusicCue('');
-  };
-
-  // Open modal for editing a block
-  const openEditModal = (block, idx) => {
-    setSelectedExercise({
-      id: block.id,
-      name: block.name,
-      type: block.type,
-      img: block.img,
-    });
-    setModalType(block.blockType || 'time');
-    setModalDuration(block.duration || '');
-    setModalReps(block.reps || '');
-    setModalRest(block.rest || '');
-    setModalMusicCue(block.musicCue || '');
-    setEditIndex(idx);
-    setAddModalVisible(true);
-  };
-
-  // Confirm add/edit exercise with custom duration/rest
-  const handleConfirmAddExercise = () => {
-    if (!selectedExercise || (!modalDuration && !modalReps) || !modalRest) {
-      Alert.alert('Please enter duration or reps, and rest.');
-      return;
-    }
-    if (modalType === 'time') {
-      const durationNum = parseInt(modalDuration);
-      if (isNaN(durationNum) || durationNum <= 0) {
-        Alert.alert('Invalid Duration', 'Duration must be a positive number.');
-        return;
-      }
-    } else {
-      const repsNum = parseInt(modalReps);
-      if (isNaN(repsNum) || repsNum <= 0) {
-        Alert.alert('Invalid Reps', 'Reps must be a positive number.');
-        return;
-      }
-    }
-    const restNum = parseInt(modalRest);
-    if (isNaN(restNum) || restNum < 0) {
-      Alert.alert('Invalid Rest', 'Rest must be zero or a positive number.');
-      return;
-    }
-    const newBlock = {
-      id: selectedExercise.id,
-      name: selectedExercise.name || selectedExercise.workout,
-      type: selectedExercise.type,
-      img: selectedExercise.img || selectedExercise.image || selectedExercise.img_url,
-      blockType: modalType,
-      duration: modalType === 'time' ? modalDuration : '',
-      reps: modalType === 'reps' ? modalReps : '',
-      rest: modalRest,
-      musicCue: modalMusicCue,
-    };
-    if (editIndex !== null) {
-      // Edit existing block
-      setExercises(prev => prev.map((ex, i) => i === editIndex ? newBlock : ex));
-    } else {
-      // Add new block
-      setExercises(prev => [...prev, newBlock]);
-    }
-    closeAddModal();
+    setExerciseDuration('');
+    setExerciseRest('');
   };
 
   // Remove exercise
-  const handleRemove = idx => {
+  const removeExercise = (index) => {
     Alert.alert(
       'Remove Exercise',
       'Are you sure you want to remove this exercise?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: () => setExercises(prev => prev.filter((_, i) => i !== idx)) },
+        { text: 'Remove', style: 'destructive', onPress: () => {
+          setExercises(exercises.filter((_, i) => i !== index));
+        }}
       ]
     );
   };
-  // Inline edit handler
-  const handleEditField = (idx, field, value) => {
-    setExercises(prev => prev.map((ex, i) => i === idx ? { ...ex, [field]: value } : ex));
-  };
 
-  // Save Cardio Session handler (uses new table)
-  const handleSaveWorkout = async () => {
-    if (!workoutName || exercises.length === 0) {
-      Alert.alert('Please enter a workout name and add at least one exercise.');
-      return;
-    }
-    if (!sessionType || (sessionType === 'Custom' && !customSessionType.trim())) {
-      Alert.alert('Please select or enter a session type.');
-      return;
-    }
-    if (!intensity) {
-      Alert.alert('Please select an intensity.');
-      return;
-    }
-    // Validate all exercises
-    for (let i = 0; i < exercises.length; i++) {
-      const ex = exercises[i];
-      if (ex.blockType === 'time') {
-        const durationNum = parseInt(ex.duration);
-        const restNum = parseInt(ex.rest);
-        if (isNaN(durationNum) || durationNum <= 0) {
-          Alert.alert('Invalid Duration', `Exercise ${ex.name}: Duration must be a positive number.`);
-          return;
-        }
-        if (isNaN(restNum) || restNum < 0) {
-          Alert.alert('Invalid Rest', `Exercise ${ex.name}: Rest must be zero or a positive number.`);
-          return;
-        }
-      } else { // reps
-        const repsNum = parseInt(ex.reps);
-        const restNum = parseInt(ex.rest);
-        if (isNaN(repsNum) || repsNum <= 0) {
-          Alert.alert('Invalid Reps', `Exercise ${ex.name}: Reps must be a positive number.`);
-          return;
-        }
-        if (isNaN(restNum) || restNum < 0) {
-          Alert.alert('Invalid Rest', `Exercise ${ex.name}: Rest must be zero or a positive number.`);
-          return;
-        }
-      }
-    }
-    setLoading(true);
-    try {
-      // Get userId from Supabase Auth
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      if (!userId) throw new Error('User not logged in');
-      // Prepare exercises for saveCardioSession
-      const exercisesToSave = exercises.map((ex, idx) => ({
-        exercise_id: (typeof ex.id === 'string' && ex.id.length === 36) ? ex.id : null,
-        exercise_name: ex.name,
-        duration: ex.blockType === 'time' ? ex.duration : ex.reps,
-        reps: ex.blockType === 'reps' ? ex.reps : null,
-        rest: ex.rest,
-        image_url: ex.img || null,
-        order_index: idx + 1,
-      }));
-      if (editingSession && editingSession.id) {
-        // Update existing session
-        await updateCardioSession({
-          sessionId: editingSession.id,
-          name: workoutName,
-          session_type: sessionType === 'Custom' ? customSessionType : sessionType,
-          intensity,
-          totalRounds,
-          restBetweenRounds,
-          soundAlerts,
-          soundOption,
-          autoRepeat,
-          notes,
-          estimatedTime: summary.totalTime,
-          estimatedCalories: summary.totalCalories,
-          exercises: exercisesToSave,
-        });
-        Alert.alert('Success', 'Session updated!');
-      } else {
-        await saveCardioSession({
-          userId,
-          name: workoutName,
-          session_type: sessionType === 'Custom' ? customSessionType : sessionType,
-          intensity,
-          totalRounds,
-          restBetweenRounds,
-          soundAlerts,
-          soundOption,
-          autoRepeat,
-          notes,
-          estimatedTime: summary.totalTime,
-          estimatedCalories: summary.totalCalories,
-          exercises: exercisesToSave,
-        });
-        Alert.alert('Success', 'Session saved!');
-      }
-      navigation.navigate('SavedCardioSessionsScreen');
-    } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to save session.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Play handler
-  const handlePlay = () => {
+  // Start workout
+  const startWorkout = () => {
     if (exercises.length === 0) {
-      Alert.alert('Add at least one exercise to play.');
+      Alert.alert('Error', 'Add at least one exercise to start the workout');
       return;
     }
-    navigation.navigate('CardioPlayerScreen', {
-      session: {
-        name: workoutName,
-        exercises,
-        summary,
-        totalRounds,
-        restBetweenRounds,
-        soundAlerts,
-        soundOption,
-      },
-    });
+    
+    setCurrentExerciseIndex(0);
+    setCurrentRound(1);
+    setIsResting(false);
+    setTimeRemaining(exercises[0].duration || exercises[0].reps * 2 || 30);
+    setWorkoutPlayerVisible(true);
+    
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
   };
 
-  // Add Exercise Modal (FlatList, not DraggableFlatList)
-  const renderAddModal = () => (
-    <Modal visible={addModalVisible} animationType="slide" transparent>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}>
-        <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '95%', maxHeight: '80%' }}>
-          <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Select Exercise</Text>
-          {!selectedExercise ? (
-            <>
-              <TextInput
-                placeholder="Search exercises..."
-                value={exerciseSearch}
-                onChangeText={setExerciseSearch}
-                style={styles.modalInput}
-              />
-              {searchLoading ? <ActivityIndicator /> :
-                <FlatList
-                  data={exerciseResults}
-                  keyExtractor={item => String(item.id)}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity onPress={() => handleSelectExercise(item)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
-                      {item.img || item.image || item.img_url ? (
-                        <Image source={{ uri: item.img || item.image || item.img_url }} style={{ width: 36, height: 36, borderRadius: 8, marginRight: 10 }} />
-                      ) : (
-                        <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#eee', marginRight: 10, justifyContent: 'center', alignItems: 'center' }}>
-                          <Ionicons name="image-outline" size={18} color="#aaa" />
-                        </View>
-                      )}
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: 'black', fontSize: 17, fontWeight: 'bold' }}>{item.name || item.workout}</Text>
-                        <Text style={{ color: '#888', fontSize: 14 }}>{item.type}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  )}
-                  style={{ maxHeight: 300 }}
-                  ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-                />
-              }
-            </>
-          ) : (
-            <>
-              {/* Block type selector */}
-              <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: modalType === 'time' ? COLORS.primary : COLORS.background,
-                    borderColor: COLORS.primary,
-                    borderWidth: 1,
-                    borderRadius: 16,
-                    paddingVertical: 6,
-                    paddingHorizontal: 16,
-                    marginRight: 8,
-                  }}
-                  onPress={() => setModalType('time')}
-                >
-                  <Text style={{ color: modalType === 'time' ? COLORS.white : COLORS.primary, fontWeight: 'bold' }}>Time</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: modalType === 'reps' ? COLORS.primary : COLORS.background,
-                    borderColor: COLORS.primary,
-                    borderWidth: 1,
-                    borderRadius: 16,
-                    paddingVertical: 6,
-                    paddingHorizontal: 16,
-                  }}
-                  onPress={() => setModalType('reps')}
-                >
-                  <Text style={{ color: modalType === 'reps' ? COLORS.white : COLORS.primary, fontWeight: 'bold' }}>Reps</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>{selectedExercise.name || selectedExercise.workout}</Text>
-              {modalType === 'time' ? (
-                <>
-                  <Text>Duration (sec)</Text>
-                  <TextInput
-                    keyboardType="numeric"
-                    value={modalDuration}
-                    onChangeText={setModalDuration}
-                    style={styles.modalInput}
-                    placeholder="e.g. 45"
-                  />
-                </>
-              ) : (
-                <>
-                  <Text>Reps</Text>
-                  <TextInput
-                    keyboardType="numeric"
-                    value={modalReps}
-                    onChangeText={setModalReps}
-                    style={styles.modalInput}
-                    placeholder="e.g. 20"
-                  />
-                </>
-              )}
-              <Text>Music Cue (optional)</Text>
-              <TextInput
-                value={modalMusicCue}
-                onChangeText={setModalMusicCue}
-                style={styles.modalInput}
-                placeholder="Paste music link or file name (optional)"
-              />
-              <Text>Rest (sec)</Text>
-              <TextInput
-                keyboardType="numeric"
-                value={modalRest}
-                onChangeText={setModalRest}
-                style={styles.modalInput}
-                placeholder="e.g. 15"
-              />
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 }}>
-                <TouchableOpacity onPress={closeAddModal} style={{ marginRight: 16 }}><Text>Back</Text></TouchableOpacity>
-                <TouchableOpacity onPress={handleConfirmAddExercise}><Text style={{ color: COLORS.primary, fontWeight: 'bold' }}>Add</Text></TouchableOpacity>
-              </View>
-            </>
-          )}
-          <TouchableOpacity onPress={closeAddModal} style={{ marginTop: 16, alignSelf: 'flex-end' }}>
-            <Text style={{ color: COLORS.primary, fontWeight: 'bold' }}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
+  // Workout timer logic
+  useEffect(() => {
+    if (isPlaying && timeRemaining > 0) {
+      timerRef.current = setTimeout(() => {
+        setTimeRemaining(time => time - 1);
+      }, 1000);
+    } else if (isPlaying && timeRemaining === 0) {
+      handleTimerComplete();
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [isPlaying, timeRemaining]);
+
+  const handleTimerComplete = () => {
+    const currentExercise = exercises[currentExerciseIndex];
+    
+    if (isResting) {
+      // Rest complete, next exercise or round
+      if (currentRound < totalRounds) {
+        setCurrentRound(currentRound + 1);
+        setIsResting(false);
+        setTimeRemaining(currentExercise.duration || currentExercise.reps * 2 || 30);
+      } else if (currentExerciseIndex < exercises.length - 1) {
+        setCurrentExerciseIndex(currentExerciseIndex + 1);
+        setCurrentRound(1);
+        setIsResting(false);
+        const nextExercise = exercises[currentExerciseIndex + 1];
+        setTimeRemaining(nextExercise.duration || nextExercise.reps * 2 || 30);
+      } else {
+        // Workout complete
+        completeWorkout();
+      }
+    } else {
+      // Exercise complete, start rest or move to next
+      if (currentRound < totalRounds) {
+        setIsResting(true);
+        setTimeRemaining(currentExercise.rest || 15);
+      } else if (currentExerciseIndex < exercises.length - 1) {
+        setIsResting(true);
+        setTimeRemaining(restBetweenRounds);
+      } else {
+        completeWorkout();
+      }
+    }
+  };
+
+  const completeWorkout = () => {
+    setIsPlaying(false);
+    Alert.alert(
+      'Workout Complete! 🎉',
+      `Great job! You completed ${exercises.length} exercises across ${totalRounds} rounds.`,
+      [{ text: 'Done', onPress: () => setWorkoutPlayerVisible(false) }]
+    );
+  };
+
+  const togglePlayPause = () => {
+    setIsPlaying(!isPlaying);
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Clear all exercises
+  const clearAll = () => {
+    Alert.alert(
+      'Clear All',
+      'Are you sure you want to remove all exercises?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear', style: 'destructive', onPress: () => setExercises([]) }
+      ]
+    );
+  };
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color={COLORS.text} /></TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Workout</Text>
-        <TouchableOpacity><Feather name="help-circle" size={22} color={COLORS.gray} /></TouchableOpacity>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      
+      {/* Header with Fixed Background */}
+      <View style={styles.header}>
+        <Animated.View style={[styles.headerContent, { opacity: fadeAnim }]}>
+          <Text style={styles.headerTitle}>Build Your Cardio Session</Text>
+          <Text style={styles.headerSubtitle}>Add exercises, set intensity, track progress</Text>
+          
+          {/* Progress Arc */}
+          <View style={styles.progressContainer}>
+            <Animated.View style={[styles.progressArc, {
+              borderColor: COLORS.white,
+              borderWidth: 8,
+              borderRadius: 60,
+              width: 120,
+              height: 120,
+              transform: [{
+                rotate: progressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0deg', '360deg']
+                })
+              }]
+            }]}>
+              <View style={styles.progressText}>
+                <Text style={styles.progressCalories}>{summary.totalCalories}</Text>
+                <Text style={styles.progressTime}>{summary.totalTime} min</Text>
+              </View>
+            </Animated.View>
+          </View>
+        </Animated.View>
       </View>
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        {/* Session Name */}
-        <View style={styles.sessionNameCard}>
-          <TextInput
-            style={styles.sessionNameInput}
-            placeholder="e.g., Morning Burn, Core HIIT Circuit"
-            placeholderTextColor={COLORS.gray}
-            value={workoutName}
-            onChangeText={setWorkoutName}
-          />
-        </View>
-        {/* Session Type & Intensity (modal selector style) */}
-        <View style={{ backgroundColor: COLORS.card, borderRadius: 16, marginHorizontal: 16, marginBottom: 0, padding: 12, borderWidth: 1, borderColor: COLORS.cardBorder }}>
-          <Text style={{ fontWeight: 'bold', fontSize: 15, marginBottom: 6 }}>Type</Text>
-          <TouchableOpacity
-            style={{
-              backgroundColor: COLORS.background,
-              borderColor: COLORS.primary,
-              borderWidth: 1,
-              borderRadius: 16,
-              paddingVertical: 10,
-              paddingHorizontal: 18,
-              marginBottom: 8,
-            }}
-            onPress={() => setShowTypeModal(true)}
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Session Type Selector */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Session Type</Text>
+          <TouchableOpacity 
+            style={styles.sessionTypeSelector}
+            onPress={() => setShowSessionTypeModal(true)}
           >
-            <Text style={{ color: COLORS.primary, fontWeight: 'bold', fontSize: 16 }}>
-              {sessionType ? (sessionType === 'Custom' ? (customSessionType || 'Custom') : sessionType) : 'Select session type'}
+            <Text style={[
+              styles.sessionTypeText, 
+              !sessionType && styles.sessionTypePlaceholder
+            ]}>
+              {sessionType ? (sessionType === 'Custom' ? customSessionType : sessionType) : 'Select session type'}
             </Text>
+            <Text style={styles.sessionTypeArrow}>▼</Text>
           </TouchableOpacity>
-          <Modal visible={showTypeModal} transparent animationType="fade">
-            <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'center', alignItems: 'center' }} onPress={() => setShowTypeModal(false)}>
-              <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '80%' }}>
-                {SESSION_TYPES.map(type => (
-                  <TouchableOpacity
-                    key={type}
-                    style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}
-                    onPress={() => {
-                      setSessionType(type);
-                      setShowTypeModal(false);
-                    }}
-                  >
-                    <Text style={{ fontSize: 17, color: COLORS.primary, fontWeight: 'bold' }}>{type}</Text>
-                  </TouchableOpacity>
-                ))}
-                {sessionType === 'Custom' && (
-                  <TextInput
-                    style={{ borderWidth: 1, borderColor: COLORS.cardBorder, borderRadius: 8, padding: 8, fontSize: 16, color: COLORS.text, backgroundColor: COLORS.background, marginTop: 12 }}
-                    placeholder="Enter custom session type"
-                    value={customSessionType}
-                    onChangeText={setCustomSessionType}
-                  />
-                )}
-              </View>
-            </TouchableOpacity>
-          </Modal>
-          <Text style={{ fontWeight: 'bold', fontSize: 15, marginBottom: 6, marginTop: 8 }}>Intensity</Text>
-          <TouchableOpacity
-            style={{
-              backgroundColor: COLORS.background,
-              borderColor: COLORS.primary,
-              borderWidth: 1,
-              borderRadius: 16,
-              paddingVertical: 10,
-              paddingHorizontal: 18,
-              marginBottom: 8,
-            }}
-            onPress={() => setShowIntensityModal(true)}
-          >
-            <Text style={{ color: COLORS.primary, fontWeight: 'bold', fontSize: 16 }}>
-              {intensity || 'Select intensity'}
-            </Text>
-          </TouchableOpacity>
-          <Modal visible={showIntensityModal} transparent animationType="fade">
-            <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'center', alignItems: 'center' }} onPress={() => setShowIntensityModal(false)}>
-              <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '80%' }}>
-                {INTENSITIES.map(level => (
-                  <TouchableOpacity
-                    key={level}
-                    style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}
-                    onPress={() => {
-                      setIntensity(level);
-                      setShowIntensityModal(false);
-                    }}
-                  >
-                    <Text style={{ fontSize: 17, color: COLORS.primary, fontWeight: 'bold' }}>{level}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </TouchableOpacity>
-          </Modal>
         </View>
+
+        {/* Quick Templates */}
+        {/* <View style={styles.card
+
+        {/* Intensity Buttons */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Intensity</Text>
+          <View style={styles.intensityLabels}>
+            <TouchableOpacity 
+              style={[
+                styles.intensityButton,
+                intensity <= 33 && styles.intensityButtonActive
+              ]}
+              onPress={() => setIntensity(25)}
+            >
+              <Text style={[
+                styles.intensityButtonText,
+                intensity <= 33 && styles.intensityButtonTextActive
+              ]}>Low</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.intensityButton,
+                intensity > 33 && intensity <= 66 && styles.intensityButtonActive
+              ]}
+              onPress={() => setIntensity(50)}
+            >
+              <Text style={[
+                styles.intensityButtonText,
+                intensity > 33 && intensity <= 66 && styles.intensityButtonTextActive
+              ]}>Medium</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.intensityButton,
+                intensity > 66 && styles.intensityButtonActive
+              ]}
+              onPress={() => setIntensity(75)}
+            >
+              <Text style={[
+                styles.intensityButtonText,
+                intensity > 66 && styles.intensityButtonTextActive
+              ]}>High</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Exercises List */}
-        <Text style={styles.sectionTitle}>Exercises ({exercises.length})</Text>
-        <View style={styles.exListCard}>
-          <DraggableFlatList
-            data={exercises}
-            keyExtractor={(_, idx) => String(idx)}
-            onDragEnd={({ data }) => setExercises(data)}
-            renderItem={({ item, index, drag, isActive }) => (
-              <TouchableOpacity
-                style={[styles.exerciseCard, isActive && { backgroundColor: COLORS.blueLight }]}
-                onLongPress={drag}
-                delayLongPress={150}
-                activeOpacity={0.9}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Feather name="menu" size={20} color={COLORS.gray} style={{ marginRight: 10 }} />
-                  {item.img ? (
-                    <Image source={{ uri: item.img }} style={styles.exerciseImg} />
-                  ) : (
-                    <View style={[styles.exerciseImg, { backgroundColor: COLORS.card, justifyContent: 'center', alignItems: 'center' }]}>
-                      <Ionicons name="image-outline" size={20} color={COLORS.gray} />
-                    </View>
-                  )}
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={styles.exerciseName}>{item.name}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                      <Ionicons name="time-outline" size={16} color={COLORS.icon} style={{ marginRight: 4 }} />
-                      {item.blockType === 'time' ? (
-                        <Text style={styles.exerciseDetail}>{item.duration}s</Text>
-                      ) : (
-                        <Text style={styles.exerciseDetail}>{item.reps} reps</Text>
-                      )}
-                      <TouchableOpacity style={{ marginLeft: 4 }} onPress={() => Alert.alert('Duration', 'How long to perform this exercise (in seconds).')}>
-                        <Feather name="info" size={14} color={COLORS.gray} />
-                      </TouchableOpacity>
-                      {item.musicCue ? (
-                        <>
-                          <Ionicons name="musical-notes-outline" size={16} color={COLORS.icon} style={{ marginLeft: 12, marginRight: 4 }} />
-                          <Text style={styles.exerciseDetail} numberOfLines={1} ellipsizeMode="tail">{item.musicCue}</Text>
-                        </>
-                      ) : null}
-                      <Ionicons name="pause-circle-outline" size={16} color={COLORS.icon} style={{ marginLeft: 12, marginRight: 4 }} />
-                      <Text style={styles.exerciseDetail}>Rest: {item.rest}s</Text>
-                      <TouchableOpacity style={{ marginLeft: 4 }} onPress={() => Alert.alert('Rest', 'How long to rest after this exercise (in seconds).')}>
-                        <Feather name="info" size={14} color={COLORS.gray} />
-                      </TouchableOpacity>
+        <View style={styles.card}>
+          <View style={styles.exerciseHeader}>
+            <Text style={styles.cardTitle}>Exercises ({exercises.length})</Text>
+            <TouchableOpacity style={styles.addButton} onPress={() => setAddModalVisible(true)}>
+              <Text style={styles.addButtonText}>+ Add</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {exercises.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>💪</Text>
+              <Text style={styles.emptyStateText}>No exercises added yet</Text>
+              <Text style={styles.emptyStateSubtext}>Tap "Add" to get started</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={exercises}
+              keyExtractor={(item, index) => index.toString()}
+              renderItem={({ item, index }) => (
+                <View style={styles.exerciseCard}>
+                  <View style={styles.exerciseInfo}>
+                    <Text style={styles.exerciseIcon}>{item.icon}</Text>
+                    <View style={styles.exerciseDetails}>
+                      <Text style={styles.exerciseName}>{item.name}</Text>
+                      <View style={styles.exerciseStats}>
+                        <Text style={styles.exerciseStat}>
+                          {item.blockType === 'time' ? `${item.duration}s` : `${item.reps} reps`}
+                        </Text>
+                        <Text style={styles.exerciseStat}>Rest: {item.rest}s</Text>
+                      </View>
                     </View>
                   </View>
-                  <TouchableOpacity onPress={() => handleRemove(index)}>
-                    <Ionicons name="trash-outline" size={20} color={COLORS.gray} />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => openEditModal(item, index)} style={{ marginLeft: 8 }}>
-                    <Ionicons name="pencil-outline" size={20} color={COLORS.primary} />
+                  <TouchableOpacity onPress={() => removeExercise(index)}>
+                    <Text style={styles.removeButton}>×</Text>
                   </TouchableOpacity>
                 </View>
-                <View style={styles.inlineFieldsRow}>
-                  {item.blockType === 'time' ? (
-                    <TextInput
-                      style={styles.inlineInput}
-                      keyboardType="numeric"
-                      value={item.duration === undefined || item.duration === null ? '' : String(item.duration)}
-                      onChangeText={v => handleEditField(index, 'duration', v.replace(/[^0-9]/g, ''))}
-                      placeholder="Duration (sec)"
-                    />
-                  ) : (
-                    <TextInput
-                      style={styles.inlineInput}
-                      keyboardType="numeric"
-                      value={item.reps === undefined || item.reps === null ? '' : String(item.reps)}
-                      onChangeText={v => handleEditField(index, 'reps', v.replace(/[^0-9]/g, ''))}
-                      placeholder="Reps"
-                    />
-                  )}
-                  <TextInput
-                    style={styles.inlineInput}
-                    keyboardType="numeric"
-                    value={item.rest === undefined || item.rest === null ? '' : String(item.rest)}
-                    onChangeText={v => handleEditField(index, 'rest', v.replace(/[^0-9]/g, ''))}
-                    placeholder="Rest (sec)"
-                  />
-                </View>
-              </TouchableOpacity>
-            )}
-            scrollEnabled={false}
-            ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-          />
-          <TouchableOpacity style={styles.addExerciseBtn} onPress={openAddModal}>
-            <Ionicons name="add" size={20} color={COLORS.primary} />
-            <Text style={styles.addExerciseText}>Add Exercise</Text>
-          </TouchableOpacity>
+              )}
+              scrollEnabled={false}
+            />
+          )}
         </View>
+
         {/* Session Settings */}
-        <Text style={styles.sectionTitle}>Session Settings</Text>
-        <View style={styles.settingsCard}>
-          <View style={styles.settingsRow}>
-            <Text style={styles.settingsLabel}>Total Rounds</Text>
-            <View style={styles.stepperRow}>
-              <TouchableOpacity onPress={() => setTotalRounds(r => Math.max(1, r - 1))} style={styles.stepperBtn}><Text style={styles.stepperBtnText}>-</Text></TouchableOpacity>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Session Settings</Text>
+          
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Total Rounds</Text>
+            <View style={styles.stepperContainer}>
+              <TouchableOpacity 
+                style={styles.stepperButton}
+                onPress={() => setTotalRounds(Math.max(1, totalRounds - 1))}
+              >
+                <Text style={styles.stepperButtonText}>-</Text>
+              </TouchableOpacity>
               <Text style={styles.stepperValue}>{totalRounds}</Text>
-              <TouchableOpacity onPress={() => setTotalRounds(r => r + 1)} style={styles.stepperBtn}><Text style={styles.stepperBtnText}>+</Text></TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.stepperButton}
+                onPress={() => setTotalRounds(totalRounds + 1)}
+              >
+                <Text style={styles.stepperButtonText}>+</Text>
+              </TouchableOpacity>
             </View>
           </View>
-          <View style={styles.settingsRow}>
-            <Text style={styles.settingsLabel}>Rest Between Rounds</Text>
-            <View style={{ flex: 1, marginLeft: 16 }}>
-              <Slider
-                minimumValue={0}
-                maximumValue={180}
-                step={5}
-                value={restBetweenRounds}
-                onValueChange={setRestBetweenRounds}
-                minimumTrackTintColor={COLORS.primary}
-                maximumTrackTintColor={COLORS.cardBorder}
-                thumbTintColor={COLORS.primary}
-              />
-              <Text style={{ color: COLORS.textSecondary, marginTop: 2 }}>{restBetweenRounds}s</Text>
-            </View>
+
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Rest Between Rounds</Text>
+            <Text style={styles.settingValue}>{restBetweenRounds}s</Text>
           </View>
-          <View style={styles.settingsRow}>
-            <Text style={styles.settingsLabel}>Sound Alerts</Text>
+
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Sound Alerts</Text>
             <Switch
               value={soundAlerts}
               onValueChange={setSoundAlerts}
               trackColor={{ true: COLORS.primary, false: COLORS.cardBorder }}
-              thumbColor={soundAlerts ? COLORS.primary : COLORS.gray}
-              style={{ marginLeft: 'auto' }}
+              thumbColor={COLORS.white}
             />
           </View>
-          {soundAlerts && (
-            <View style={{ flexDirection: 'row', marginTop: 8 }}>
-              {SOUND_OPTIONS.map(opt => (
-                <TouchableOpacity
-                  key={opt.key}
-                  style={[styles.soundOptionBtn, soundOption === opt.key && styles.soundOptionBtnActive]}
-                  onPress={() => setSoundOption(opt.key)}
-                >
-                  <Text style={[styles.soundOptionText, soundOption === opt.key && { color: COLORS.primary }]}>{opt.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-          {/* Auto-repeat weekly toggle */}
-          <View style={styles.settingsRow}>
-            <Text style={styles.settingsLabel}>Auto-repeat weekly</Text>
+
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Auto Repeat Weekly</Text>
             <Switch
               value={autoRepeat}
               onValueChange={setAutoRepeat}
               trackColor={{ true: COLORS.primary, false: COLORS.cardBorder }}
-              thumbColor={autoRepeat ? COLORS.primary : COLORS.gray}
-              style={{ marginLeft: 'auto' }}
+              thumbColor={COLORS.white}
             />
           </View>
         </View>
+
         {/* Session Summary */}
-        <Text style={styles.sectionTitle}>Session Summary</Text>
-        <View style={styles.summaryCardRow}>
-          <View style={styles.summaryCard2}>
-            <Ionicons name="timer-outline" size={22} color={COLORS.primary} />
-            <Text style={styles.summaryValue2}>{Math.floor(summary.totalTime / 60)}:{(summary.totalTime % 60).toString().padStart(2, '0')}</Text>
-            <Text style={styles.summaryLabel2}>Total Time</Text>
-          </View>
-          <View style={styles.summaryCard2}>
-            <MaterialCommunityIcons name="fire" size={22} color={COLORS.primary} />
-            <Text style={styles.summaryValue2}>{summary.totalCalories}</Text>
-            <Text style={styles.summaryLabel2}>Calories</Text>
-          </View>
-          <View style={styles.summaryCard2}>
-            <Ionicons name="list-outline" size={22} color={COLORS.primary} />
-            <Text style={styles.summaryValue2}>{exercises.length}</Text>
-            <Text style={styles.summaryLabel2}>Exercises</Text>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryCardTitle}>Session Summary</Text>
+          <View style={styles.summaryGrid}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryIcon}>⏱️</Text>
+              <Text style={styles.summaryValue}>{summary.totalTime}</Text>
+              <Text style={styles.summaryLabel}>Minutes</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryIcon}>🔥</Text>
+              <Text style={styles.summaryValue}>{summary.totalCalories}</Text>
+              <Text style={styles.summaryLabel}>Calories</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryIcon}>📊</Text>
+              <Text style={styles.summaryValue}>{summary.difficulty}</Text>
+              <Text style={styles.summaryLabel}>Difficulty</Text>
+            </View>
           </View>
         </View>
-        {/* Bottom Buttons */}
-        <View style={styles.bottomBtnRow}>
-          <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()}>
-            <Text style={styles.cancelBtnText}>Cancel</Text>
+
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity style={styles.clearButton} onPress={clearAll}>
+            <Text style={styles.clearButtonText}>Clear All</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.saveBtn2} onPress={handleSaveWorkout} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="play" size={18} color={COLORS.white} style={{ marginRight: 6 }} />
-                <Text style={styles.saveBtnText2}>Save & Start</Text>
-              </View>
-            )}
+          <TouchableOpacity style={styles.startButton} onPress={startWorkout}>
+            <Text style={styles.startButtonText}>Start Workout</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
-      {renderAddModal()}
+
+      {/* Add Exercise Modal */}
+      <Modal visible={addModalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Exercise</Text>
+              <TouchableOpacity onPress={() => setAddModalVisible(false)}>
+                <Text style={styles.modalClose}>×</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search exercises..."
+              placeholderTextColor={COLORS.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+
+            {!selectedExercise ? (
+              <FlatList
+                data={filteredExercises}
+                keyExtractor={item => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity 
+                    style={styles.exerciseOption}
+                    onPress={() => setSelectedExercise(item)}
+                  >
+                    <Text style={styles.exerciseOptionIcon}>{item.icon}</Text>
+                    <View style={styles.exerciseOptionInfo}>
+                      <Text style={styles.exerciseOptionName}>{item.name}</Text>
+                      <View style={styles.exerciseOptionTags}>
+                        {item.tags.map(tag => (
+                          <View key={tag} style={styles.tag}>
+                            <Text style={styles.tagText}>{tag}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                    <Text style={styles.difficultyBadge}>{item.difficulty}</Text>
+                  </TouchableOpacity>
+                )}
+                style={styles.exerciseList}
+              />
+            ) : (
+              <View style={styles.exerciseConfiguration}>
+                <Text style={styles.selectedExerciseName}>{selectedExercise.name} {selectedExercise.icon}</Text>
+                
+                <View style={styles.configRow}>
+                  <Text style={styles.configLabel}>Duration (seconds)</Text>
+                  <TextInput
+                    style={styles.configInput}
+                    placeholder={selectedExercise.baseDuration?.toString() || "45"}
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={exerciseDuration}
+                    onChangeText={setExerciseDuration}
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                <View style={styles.configRow}>
+                  <Text style={styles.configLabel}>Rest (seconds)</Text>
+                  <TextInput
+                    style={styles.configInput}
+                    placeholder="15"
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={exerciseRest}
+                    onChangeText={setExerciseRest}
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity 
+                    style={styles.modalCancelButton}
+                    onPress={() => setSelectedExercise(null)}
+                  >
+                    <Text style={styles.modalCancelText}>Back</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.modalAddButton} onPress={addExercise}>
+                    <Text style={styles.modalAddText}>Add Exercise</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Workout Player Modal */}
+      <Modal visible={workoutPlayerVisible} animationType="slide" transparent>
+        <View style={styles.playerOverlay}>
+          <Animated.View style={[styles.playerModal, { transform: [{ translateY: slideAnim }] }]}>
+            <View style={styles.playerHeader}>
+              <Text style={styles.playerTitle}>Workout in Progress</Text>
+              <TouchableOpacity onPress={() => {
+                setIsPlaying(false);
+                setWorkoutPlayerVisible(false);
+              }}>
+                <Text style={styles.playerClose}>×</Text>
+              </TouchableOpacity>
+            </View>
+
+            {exercises.length > 0 && (
+              <View style={styles.playerContent}>
+                <Text style={styles.currentExerciseIcon}>
+                  {exercises[currentExerciseIndex]?.icon}
+                </Text>
+                <Text style={styles.currentExerciseName}>
+                  {exercises[currentExerciseIndex]?.name}
+                </Text>
+                <Text style={styles.currentStatus}>
+                  {isResting ? 'Rest Time' : `Round ${currentRound} of ${totalRounds}`}
+                </Text>
+                
+                <Text style={styles.timerDisplay}>{formatTime(timeRemaining)}</Text>
+                
+                <View style={styles.playerControls}>
+                  <TouchableOpacity style={styles.playerButton} onPress={togglePlayPause}>
+                    <Text style={styles.playerButtonText}>{isPlaying ? '⏸️' : '▶️'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.playerButton} 
+                    onPress={() => {
+                      if (currentExerciseIndex < exercises.length - 1) {
+                        setCurrentExerciseIndex(currentExerciseIndex + 1);
+                        setCurrentRound(1);
+                        setIsResting(false);
+                        setTimeRemaining(exercises[currentExerciseIndex + 1].duration || 30);
+                      }
+                    }}
+                  >
+                    <Text style={styles.playerButtonText}>⏭️</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </Animated.View>
+        </View>
+      </Modal>
+
+      {/* Session Type Modal */}
+      <Modal
+        visible={showSessionTypeModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSessionTypeModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSessionTypeModal(false)}
+        >
+          <View style={styles.sessionTypeModal}>
+            <Text style={styles.sessionTypeModalTitle}>Select Session Type</Text>
+            {SESSION_TYPES.map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={styles.sessionTypeOption}
+                onPress={() => {
+                  setSessionType(type);
+                  if (type !== 'Custom') {
+                    setCustomSessionType('');
+                  }
+                  setShowSessionTypeModal(false);
+                }}
+              >
+                <Text style={styles.sessionTypeOptionText}>{type}</Text>
+              </TouchableOpacity>
+            ))}
+            {sessionType === 'Custom' && (
+              <View style={styles.customInputContainer}>
+                <TextInput
+                  style={styles.customInput}
+                  placeholder="Enter custom session type"
+                  placeholderTextColor={COLORS.textSecondary}
+                  value={customSessionType}
+                  onChangeText={setCustomSessionType}
+                />
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Success Toast */}
+      <Animated.View style={[styles.toast, { transform: [{ translateY: slideAnim }] }]}>
+        <Text style={styles.toastText}>Template loaded successfully! 🎉</Text>
+      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  background: { backgroundColor: COLORS.background },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 18, paddingBottom: 8, backgroundColor: COLORS.background },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: COLORS.text, textAlign: 'center', flex: 1 },
-  headerIcon: { width: 32, alignItems: 'center' },
-  sessionNameCard: { backgroundColor: COLORS.card, borderRadius: 16, margin: 16, padding: 16, borderWidth: 1, borderColor: COLORS.cardBorder },
-  sessionNameInput: { fontSize: 18, fontWeight: '600', color: COLORS.text, backgroundColor: 'transparent' },
-  sectionTitle: { fontWeight: '700', fontSize: 18, color: COLORS.text, marginHorizontal: 18, marginTop: 18, marginBottom: 8 },
-  exListCard: { backgroundColor: COLORS.card, borderRadius: 16, marginHorizontal: 16, marginTop: 8, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: COLORS.cardBorder },
-  exerciseCard: { backgroundColor: COLORS.card, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: COLORS.cardBorder, marginBottom: 0, marginTop: 0, marginHorizontal: 0, marginVertical: 0 },
-  exerciseName: { fontWeight: '700', fontSize: 16, color: COLORS.text },
-  exerciseDetail: { color: COLORS.textSecondary, fontSize: 14, marginTop: 2 },
-  addExerciseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background, borderRadius: 12, padding: 16, marginTop: 16, borderWidth: 1, borderColor: COLORS.primary },
-  addExerciseText: { color: COLORS.primary, fontWeight: '700', fontSize: 16, marginLeft: 6 },
-  inlineFieldsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, flexWrap: 'wrap', gap: 4 },
-  inlineInput: { borderWidth: 1, borderColor: COLORS.cardBorder, borderRadius: 6, padding: 6, marginRight: 8, width: 100, fontSize: 15, color: COLORS.text, backgroundColor: COLORS.background },
-  exerciseSelectRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4, borderRadius: 8, backgroundColor: COLORS.card },
-  exerciseImg: { width: 48, height: 48, borderRadius: 8, backgroundColor: COLORS.card },
-  settingsCard: { backgroundColor: COLORS.card, borderRadius: 16, marginHorizontal: 16, marginTop: 8, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: COLORS.cardBorder },
-  settingsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  settingsLabel: { fontWeight: '600', fontSize: 16, color: COLORS.text, flex: 1 },
-  stepperRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.background, borderRadius: 8, borderWidth: 1, borderColor: COLORS.cardBorder, paddingHorizontal: 8, paddingVertical: 2 },
-  stepperBtn: { paddingHorizontal: 10, paddingVertical: 2 },
-  stepperBtnText: { fontSize: 22, color: COLORS.primary, fontWeight: '700' },
-  stepperValue: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginHorizontal: 8 },
-  soundOptionBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.cardBorder, marginRight: 8 },
-  soundOptionBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.blueLight },
-  soundOptionText: { fontWeight: '600', color: COLORS.text },
-  summaryCardRow: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 8, marginBottom: 8 },
-  summaryCard2: { flex: 1, backgroundColor: COLORS.card, borderRadius: 12, alignItems: 'center', padding: 12, marginHorizontal: 4, borderWidth: 1, borderColor: COLORS.cardBorder },
-  summaryValue2: { color: COLORS.primary, fontWeight: '700', fontSize: 20, marginTop: 2 },
-  summaryLabel2: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
-  bottomBtnRow: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 24, marginBottom: 24 },
-  cancelBtn: { flex: 1, backgroundColor: COLORS.card, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginRight: 8, borderWidth: 1, borderColor: COLORS.cardBorder },
-  cancelBtnText: { color: COLORS.text, fontWeight: '700', fontSize: 17 },
-  saveBtn2: { flex: 1, backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginLeft: 8 },
-  saveBtnText2: { color: COLORS.white, fontWeight: '700', fontSize: 17 },
-  modalInput: { borderWidth: 1, borderColor: COLORS.cardBorder, borderRadius: 8, padding: 8, marginBottom: 10, fontSize: 16, color: COLORS.text, backgroundColor: COLORS.background },
-}); 
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  
+  header: {
+    backgroundColor: '#7c3aed', // Solid purple background
+    paddingTop: 50,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  
+  headerContent: {
+    alignItems: 'center',
+  },
+  
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#ffffff', // Solid white
+    textAlign: 'center',
+    marginBottom: 8,
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#ffffff', // Solid white
+    opacity: 0.9,
+    textAlign: 'center',
+    marginBottom: 20,
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
+  },
+  
+  progressContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  progressArc: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderColor: '#ffffff',
+  },
+  
+  progressText: {
+    alignItems: 'center',
+  },
+  
+  progressCalories: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  
+  progressTime: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
+  },
+  
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: 'transparent',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 16,
+  },
+  
+  sessionTypeSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#f8fafc',
+  },
+  
+  sessionTypeText: {
+    fontSize: 16,
+    color: '#1e293b',
+    flex: 1,
+  },
+  
+  sessionTypePlaceholder: {
+    color: '#64748b',
+  },
+  
+  sessionTypeArrow: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  
+  templateButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  
+  templateButton: {
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  
+  templateButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  
+  intensityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  
+  intensityValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#7c3aed',
+  },
+  
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  
+  sliderThumb: {
+    width: 20,
+    height: 20,
+  },
+  
+  intensityLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 15,
+    gap: 10,
+  },
+  
+  intensityButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: COLORS.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  
+  intensityButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  
+  intensityButtonText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  
+  intensityButtonTextActive: {
+    color: COLORS.white,
+    fontWeight: '700',
+  },
+  
+  sliderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  
+  sliderTrack: {
+    flex: 1,
+    height: 6,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 3,
+    position: 'relative',
+  },
+  
+  sliderFill: {
+    height: '100%',
+    backgroundColor: '#7c3aed',
+    borderRadius: 3,
+  },
+  
+
+  
+  sliderLabel: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  
+  exerciseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  
+  addButton: {
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  
+  addButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  
+  emptyStateIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#64748b',
+    marginBottom: 8,
+  },
+  
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#94a3b8',
+  },
+  
+  exerciseCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  
+  exerciseInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  
+  exerciseIcon: {
+    fontSize: 28,
+    marginRight: 16,
+  },
+  
+  exerciseDetails: {
+    flex: 1,
+  },
+  
+  exerciseName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  
+  exerciseStats: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  
+  exerciseStat: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  
+  removeButton: {
+    fontSize: 24,
+    color: '#ef4444',
+    fontWeight: '300',
+    paddingHorizontal: 8,
+  },
+  
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1e293b',
+  },
+  
+  settingValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#7c3aed',
+  },
+  
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  
+  stepperButton: {
+    width: 32,
+    height: 32,
+    backgroundColor: '#7c3aed',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  stepperButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  
+  stepperValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+    minWidth: 30,
+    textAlign: 'center',
+  },
+  
+  summaryCard: {
+    backgroundColor: '#7c3aed',
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 16,
+  },
+  
+  summaryCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  
+  summaryGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  
+  summaryItem: {
+    alignItems: 'center',
+  },
+  
+  summaryIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  
+  summaryValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  
+  summaryLabel: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
+  },
+  
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 30,
+  },
+  
+  clearButton: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#ef4444',
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  
+  clearButtonText: {
+    color: '#ef4444',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  
+  startButton: {
+    flex: 2,
+    backgroundColor: '#7c3aed',
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  
+  startButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  
+  modal: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+    paddingTop: 20,
+  },
+  
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  
+  modalClose: {
+    fontSize: 28,
+    color: '#64748b',
+    fontWeight: '300',
+  },
+  
+  searchInput: {
+    margin: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  
+  exerciseList: {
+    paddingHorizontal: 20,
+  },
+  
+  exerciseOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  
+  exerciseOptionIcon: {
+    fontSize: 32,
+    marginRight: 16,
+  },
+  
+  exerciseOptionInfo: {
+    flex: 1,
+  },
+  
+  exerciseOptionName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  
+  exerciseOptionTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  
+  tag: {
+    backgroundColor: '#ede9fe',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  
+  tagText: {
+    fontSize: 12,
+    color: '#7c3aed',
+    fontWeight: '500',
+  },
+  
+  difficultyBadge: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  
+  exerciseConfiguration: {
+    padding: 20,
+  },
+  
+  selectedExerciseName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  
+  configRow: {
+    marginBottom: 20,
+  },
+  
+  configLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 8,
+  },
+  
+  configInput: {
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: '#1e293b',
+    backgroundColor: '#f8fafc',
+  },
+  
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+  },
+  
+  modalCancelButton: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  
+  modalCancelText: {
+    color: '#64748b',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  modalAddButton: {
+    flex: 2,
+    backgroundColor: '#7c3aed',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  
+  modalAddText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  
+  // Workout Player Styles
+  playerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  playerModal: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 32,
+    margin: 20,
+    width: '90%',
+    alignItems: 'center',
+  },
+  
+  playerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 32,
+  },
+  
+  playerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  
+  playerClose: {
+    fontSize: 28,
+    color: '#64748b',
+  },
+  
+  playerContent: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  
+  currentExerciseIcon: {
+    fontSize: 80,
+    marginBottom: 16,
+  },
+  
+  currentExerciseName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1e293b',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  
+  currentStatus: {
+    fontSize: 16,
+    color: '#64748b',
+    marginBottom: 32,
+  },
+  
+  timerDisplay: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: '#7c3aed',
+    marginBottom: 32,
+  },
+  
+  playerControls: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  
+  playerButton: {
+    backgroundColor: '#7c3aed',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  playerButtonText: {
+    fontSize: 24,
+  },
+  
+  // Toast Styles
+  toast: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: '#22c55e',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  
+  toastText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // Session Type Modal Styles
+  sessionTypeModal: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    width: '80%',
+    maxHeight: '70%',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginHorizontal: 'auto',
+  },
+  
+  sessionTypeModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  
+  sessionTypeOption: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  sessionTypeOptionText: {
+    fontSize: 16,
+    color: '#1e293b',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  
+  customInputContainer: {
+    marginTop: 16,
+  },
+  
+  customInput: {
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#1e293b',
+    backgroundColor: '#f8fafc',
+  },
+});
