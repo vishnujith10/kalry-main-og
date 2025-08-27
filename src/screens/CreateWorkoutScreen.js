@@ -1,5 +1,8 @@
+
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, FlatList, Modal, ScrollView, StatusBar, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import supabase from '../lib/supabase';
 
 const { width, height } = Dimensions.get('window');
 
@@ -27,76 +30,7 @@ const COLORS = {
   glassStroke: 'rgba(255,255,255,0.3)',
 };
 
-// Exercise Library with enhanced data
-const EXERCISE_LIBRARY = [
-  { 
-    id: '1', 
-    name: 'Running in Place', 
-    icon: '🏃', 
-    baseCalories: 8, 
-    baseDuration: 60, 
-    type: 'cardio', 
-    tags: ['Speed', 'Endurance'],
-    difficulty: 'Easy',
-    muscleGroups: ['Legs', 'Core']
-  },
-  { 
-    id: '2', 
-    name: 'Jump Rope', 
-    icon: '🪢', 
-    baseCalories: 10, 
-    baseDuration: 60, 
-    type: 'cardio', 
-    tags: ['Speed', 'HIIT'],
-    difficulty: 'Moderate',
-    muscleGroups: ['Full Body']
-  },
-  { 
-    id: '3', 
-    name: 'Burpees', 
-    icon: '💪', 
-    baseCalories: 12, 
-    baseDuration: 30, 
-    type: 'strength', 
-    baseReps: 10, 
-    tags: ['Power', 'HIIT'],
-    difficulty: 'Hard',
-    muscleGroups: ['Full Body']
-  },
-  { 
-    id: '4', 
-    name: 'High Knees', 
-    icon: '🦵', 
-    baseCalories: 9, 
-    baseDuration: 45, 
-    type: 'cardio', 
-    tags: ['Speed', 'Agility'],
-    difficulty: 'Easy',
-    muscleGroups: ['Legs', 'Core']
-  },
-  { 
-    id: '5', 
-    name: 'Mountain Climbers', 
-    icon: '⛰️', 
-    baseCalories: 11, 
-    baseDuration: 45, 
-    type: 'cardio', 
-    tags: ['Power', 'HIIT'],
-    difficulty: 'Moderate',
-    muscleGroups: ['Core', 'Arms']
-  },
-  { 
-    id: '6', 
-    name: 'Jumping Jacks', 
-    icon: '🤸', 
-    baseCalories: 7, 
-    baseDuration: 60, 
-    type: 'cardio', 
-    tags: ['Speed', 'Coordination'],
-    difficulty: 'Easy',
-    muscleGroups: ['Full Body']
-  },
-];
+
 
 // Session Type Options
 const SESSION_TYPES = [
@@ -133,7 +67,7 @@ const SESSION_TEMPLATES = {
   }
 };
 
-export default function CardioSessionBuilder() {
+export default function CardioSessionBuilder({ navigation }) {
   // State management
   const [sessionType, setSessionType] = useState('');
   const [customSessionType, setCustomSessionType] = useState('');
@@ -146,6 +80,10 @@ export default function CardioSessionBuilder() {
   const [soundAlerts, setSoundAlerts] = useState(true);
   const [autoRepeat, setAutoRepeat] = useState(true);
   const [notes, setNotes] = useState('');
+  
+  // Database exercises state
+  const [dbExercises, setDbExercises] = useState([]);
+  const [loadingExercises, setLoadingExercises] = useState(false);
   
   // Modal states
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -173,14 +111,49 @@ export default function CardioSessionBuilder() {
   // Timer ref
   const timerRef = useRef(null);
 
+  // Fetch exercises from database
+  const fetchExercisesFromDB = async () => {
+    try {
+      setLoadingExercises(true);
+      console.log('Fetching exercises from database...');
+      
+      const { data, error } = await supabase
+        .from('exercise')
+        .select('*');
+      
+      if (error) {
+        console.error('Error fetching exercises:', error);
+        Alert.alert('Error', 'Failed to fetch exercises from database');
+        return;
+      }
+      
+      if (data) {
+        console.log('Fetched exercises from DB:', data);
+        console.log('Number of exercises:', data.length);
+        setDbExercises(data);
+      } else {
+        console.log('No data returned from database');
+      }
+    } catch (error) {
+      console.error('Error fetching exercises:', error);
+      Alert.alert('Error', 'Failed to fetch exercises from database');
+    } finally {
+      setLoadingExercises(false);
+    }
+  };
+
   // Calculate session summary
   const calculateSummary = () => {
     const totalCalories = exercises.reduce((sum, ex) => {
-      const exerciseData = EXERCISE_LIBRARY.find(e => e.id === ex.id);
+      const exerciseData = dbExercises.find(e => e.id === ex.id);
       const intensityMultiplier = intensity / 50;
       const baseTime = ex.blockType === 'time' ? ex.duration : (ex.reps * 2);
       const exerciseTime = baseTime / 60;
-      return sum + (exerciseData?.baseCalories || 8) * intensityMultiplier * exerciseTime;
+      // Use a default calorie burn rate based on exercise type
+      const calorieRate = exerciseData?.type === 'cardio' ? 10 : 
+                         exerciseData?.type === 'strength' ? 8 : 
+                         exerciseData?.type === 'core' ? 6 : 7;
+      return sum + calorieRate * intensityMultiplier * exerciseTime;
     }, 0) * totalRounds;
 
     const perRoundTime = exercises.reduce((sum, ex) => 
@@ -197,10 +170,11 @@ export default function CardioSessionBuilder() {
 
   const summary = calculateSummary();
 
-  // Filter exercises based on search
-  const filteredExercises = EXERCISE_LIBRARY.filter(ex =>
-    ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    ex.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+  // Filter exercises based on search (using database data)
+  const filteredExercises = dbExercises.filter(ex =>
+    ex.workout?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    ex.body_part?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    ex.type?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Animation effects
@@ -211,6 +185,13 @@ export default function CardioSessionBuilder() {
       useNativeDriver: true,
     }).start();
   }, []);
+
+  // Fetch exercises when modal opens
+  useEffect(() => {
+    if (addModalVisible) {
+      fetchExercisesFromDB();
+    }
+  }, [addModalVisible]);
 
   // Progress animation based on calories
   useEffect(() => {
@@ -228,19 +209,19 @@ export default function CardioSessionBuilder() {
     if (!template) return;
 
     const templateExercises = template.exercises.map((exerciseId, index) => {
-      const exerciseData = EXERCISE_LIBRARY.find(e => e.id === exerciseId);
+      const exerciseData = dbExercises.find(e => e.id === exerciseId);
       return {
         id: exerciseId,
-        name: exerciseData.name,
-        icon: exerciseData.icon,
+        name: exerciseData?.name || 'Unknown Exercise',
+        icon: '💪',
         blockType: 'time',
-        duration: exerciseData.baseDuration || 45,
+        duration: exerciseData?.duration || 45,
         rest: 15,
         order: index
       };
     });
 
-            setSessionType(template.name);
+    setSessionType(template.name);
     setExercises(templateExercises);
     setIntensity(template.intensity);
     setTotalRounds(template.rounds);
@@ -257,18 +238,17 @@ export default function CardioSessionBuilder() {
 
   // Add exercise to session
   const addExercise = () => {
-    if (!selectedExercise || (!exerciseDuration && selectedExercise.baseReps === undefined)) {
+    if (!selectedExercise || !exerciseDuration) {
       Alert.alert('Error', 'Please select an exercise and set duration');
       return;
     }
 
     const newExercise = {
       id: selectedExercise.id,
-      name: selectedExercise.name,
-      icon: selectedExercise.icon,
-      blockType: selectedExercise.baseReps ? 'reps' : 'time',
-      duration: exerciseDuration || selectedExercise.baseDuration,
-      reps: selectedExercise.baseReps,
+      name: selectedExercise.workout,
+      icon: '💪',
+      blockType: 'time',
+      duration: exerciseDuration || 45,
       rest: exerciseRest || 15,
       order: exercises.length
     };
@@ -397,39 +377,21 @@ export default function CardioSessionBuilder() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" />
       
-      {/* Header with Fixed Background */}
-      <View style={styles.header}>
-        <Animated.View style={[styles.headerContent, { opacity: fadeAnim }]}>
-          <Text style={styles.headerTitle}>Build Your Cardio Session</Text>
-          <Text style={styles.headerSubtitle}>Add exercises, set intensity, track progress</Text>
-          
-          {/* Progress Arc */}
-          <View style={styles.progressContainer}>
-            <Animated.View style={[styles.progressArc, {
-              borderColor: COLORS.white,
-              borderWidth: 8,
-              borderRadius: 60,
-              width: 120,
-              height: 120,
-              transform: [{
-                rotate: progressAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0deg', '360deg']
-                })
-              }]
-            }]}>
-              <View style={styles.progressText}>
-                <Text style={styles.progressCalories}>{summary.totalCalories}</Text>
-                <Text style={styles.progressTime}>{summary.totalTime} min</Text>
-              </View>
-            </Animated.View>
-          </View>
-        </Animated.View>
-      </View>
+      {/* Back Button - Only Fixed Element */}
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => navigation.navigate('Exercise')}
+      >
+        <Ionicons name="arrow-back" size={24} color="#1f2937" />
+      </TouchableOpacity>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Header Text - Now Scrollable */}
+        <Text style={styles.headerTitle}>Build Your Cardio Session</Text>
+        <Text style={styles.headerSubtitle}>Add exercises, set intensity, track progress</Text>
+
         {/* Session Type Selector */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Session Type</Text>
@@ -446,9 +408,6 @@ export default function CardioSessionBuilder() {
             <Text style={styles.sessionTypeArrow}>▼</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Quick Templates */}
-        {/* <View style={styles.card
 
         {/* Intensity Buttons */}
         <View style={styles.card}>
@@ -638,33 +597,52 @@ export default function CardioSessionBuilder() {
             />
 
             {!selectedExercise ? (
-              <FlatList
-                data={filteredExercises}
-                keyExtractor={item => item.id}
-                renderItem={({ item }) => (
-                  <TouchableOpacity 
-                    style={styles.exerciseOption}
-                    onPress={() => setSelectedExercise(item)}
-                  >
-                    <Text style={styles.exerciseOptionIcon}>{item.icon}</Text>
-                    <View style={styles.exerciseOptionInfo}>
-                      <Text style={styles.exerciseOptionName}>{item.name}</Text>
-                      <View style={styles.exerciseOptionTags}>
-                        {item.tags.map(tag => (
-                          <View key={tag} style={styles.tag}>
-                            <Text style={styles.tagText}>{tag}</Text>
+              <>
+                {loadingExercises ? (
+                  <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>Loading exercises...</Text>
+                  </View>
+                ) : (
+                  <FlatList
+                    data={filteredExercises}
+                    keyExtractor={item => item.id?.toString() || Math.random().toString()}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity 
+                        style={styles.exerciseOption}
+                        onPress={() => setSelectedExercise(item)}
+                      >
+                        <Text style={styles.exerciseOptionIcon}>💪</Text>
+                        <View style={styles.exerciseOptionInfo}>
+                          <Text style={styles.exerciseOptionName}>{item.workout}</Text>
+                          <View style={styles.exerciseOptionTags}>
+                            {item.body_part && (
+                              <View style={styles.tag}>
+                                <Text style={styles.tagText}>{item.body_part}</Text>
+                              </View>
+                            )}
+                            {item.type && (
+                              <View style={styles.tag}>
+                                <Text style={styles.tagText}>{item.type}</Text>
+                              </View>
+                            )}
                           </View>
-                        ))}
+                        </View>
+                        <Text style={styles.difficultyBadge}>{item.type || 'Cardio'}</Text>
+                      </TouchableOpacity>
+                    )}
+                    style={styles.exerciseList}
+                    ListEmptyComponent={
+                      <View style={styles.emptyListContainer}>
+                        <Text style={styles.emptyListText}>No exercises found</Text>
+                        <Text style={styles.emptyListSubtext}>Try adjusting your search</Text>
                       </View>
-                    </View>
-                    <Text style={styles.difficultyBadge}>{item.difficulty}</Text>
-                  </TouchableOpacity>
+                    }
+                  />
                 )}
-                style={styles.exerciseList}
-              />
+              </>
             ) : (
               <View style={styles.exerciseConfiguration}>
-                <Text style={styles.selectedExerciseName}>{selectedExercise.name} {selectedExercise.icon}</Text>
+                <Text style={styles.selectedExerciseName}>{selectedExercise.workout} 💪</Text>
                 
                 <View style={styles.configRow}>
                   <Text style={styles.configLabel}>Duration (seconds)</Text>
@@ -817,39 +795,37 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   
-  header: {
-    backgroundColor: '#7c3aed', // Solid purple background
-    paddingTop: 50,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+  backButton: {
+    position: 'absolute',
+    top: 0,
+    left: 20,
+    zIndex: 1000,
+    padding: 10,
   },
-  
-  headerContent: {
+  header: {
+    paddingTop: 50,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
   
+
+  
   headerTitle: {
-    fontSize: 24,
+    top: 20,
+    fontSize: 28,
     fontWeight: '700',
-    color: '#ffffff', // Solid white
+    color: '#1f2937', // Dark gray for better readability
     textAlign: 'center',
     marginBottom: 8,
-    textShadowColor: 'rgba(0,0,0,0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   
   headerSubtitle: {
+    top: 15,
     fontSize: 16,
-    color: '#ffffff', // Solid white
-    opacity: 0.9,
+    color: '#6b7280', // Medium gray for subtitle
     textAlign: 'center',
     marginBottom: 20,
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
   },
   
   progressContainer: {
@@ -1595,5 +1571,39 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1e293b',
     backgroundColor: '#f8fafc',
+  },
+  
+  // Loading and Empty States
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  
+  loadingText: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  
+  emptyListContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  
+  emptyListText: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  
+  emptyListSubtext: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    textAlign: 'center',
   },
 });
