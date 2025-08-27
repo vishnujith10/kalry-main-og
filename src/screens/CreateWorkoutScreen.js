@@ -92,6 +92,7 @@ export default function CardioSessionBuilder({ navigation }) {
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [exerciseDuration, setExerciseDuration] = useState('');
   const [exerciseRest, setExerciseRest] = useState('');
+  const [exerciseRounds, setExerciseRounds] = useState(1);
   
   // Workout player states
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
@@ -149,33 +150,34 @@ export default function CardioSessionBuilder({ navigation }) {
       };
     }
 
-    // Calculate calories per round
-    const caloriesPerRound = exercises.reduce((sum, ex) => {
+    // Calculate total calories and time for all exercises with their individual rounds
+    let totalCalories = 0;
+    let totalTime = 0;
+
+    exercises.forEach(ex => {
       const exerciseData = dbExercises.find(e => e.id === ex.id);
       const intensityMultiplier = intensity / 50;
       const exerciseDuration = parseInt(ex.duration) || 45;
       const exerciseTime = exerciseDuration / 60; // Convert to minutes
+      const exerciseRounds = ex.rounds || 1;
       
       // Use a default calorie burn rate based on exercise type
       const calorieRate = exerciseData?.type === 'cardio' ? 10 : 
                          exerciseData?.type === 'strength' ? 8 : 
                          exerciseData?.type === 'core' ? 6 : 7;
       
-      return sum + (calorieRate * intensityMultiplier * exerciseTime);
-    }, 0);
+      // Calculate calories for this exercise (per round * number of rounds)
+      const exerciseCalories = calorieRate * intensityMultiplier * exerciseTime * exerciseRounds;
+      totalCalories += exerciseCalories;
 
-    // Calculate total calories for all rounds
-    const totalCalories = caloriesPerRound * totalRounds;
-
-    // Calculate time per round (exercise time + rest time)
-    const timePerRound = exercises.reduce((sum, ex) => {
-      const exerciseDuration = parseInt(ex.duration) || 45;
+      // Calculate time for this exercise
       const restDuration = parseInt(ex.rest) || 15;
-      return sum + exerciseDuration + restDuration;
-    }, 0);
+      const exerciseTotalTime = (exerciseDuration + restDuration) * exerciseRounds;
+      totalTime += exerciseTotalTime;
+    });
 
-    // Calculate total time including rest between rounds
-    const totalTime = (timePerRound * totalRounds + (totalRounds - 1) * restBetweenRounds) / 60;
+    // Convert total time to minutes
+    totalTime = totalTime / 60;
 
     // Determine difficulty based on total calories and time
     let difficulty = 'Easy';
@@ -202,7 +204,7 @@ export default function CardioSessionBuilder({ navigation }) {
   useEffect(() => {
     const newSummary = calculateSummary();
     setSummary(newSummary);
-  }, [exercises, intensity, totalRounds, restBetweenRounds]);
+  }, [exercises, intensity, restBetweenRounds]);
 
   // Filter exercises based on search (using database data)
   const filteredExercises = dbExercises.filter(ex =>
@@ -284,6 +286,7 @@ export default function CardioSessionBuilder({ navigation }) {
       blockType: 'time',
       duration: exerciseDuration || 45,
       rest: exerciseRest || 15,
+      rounds: exerciseRounds,
       order: exercises.length
     };
 
@@ -292,6 +295,7 @@ export default function CardioSessionBuilder({ navigation }) {
     setSelectedExercise(null);
     setExerciseDuration('');
     setExerciseRest('');
+    setExerciseRounds(1);
   };
 
   // Remove exercise
@@ -320,7 +324,6 @@ export default function CardioSessionBuilder({ navigation }) {
       exercises: exercises,
       sessionType: sessionType,
       intensity: intensity,
-      totalRounds: totalRounds,
       restBetweenRounds: restBetweenRounds
     });
   };
@@ -513,6 +516,7 @@ export default function CardioSessionBuilder({ navigation }) {
                           {item.blockType === 'time' ? `${item.duration}s` : `${item.reps} reps`}
                         </Text>
                         <Text style={styles.exerciseStat}>Rest: {item.rest}s</Text>
+                        <Text style={styles.exerciseStat}>Rounds: {item.rounds || 1}</Text>
                       </View>
                     </View>
                   </View>
@@ -530,29 +534,12 @@ export default function CardioSessionBuilder({ navigation }) {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Session Settings</Text>
           
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Total Rounds</Text>
-            <View style={styles.stepperContainer}>
-              <TouchableOpacity 
-                style={styles.stepperButton}
-                onPress={() => setTotalRounds(Math.max(1, totalRounds - 1))}
-              >
-                <Text style={styles.stepperButtonText}>-</Text>
-              </TouchableOpacity>
-              <Text style={styles.stepperValue}>{totalRounds}</Text>
-              <TouchableOpacity 
-                style={styles.stepperButton}
-                onPress={() => setTotalRounds(totalRounds + 1)}
-              >
-                <Text style={styles.stepperButtonText}>+</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
 
-          <View style={styles.settingRow}>
+
+          {/* <View style={styles.settingRow}>
             <Text style={styles.settingLabel}>Rest Between Rounds</Text>
             <Text style={styles.settingValue}>{restBetweenRounds}s</Text>
-          </View>
+          </View> */}
 
           <View style={styles.settingRow}>
             <Text style={styles.settingLabel}>Sound Alerts</Text>
@@ -697,6 +684,25 @@ export default function CardioSessionBuilder({ navigation }) {
                     onChangeText={setExerciseRest}
                     keyboardType="numeric"
                   />
+                </View>
+
+                <View style={styles.configRow}>
+                  <Text style={styles.configLabel}>Total Rounds</Text>
+                  <View style={styles.stepperContainer}>
+                    <TouchableOpacity 
+                      style={styles.stepperButton}
+                      onPress={() => setExerciseRounds(Math.max(1, exerciseRounds - 1))}
+                    >
+                      <Text style={styles.stepperButtonText}>-</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.stepperValue}>{exerciseRounds}</Text>
+                    <TouchableOpacity 
+                      style={styles.stepperButton}
+                      onPress={() => setExerciseRounds(exerciseRounds + 1)}
+                    >
+                      <Text style={styles.stepperButtonText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 <View style={styles.modalActions}>

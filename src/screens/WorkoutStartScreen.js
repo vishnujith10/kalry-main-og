@@ -17,7 +17,7 @@ const COLORS = {
 };
 
 export default function WorkoutStartScreen({ route, navigation }) {
-  const { exercises, sessionType, intensity, totalRounds, restBetweenRounds } = route.params;
+  const { exercises, sessionType, intensity, restBetweenRounds } = route.params;
   
   // State management
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
@@ -84,22 +84,60 @@ export default function WorkoutStartScreen({ route, navigation }) {
   const handleTimerComplete = () => {
     if (isResting) {
       // Rest complete, move to next exercise or round
-      if (currentRound < totalRounds) {
-        setCurrentRound(currentRound + 1);
+      let nextExerciseIndex = currentExerciseIndex + 1;
+      
+      // Find next exercise that should be included in current round
+      while (nextExerciseIndex < exercises.length) {
+        const nextExercise = exercises[nextExerciseIndex];
+        const nextExerciseRounds = nextExercise.rounds || 1;
+        
+        // Include exercise if it has rounds remaining for current round
+        if (nextExerciseRounds >= currentRound) {
+          break;
+        }
+        nextExerciseIndex++;
+      }
+      
+      if (nextExerciseIndex < exercises.length) {
+        // Move to next exercise in current round
+        setCurrentExerciseIndex(nextExerciseIndex);
         setIsResting(false);
-        const currentExercise = exercises[currentExerciseIndex];
-        setTimeRemaining(parseInt(currentExercise.duration) || 45);
-        setIsPlaying(true);
-      } else if (currentExerciseIndex < exercises.length - 1) {
-        setCurrentExerciseIndex(currentExerciseIndex + 1);
-        setCurrentRound(1);
-        setIsResting(false);
-        const nextExercise = exercises[currentExerciseIndex + 1];
+        const nextExercise = exercises[nextExerciseIndex];
         setTimeRemaining(parseInt(nextExercise.duration) || 45);
         setIsPlaying(true);
       } else {
-        // Workout complete
-        completeWorkout();
+        // All exercises in current round completed, check if we need to start next round
+        const maxRounds = Math.max(...exercises.map(ex => ex.rounds || 1));
+        
+        if (currentRound < maxRounds) {
+          // Start next round, find first exercise that has more rounds
+          let firstExerciseIndex = 0;
+          while (firstExerciseIndex < exercises.length) {
+            const exercise = exercises[firstExerciseIndex];
+            const exerciseRounds = exercise.rounds || 1;
+            
+            if (exerciseRounds > currentRound) {
+              // This exercise has more rounds, start with it
+              break;
+            }
+            firstExerciseIndex++;
+          }
+          
+          if (firstExerciseIndex < exercises.length) {
+            setCurrentExerciseIndex(firstExerciseIndex);
+            setCurrentRound(currentRound + 1);
+            setIsResting(false);
+            const firstExercise = exercises[firstExerciseIndex];
+            setTimeRemaining(parseInt(firstExercise.duration) || 45);
+            setIsPlaying(true);
+          } else {
+            // No exercises have more rounds
+            completeWorkout();
+          }
+        } else {
+          // All rounds completed
+          completeWorkout();
+        }
       }
     } else {
       // Exercise complete, start rest
@@ -174,9 +212,12 @@ export default function WorkoutStartScreen({ route, navigation }) {
         <Text style={styles.exerciseName}>
           {isResting ? 'Rest Time' : getCurrentExercise().name}
         </Text>
-        <Text style={styles.exerciseSubtitle}>
-          {isResting ? 'Take a break' : `Round ${currentRound} of ${totalRounds}`}
-        </Text>
+                 <Text style={styles.exerciseSubtitle}>
+           {isResting ? 'Take a break' : `Round ${currentRound} - ${getCurrentExercise().name}`}
+         </Text>
+         <Text style={styles.roundsInfo}>
+           Rounds: {getCurrentExercise().rounds || 1}
+         </Text>
       </View>
 
       {/* Timer */}
@@ -233,11 +274,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 10,
   },
-  exerciseSubtitle: {
-    fontSize: 18,
-    color: COLORS.grayLight,
-    textAlign: 'center',
-  },
+     exerciseSubtitle: {
+     fontSize: 18,
+     color: COLORS.grayLight,
+     textAlign: 'center',
+   },
+   roundsInfo: {
+     fontSize: 16,
+     color: COLORS.grayLight,
+     textAlign: 'center',
+     marginTop: 5,
+   },
   timerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
