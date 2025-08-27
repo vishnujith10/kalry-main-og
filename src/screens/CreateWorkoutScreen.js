@@ -34,11 +34,8 @@ const COLORS = {
 
 // Session Type Options
 const SESSION_TYPES = [
-  'Jogging',
-  'Dance Cardio', 
-  'Warm-up Flow',
+  ' Cardio', 
   'HIIT',
-  'Cycling',
   'Custom'
 ];
 
@@ -144,31 +141,68 @@ export default function CardioSessionBuilder({ navigation }) {
 
   // Calculate session summary
   const calculateSummary = () => {
-    const totalCalories = exercises.reduce((sum, ex) => {
+    if (exercises.length === 0) {
+      return {
+        totalTime: 0,
+        totalCalories: 0,
+        difficulty: 'Easy'
+      };
+    }
+
+    // Calculate calories per round
+    const caloriesPerRound = exercises.reduce((sum, ex) => {
       const exerciseData = dbExercises.find(e => e.id === ex.id);
       const intensityMultiplier = intensity / 50;
-      const baseTime = ex.blockType === 'time' ? ex.duration : (ex.reps * 2);
-      const exerciseTime = baseTime / 60;
+      const exerciseDuration = parseInt(ex.duration) || 45;
+      const exerciseTime = exerciseDuration / 60; // Convert to minutes
+      
       // Use a default calorie burn rate based on exercise type
       const calorieRate = exerciseData?.type === 'cardio' ? 10 : 
                          exerciseData?.type === 'strength' ? 8 : 
                          exerciseData?.type === 'core' ? 6 : 7;
-      return sum + calorieRate * intensityMultiplier * exerciseTime;
-    }, 0) * totalRounds;
+      
+      return sum + (calorieRate * intensityMultiplier * exerciseTime);
+    }, 0);
 
-    const perRoundTime = exercises.reduce((sum, ex) => 
-      sum + (parseInt(ex.duration) || ex.reps * 2 || 30) + (parseInt(ex.rest) || 15), 0
-    );
-    const totalTime = (perRoundTime * totalRounds + (totalRounds - 1) * restBetweenRounds) / 60;
+    // Calculate total calories for all rounds
+    const totalCalories = caloriesPerRound * totalRounds;
+
+    // Calculate time per round (exercise time + rest time)
+    const timePerRound = exercises.reduce((sum, ex) => {
+      const exerciseDuration = parseInt(ex.duration) || 45;
+      const restDuration = parseInt(ex.rest) || 15;
+      return sum + exerciseDuration + restDuration;
+    }, 0);
+
+    // Calculate total time including rest between rounds
+    const totalTime = (timePerRound * totalRounds + (totalRounds - 1) * restBetweenRounds) / 60;
+
+    // Determine difficulty based on total calories and time
+    let difficulty = 'Easy';
+    if (totalCalories > 400 || totalTime > 45) {
+      difficulty = 'Hard';
+    } else if (totalCalories > 200 || totalTime > 25) {
+      difficulty = 'Moderate';
+    }
 
     return {
       totalTime: Math.round(totalTime),
       totalCalories: Math.round(totalCalories),
-      difficulty: totalCalories > 400 ? 'Hard' : totalCalories > 200 ? 'Moderate' : 'Easy'
+      difficulty: difficulty
     };
   };
 
-  const summary = calculateSummary();
+  const [summary, setSummary] = useState({
+    totalTime: 0,
+    totalCalories: 0,
+    difficulty: 'Easy'
+  });
+
+  // Recalculate summary when exercises, intensity, or settings change
+  useEffect(() => {
+    const newSummary = calculateSummary();
+    setSummary(newSummary);
+  }, [exercises, intensity, totalRounds, restBetweenRounds]);
 
   // Filter exercises based on search (using database data)
   const filteredExercises = dbExercises.filter(ex =>
@@ -281,17 +315,14 @@ export default function CardioSessionBuilder({ navigation }) {
       return;
     }
     
-    setCurrentExerciseIndex(0);
-    setCurrentRound(1);
-    setIsResting(false);
-    setTimeRemaining(exercises[0].duration || exercises[0].reps * 2 || 30);
-    setWorkoutPlayerVisible(true);
-    
-    Animated.timing(slideAnim, {
-      toValue: 0,
-      duration: 500,
-      useNativeDriver: true,
-    }).start();
+    // Navigate to WorkoutStartScreen with workout data
+    navigation.navigate('WorkoutStart', {
+      exercises: exercises,
+      sessionType: sessionType,
+      intensity: intensity,
+      totalRounds: totalRounds,
+      restBetweenRounds: restBetweenRounds
+    });
   };
 
   // Workout timer logic

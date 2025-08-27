@@ -48,6 +48,7 @@ import WelcomeScreen from './src/screens/WelcomeScreen';
 import WorkoutHistoryScreen from './src/screens/WorkoutHistoryScreen';
 import WorkoutPreferencesScreen from './src/screens/WorkoutPreferencesScreen';
 import WorkoutSpaceScreen from './src/screens/WorkoutSpaceScreen';
+import WorkoutStartScreen from './src/screens/WorkoutStartScreen';
 if (typeof global.structuredClone !== 'function') {
   global.structuredClone = (obj) => JSON.parse(JSON.stringify(obj));
 }
@@ -147,6 +148,7 @@ export default function App() {
             <Stack.Screen name="AllExercisesScreen" component={AllExercisesScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CustomCameraScreen" component={CustomCameraScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CardioPlayerScreen" component={CardioPlayerScreen} />
+            <Stack.Screen name="WorkoutStart" component={WorkoutStartScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </OnboardingProvider>
