@@ -1,27 +1,19 @@
 # Set default behavior for all files
 * text=auto
 
-# React Native and JavaScript files - use LF
+# Explicitly set line endings for specific file types
 *.js text eol=lf
 *.jsx text eol=lf
-*.ts text eol=lf
-*.tsx text eol=lf
 *.json text eol=lf
-*.sql text eol=lf
-
-# Config files
-*.yml text eol=lf
-*.yaml text eol=lf
-package.json text eol=lf
-package-lock.json text eol=lf
-
-# Documentation
 *.md text eol=lf
+*.svg text eol=lf
+*.txt text eol=lf
 
-# Binary files
+# Binary files should not be modified
 *.png binary
 *.jpg binary
 *.jpeg binary
 *.gif binary
+*.ico binary
 *.ttf binary
 *.otf binary
