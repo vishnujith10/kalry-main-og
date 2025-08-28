@@ -76,6 +76,7 @@ const SleepTrackerScreen = () => {
   const [editMode, setEditMode] = useState(false);
   const [editingLogId, setEditingLogId] = useState(null);
   const [showAlreadyLoggedModal, setShowAlreadyLoggedModal] = useState(false);
+  const [expandedMonths, setExpandedMonths] = useState(new Set());
 
   function computeHoursBetween(startHHMM, endHHMM) {
     if (!startHHMM || !endHHMM) return null;
@@ -114,6 +115,18 @@ const SleepTrackerScreen = () => {
       fetchSleepGoal(); // Also fetch the saved sleep goal
     }
   }, [realUserId]);
+
+  // Auto-expand current month when "View all" is clicked
+  useEffect(() => {
+    if (showAllLogs && sleepLogs.length > 0) {
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      setExpandedMonths(prev => {
+        const newSet = new Set(prev);
+        newSet.add(currentMonth);
+        return newSet;
+      });
+    }
+  }, [showAllLogs, sleepLogs]);
 
   // FIXED: Fetch data directly from Supabase instead of backend API
   async function fetchSleepLogs() {
@@ -408,6 +421,51 @@ const SleepTrackerScreen = () => {
     return h * 60 + m;
   }
 
+  // Helper to group logs by month
+  function groupLogsByMonth(logs) {
+    const grouped = {};
+    
+    logs.forEach(log => {
+      const date = new Date(log.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const monthName = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+      
+      if (!grouped[monthKey]) {
+        grouped[monthKey] = {
+          monthKey,
+          monthName,
+          logs: [],
+          isCurrentMonth: false
+        };
+      }
+      grouped[monthKey].logs.push(log);
+    });
+    
+    // Sort months in descending order (most recent first)
+    const sortedMonths = Object.values(grouped).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+    
+    // Mark current month
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    sortedMonths.forEach(month => {
+      month.isCurrentMonth = month.monthKey === currentMonth;
+    });
+    
+    return sortedMonths;
+  }
+
+  // Helper to toggle month expansion
+  function toggleMonthExpansion(monthKey) {
+    setExpandedMonths(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(monthKey)) {
+        newSet.delete(monthKey);
+      } else {
+        newSet.add(monthKey);
+      }
+      return newSet;
+    });
+  }
+
   // Calculate average sleep duration from sleepLogs
   function getAverageSleepDuration(logs) {
     console.log('=== AVERAGE SLEEP CALCULATION START ===');
@@ -645,12 +703,10 @@ const SleepTrackerScreen = () => {
                         justifyContent: 'center',
                         alignItems: 'center'
                       }}>
-                        <Text style={{ fontSize: 8, color: '#9CA3AF' }}>--</Text>
                       </View>
                     )}
                   </View>
                   <Text style={{ color:'#6B7280', fontSize:12, marginTop:6 }}>{d}</Text>
-                  <Text style={{ color:'#9CA3AF', fontSize:10, marginTop:2 }}>{timeDisplay}</Text>
                 </View>
               );
             })}
@@ -679,16 +735,6 @@ const SleepTrackerScreen = () => {
 
         {/* Sleep Log cards */}
         {(() => {
-          // Generate the list to display
-          let list;
-          if (showAllLogs) {
-            // Show all logs when "View all" is clicked
-            list = sleepLogs;
-          } else {
-            // Show last 3 actual sleep logs
-            list = sleepLogs.slice(0, 3);
-          }
-
           const moodToEmoji = (m) => {
             if (!m) return '😴';
             const map = { Relaxed: '😌', Neutral: '🙂', Tired: '🥱', Stressed: '😫' };
@@ -743,13 +789,103 @@ const SleepTrackerScreen = () => {
             );
           };
 
-          return (
-            <>
-              {list.map((log, idx) => (
-                <Item key={log.id} log={log} />
-              ))}
-            </>
-          );
+          if (!showAllLogs) {
+            // Show last 3 actual sleep logs
+            const recentLogs = sleepLogs.slice(0, 3);
+            return (
+              <>
+                {recentLogs.map((log, idx) => (
+                  <Item key={log.id} log={log} />
+                ))}
+              </>
+            );
+          } else {
+            // Show hierarchical month-based view
+            const groupedMonths = groupLogsByMonth(sleepLogs);
+            
+            return (
+              <>
+                {groupedMonths.map((month, monthIndex) => {
+                  const isExpanded = expandedMonths.has(month.monthKey);
+                  
+                  return (
+                    <View key={month.monthKey}>
+                      {/* Current month is always shown */}
+                      {month.isCurrentMonth && (
+                        <>
+                          <Text style={{ 
+                            fontWeight: '800', 
+                            fontSize: 18, 
+                            color: '#111827', 
+                            marginBottom: 12, 
+                            marginTop: 8 
+                          }}>
+                            {month.monthName}
+                          </Text>
+                          {month.logs.map((log) => (
+                            <Item key={log.id} log={log} />
+                          ))}
+                        </>
+                      )}
+                      
+                      {/* Previous months with expand/collapse */}
+                      {!month.isCurrentMonth && (
+                        <>
+                          {/* Month header with expand/collapse button */}
+                          <TouchableOpacity 
+                            onPress={() => toggleMonthExpansion(month.monthKey)}
+                            style={{ 
+                              flexDirection: 'row', 
+                              alignItems: 'center', 
+                              justifyContent: 'space-between',
+                              backgroundColor: '#F8F9FA',
+                              borderRadius: 12,
+                              padding: 12,
+                              marginBottom: 8,
+                              marginTop: 8
+                            }}
+                          >
+                            <Text style={{ 
+                              fontWeight: '700', 
+                              fontSize: 16, 
+                              color: '#111827'
+                            }}>
+                              {month.monthName}
+                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <Text style={{ 
+                                color: '#6B7280', 
+                                fontSize: 14, 
+                                marginRight: 8 
+                              }}>
+                                {month.logs.length} log{month.logs.length !== 1 ? 's' : ''}
+                              </Text>
+                              <Text style={{ 
+                                fontSize: 18, 
+                                color: '#6B7280',
+                                transform: [{ rotate: isExpanded ? '180deg' : '0deg' }]
+                              }}>
+                                ⌄
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                          
+                          {/* Expanded month logs */}
+                          {isExpanded && (
+                            <>
+                              {month.logs.map((log) => (
+                                <Item key={log.id} log={log} />
+                              ))}
+                            </>
+                          )}
+                        </>
+                      )}
+                    </View>
+                  );
+                })}
+              </>
+            );
+          }
         })()}
 
         {/* Tip card */}
