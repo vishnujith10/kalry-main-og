@@ -4,17 +4,34 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useContext, useEffect, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { OnboardingContext } from '../context/OnboardingContext';
 import supabase from '../lib/supabase';
-
-import Svg, { Circle } from 'react-native-svg';
 
 const SLEEP_QUALITIES = ['Excellent', 'Good', 'Fair', 'Poor'];
 const MOODS = ['Relaxed', 'Neutral', 'Tired', 'Stressed'];
 const SLEEP_TIPS = [
-  'Establish a consistent sleep schedule, create a relaxing bedtime routine, and ensure your sleep environment is dark, quiet, and cool.',
-  'Avoid caffeine and alcohol before bed, and consider light exercise during the day to promote better sleep.'
+  "Avoid caffeine and alcohol before bed, and consider light exercise during the day to promote better sleep.",
+  "Limit screen time an hour before bed — the blue light can trick your brain into thinking it's daytime.",
+  "Try gentle stretches or breathing exercises to relax your body before sleep.",
+  "Keep your bedroom reserved for rest — avoid working or scrolling in bed.",
+  "Use calming rituals like journaling, reading, or listening to soothing music before sleep.",
+  "If you can't fall asleep within 20 minutes, get up and do a calming activity until you feel drowsy.",
+  "Expose yourself to natural sunlight during the day — it helps regulate your body's sleep-wake cycle.",
+  "Avoid heavy meals right before bed, but a light snack (like fruit or warm milk) can help if you're hungry.",
+  "Keep naps short (20–30 minutes) and avoid napping late in the day.",
+  "Maintain a comfortable sleep environment — supportive mattress, breathable bedding, and good airflow.",
+  "Create a 'worry list' earlier in the day so your mind feels clearer at night.",
+  "Practice gratitude journaling or reflection before bed to end the day with calm thoughts.",
+  "Try mindfulness or meditation techniques to quiet a racing mind.",
+  "Stick to a wind-down ritual — doing the same actions nightly signals your body it's time to sleep.",
+  "Keep your sleep space free of clutter for a calmer, more restful atmosphere.",
+  "Stay hydrated during the day, but reduce fluid intake right before bedtime to avoid sleep interruptions.",
+  "Avoid checking the clock repeatedly at night — it creates stress and makes falling asleep harder.",
+  "Experiment with aromatherapy (lavender, chamomile) to set a calming mood.",
+  "Respect your body's natural rhythm — if you're consistently sleepy earlier, adjust your bedtime gradually."
 ];
+
 
 function getWeekDates() {
   const today = new Date();
@@ -30,11 +47,14 @@ function getWeekDates() {
 const SleepTrackerScreen = () => {
   const { onboardingData } = useContext(OnboardingContext);
   const [sleepLogs, setSleepLogs] = useState([]);
+  const [showAllLogs, setShowAllLogs] = useState(false);
+  const [tipsExpanded, setTipsExpanded] = useState(false);
   
   // Component mount effect - no need to reset sleepLogs
   useEffect(() => {
     console.log('Component mounted - sleepLogs will be populated by fetchSleepLogs');
   }, []);
+  
   const [lastSleep, setLastSleep] = useState(null);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -56,6 +76,25 @@ const SleepTrackerScreen = () => {
   const [editMode, setEditMode] = useState(false);
   const [editingLogId, setEditingLogId] = useState(null);
   const [showAlreadyLoggedModal, setShowAlreadyLoggedModal] = useState(false);
+
+  function computeHoursBetween(startHHMM, endHHMM) {
+    if (!startHHMM || !endHHMM) return null;
+    const [sh, sm] = startHHMM.split(':').map(n => parseInt(n, 10) || 0);
+    const [eh, em] = endHHMM.split(':').map(n => parseInt(n, 10) || 0);
+    let mins = (eh * 60 + em) - (sh * 60 + sm);
+    if (mins < 0) mins += 24 * 60; // across midnight
+    return Math.max(0, Math.round(mins / 60)); // keep goal as integer hours
+  }
+
+  // Recalculate goal from reminders whenever they change
+  useEffect(() => {
+    const derived = computeHoursBetween(bedtimeReminder, wakeReminder);
+    if (derived && derived !== sleepGoal) {
+      setSleepGoal(derived);
+      // Persist for consistency
+      saveSleepGoal(derived);
+    }
+  }, [bedtimeReminder, wakeReminder]);
 
   const [realUserId, setRealUserId] = useState(null);
   
@@ -257,17 +296,17 @@ const SleepTrackerScreen = () => {
           mood,
         }).eq('id', editingLogId));
       } else {
-              // Insert new log
-      ({ error } = await supabase.from('sleep_logs').insert([{
-        user_id: realUserId,
-        date: dateStr,
-        start_time: startTime,
-        end_time: endTime,
-        duration,
-        quality,
-        mood,
-        sleep_goal: sleepGoal, // Include the current sleep goal
-      }]));
+        // Insert new log
+        ({ error } = await supabase.from('sleep_logs').insert([{
+          user_id: realUserId,
+          date: dateStr,
+          start_time: startTime,
+          end_time: endTime,
+          duration,
+          quality,
+          mood,
+          sleep_goal: sleepGoal, // Include the current sleep goal
+        }]));
       }
       
       if (error) throw error;
@@ -283,7 +322,7 @@ const SleepTrackerScreen = () => {
       setEditingLogId(null);
       setShowLogModal(false);
       
-      // **IMPORTANT**: Refresh the data immediately after saving
+      // *IMPORTANT*: Refresh the data immediately after saving
       await fetchSleepLogs();
       
     } catch (err) {
@@ -380,35 +419,35 @@ const SleepTrackerScreen = () => {
       return '--';
     }
     
-         // Filter out logs with valid duration data AND only consider very recent logs (today or yesterday)
-     const today = new Date();
-     const yesterday = new Date(today);
-     yesterday.setDate(today.getDate() - 1);
+    // Filter out logs with valid duration data AND only consider very recent logs (today or yesterday)
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
      
-     const recentValidLogs = logs.filter(log => {
-       console.log('Checking log:', log);
-       if (!log || !log.duration) {
-         console.log('Log or duration is null/undefined');
-         return false;
-       }
+    const recentValidLogs = logs.filter(log => {
+      console.log('Checking log:', log);
+      if (!log || !log.duration) {
+        console.log('Log or duration is null/undefined');
+        return false;
+      }
        
-       // Check if log is from today or yesterday only
-       const logDate = new Date(log.date);
-       const isToday = logDate.toDateString() === today.toDateString();
-       const isYesterday = logDate.toDateString() === yesterday.toDateString();
-       const isRecent = isToday || isYesterday;
+      // Check if log is from today or yesterday only
+      const logDate = new Date(log.date);
+      const isToday = logDate.toDateString() === today.toDateString();
+      const isYesterday = logDate.toDateString() === yesterday.toDateString();
+      const isRecent = isToday || isYesterday;
        
-       console.log('Log date:', log.date, 'Is today:', isToday, 'Is yesterday:', isYesterday, 'Is recent (today/yesterday):', isRecent);
+      console.log('Log date:', log.date, 'Is today:', isToday, 'Is yesterday:', isYesterday, 'Is recent (today/yesterday):', isRecent);
        
-       if (!isRecent) {
-         console.log('Log is too old (not today or yesterday), skipping');
-         return false;
-       }
+      if (!isRecent) {
+        console.log('Log is too old (not today or yesterday), skipping');
+        return false;
+      }
        
-       const mins = parseIntervalToMinutes(log.duration);
-       console.log('Duration:', log.duration, 'Parsed minutes:', mins);
-       return mins > 0;
-     });
+      const mins = parseIntervalToMinutes(log.duration);
+      console.log('Duration:', log.duration, 'Parsed minutes:', mins);
+      return mins > 0;
+    });
     
     console.log('Recent valid logs after filtering:', recentValidLogs);
     console.log('Recent valid logs count:', recentValidLogs.length);
@@ -442,7 +481,7 @@ const SleepTrackerScreen = () => {
     return result;
   }
 
-  // **FIXED**: Get today's log and calculate metrics properly
+  // *FIXED*: Get today's log and calculate metrics properly
   const todayStr = getTodayString();
   const todayLog = sleepLogs.find(l => getDateOnly(l.date) === todayStr && l.user_id === realUserId);
   
@@ -480,7 +519,7 @@ const SleepTrackerScreen = () => {
   console.log('Calculated average sleep:', averageSleep);
   console.log('=== AFTER AVERAGE CALCULATION ===');
 
-  // **FIXED**: Get latest log's bedtime and wake time
+  // *FIXED*: Get latest log's bedtime and wake time
   let displayBedtime = '--:--';
   let displayWakeTime = '--:--';
   
@@ -510,118 +549,166 @@ const SleepTrackerScreen = () => {
     weekLogMap[getDateOnly(log.date)] = log; 
   });
 
+  // Weekly consistency: total minutes logged divided by (goal * 7)
+  const weekTotalMins = weekDateObjs.reduce((sum, d) => {
+    const key = d.toISOString().slice(0,10);
+    const log = weekLogMap[key];
+    const mins = log && log.duration ? parseIntervalToMinutes(log.duration) : 0;
+    return sum + mins;
+  }, 0);
+  const weekConsistencyPercent = sleepGoal > 0 ? Math.max(0, Math.min(100, Math.round((weekTotalMins / (sleepGoal * 60 * 7)) * 100))) : 0;
+
   return (
     <View style={{ flex: 1, backgroundColor: '#F8F7FC' }}>
-      <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-        {/* Sleep Overview Card */}
-        <View style={{
-          backgroundColor: '#fff',
-          borderRadius: 16,
-          padding: 20,
-          marginBottom: 16,
-          shadowColor: '#000',
-          shadowOpacity: 0.05,
-          shadowRadius: 8,
-          shadowOffset: { width: 0, height: 2 },
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          <View>
-            <Text style={{ fontWeight: 'bold', fontSize: 32, color: '#2979FF', marginBottom: 6 }}>
-              {todayDuration}
-            </Text>
-            {hitGoal ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                <Text style={{ color: '#22C55E', fontWeight: '600', fontSize: 16, marginRight: 6 }}>✔</Text>
-                <Text style={{ color: '#22C55E', fontWeight: '600', fontSize: 16 }}>You hit your goal!</Text>
-              </View>
-            ) : null}
-          </View>
-          <View style={{ alignItems: 'center' }}>
-            <Svg height={76} width={76}>
-              <Circle
-                stroke="#E5E7EB"
-                fill="none"
-                cx={38}
-                cy={38}
-                r={30}
-                strokeWidth={8}
-              />
-              <Circle
-                stroke={todayLog && todayLog.duration ? '#A78BFA' : 'transparent'}
-                fill="none"
-                cx={38}
-                cy={38}
-                r={30}
-                strokeWidth={8}
-                strokeDasharray={`${2 * Math.PI * 30} ${2 * Math.PI * 30}`}
-                strokeDashoffset={todayLog && todayLog.duration ? (2 * Math.PI * 30) * (1 - todayPercent / 100) : 2 * Math.PI * 30}
-                strokeLinecap="round"
-              />
-            </Svg>
-            <Text style={{ 
-              position: 'absolute', 
-              top: 25, 
-              left: 0, 
-              right: 0, 
-              textAlign: 'center', 
-              fontWeight: 'bold', 
-              color: '#000', 
-              fontSize: 18 
-            }}>
-              {todayPercent}%
-            </Text>
-          </View>
-        </View>
-
-        {/* Sleep Analytics Section */}
-        <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#222', marginBottom: 8, marginLeft: 4 }}>
-          Your Sleep Analytics
-        </Text>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
         
-        {/* Sleep Goal & Average Cards */}
-        <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-          <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 16, marginRight: 8, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 1 }}>
-            <Ionicons name="timer-outline" size={22} color="#4F46E5" style={{ marginBottom: 4 }} />
-                         <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#222' }}>
-               {isLoadingGoal ? '...' : `${sleepGoal}h target`}
-             </Text>
-            <Text style={{ color: '#888', fontSize: 13 }}>Sleep Goal</Text>
+        {/* Quick Stats */}
+        <Text style={{ fontWeight: '800',fontFamily:'Lexend-SemiBold', fontSize: 20, color: '#111827', marginBottom: 10, marginLeft: 4 }}>Quick Stats</Text>
+        <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+          <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 16, padding: 16, marginRight: 8, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8 }}>
+            <Text style={{ color: '#6B7280', marginBottom: 6 }}>Last Night</Text>
+            <Text style={{ fontWeight: 'bold', fontSize: 24, color: '#111827' }}>{todayDuration}</Text>
           </View>
-                     <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 16, marginLeft: 8, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 1 }}>
-             <Ionicons name="trending-up-outline" size={22} color="#4F46E5" style={{ marginBottom: 4 }} />
-             <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#222' }}>
-               {(() => {
-                 console.log('Rendering average sleep in UI:', averageSleep);
-                 return averageSleep;
-               })()}
-             </Text>
-             <Text style={{ color: '#888', fontSize: 13 }}>Average Sleep</Text>
-           </View>
+          <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 16, padding: 16, marginLeft: 8, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8 }}>
+            <Text style={{ color: '#6B7280', marginBottom: 6 }}>Avg. Sleep</Text>
+            <Text style={{ fontWeight: 'bold', fontSize: 24, color: '#111827' }}>{averageSleep}</Text>
+          </View>
+        </View>
+        <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 18, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, flexDirection:'row', alignItems:'center', justifyContent:'space-between' }}>
+          <View>
+            <Text style={{ color: '#6B7280', marginBottom: 6 }}>Consistency</Text>
+            <Text style={{ fontWeight: 'bold', fontSize: 24, color: '#111827' }}>{weekConsistencyPercent}%</Text>
+          </View>
+          {(() => {
+            const size = 60; const stroke=8; const r=(size-stroke)/2; const c=2*Math.PI*r; const off=c*(1-weekConsistencyPercent/100);
+            return (
+              <Svg width={size} height={size}>
+                <Circle cx={size/2} cy={size/2} r={r} stroke="#E5E7EB" strokeWidth={stroke} fill="none" />
+                <Circle cx={size/2} cy={size/2} r={r} stroke="#7C3AED" strokeWidth={stroke} strokeLinecap="round" fill="none" strokeDasharray={`${c} ${c}`} strokeDashoffset={off} transform={`rotate(-90 ${size/2} ${size/2})`} />
+              </Svg>
+            );
+          })()}
         </View>
 
-        {/* Bedtime & Wakeup Cards - FIXED to show actual logged times */}
-        <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-          <TouchableOpacity
-            style={{ flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 16, marginRight: 8, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 1 }}
-            onPress={() => setShowFromPicker(true)}
-          >
-            <Ionicons name="moon-outline" size={22} color="#4F46E5" style={{ marginBottom: 4 }} />
-            <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#222' }}>{displayBedtime}</Text>
-            <Text style={{ color: '#888', fontSize: 13 }}>Bedtime</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{ flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 16, marginLeft: 8, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 1 }}
-            onPress={() => setShowToPicker(true)}
-          >
-            <Ionicons name="sunny-outline" size={22} color="#4F46E5" style={{ marginBottom: 4 }} />
-            <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#222' }}>{displayWakeTime}</Text>
-            <Text style={{ color: '#888', fontSize: 13 }}>Wake up</Text>
-          </TouchableOpacity>
+        {/* Weekly Chart */}
+        <Text style={{ fontWeight: '800', fontSize: 20, color: '#111827', marginBottom: 10, marginLeft: 4 }}>Weekly Chart</Text>
+        <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8 }}>
+          <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'flex-end', height:140 }}>
+            {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d, idx) => {
+              const dayDate = weekDateObjs[idx];
+              const key = dayDate.toISOString().slice(0,10);
+              const log = weekLogMap[key];
+              const mins = log && log.duration ? parseIntervalToMinutes(log.duration) : 0;
+              const progress = sleepGoal > 0 ? Math.min(1, mins / (sleepGoal*60)) : 0;
+              const filled = 120 * progress;
+              return (
+                <View key={key} style={{ alignItems:'center', width:32 }}>
+                  <View style={{ width:22, height:120, borderRadius:12, backgroundColor:'#E5E7EB', overflow:'hidden', justifyContent:'flex-end' }}>
+                    <LinearGradient colors={["#C4B5FD","#A7F3D0"]} start={{x:0,y:0}} end={{x:0,y:1}} style={{ width:'100%', height:filled }} />
+                  </View>
+                  <Text style={{ color:'#6B7280', fontSize:12, marginTop:6 }}>{d}</Text>
+                </View>
+              );
+            })}
+          </View>
         </View>
 
-        {/* Time Pickers */}
+        {/* Sleep Log header */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <Text style={{ fontWeight: '800', fontSize: 18, color: '#111827', marginLeft: 4 }}>Sleep Log</Text>
+          <View style={{ flexDirection:'row' }}>
+            <TouchableOpacity onPress={() => setShowAllLogs(!showAllLogs)} style={{ backgroundColor:'#F3F4F6', paddingHorizontal:12, paddingVertical:8, borderRadius:16, marginRight:8 }}>
+              <Text style={{ color:'#111827', fontWeight:'700' }}>{showAllLogs ? 'Show recent' : 'View all'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={fetchSleepLogs} style={{ backgroundColor: '#34D399', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8 }}>
+              <Text style={{ color: '#fff', fontWeight: '700' }}>Sync Data</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Sleep Log cards */}
+        {(() => {
+          // Generate the list to display
+          let list;
+          if (showAllLogs) {
+            // Show all logs when "View all" is clicked
+            list = sleepLogs;
+          } else {
+            // Show last 3 actual sleep logs
+            list = sleepLogs.slice(0, 3);
+          }
+
+          const moodToEmoji = (m) => {
+            if (!m) return '😴';
+            const map = { Relaxed: '😌', Neutral: '🙂', Tired: '🥱', Stressed: '😫' };
+            return map[m] || '😴';
+          };
+
+          const formatDateLabel = (dateStr) => {
+            const date = new Date(dateStr);
+            const today = new Date();
+            
+            // Only show "Today" if the log is from today
+            if (date.toDateString() === today.toDateString()) {
+              return 'Today';
+            } else {
+              return date.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric' 
+              });
+            }
+          };
+
+          const Item = ({ log }) => {
+            return (
+              <View style={{ 
+                backgroundColor: '#fff', 
+                borderRadius: 16, 
+                padding: 16, 
+                marginBottom: 12, 
+                shadowColor: '#000', 
+                shadowOpacity: 0.05, 
+                shadowRadius: 8
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View>
+                    <Text style={{ fontWeight: '700', color: '#111827', fontSize: 16 }}>
+                      {formatDateLabel(log.date)}
+                    </Text>
+                    <Text style={{ color: '#6B7280', marginTop: 4 }}>
+                      {`${formatTime12h(log.start_time)} - ${formatTime12h(log.end_time)}`}
+                    </Text>
+                  </View>
+                  <Text style={{ 
+                    fontWeight: '800', 
+                    color: '#7C3AED', 
+                    fontSize: 16 
+                  }}>
+                    {parseIntervalToDisplay(log.duration)} {moodToEmoji(log.mood)}
+                  </Text>
+                </View>
+              </View>
+            );
+          };
+
+          return (
+            <>
+              {list.map((log, idx) => (
+                <Item key={log.id} log={log} />
+              ))}
+            </>
+          );
+        })()}
+
+        {/* Tip card */}
+        <View style={{ backgroundColor: '#F3E8FF', borderRadius: 16, padding: 16, marginTop: 8 , marginBottom: 10 }}>
+          <Text style={{ color: '#6B21A8' }}>
+            You slept <Text style={{ fontWeight: '800' }}>{averageSleep}</Text> on average this week. Try keeping your bedtime consistent for better results.
+          </Text>
+        </View>
+
+        {/* Time Pickers remain below */}
         {showFromPicker && (
           <DateTimePicker
             value={startTime ? new Date(`1970-01-01T${startTime}:00`) : new Date()}
@@ -658,177 +745,29 @@ const SleepTrackerScreen = () => {
         {/* Sleep Goal Card */}
         <View style={{
           backgroundColor: '#FFFFFF',
-          borderRadius: 32,
-          padding: 28,
-          marginBottom: 24,
+          borderRadius: 20,
+          padding: 18,
+          marginBottom: 18,
           shadowColor: '#1F2937',
-          shadowOpacity: 0.08,
-          shadowRadius: 24,
-          shadowOffset: { width: 0, height: 8 },
-          elevation: 12,
+          shadowOpacity: 0.06,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 6,
           borderWidth: 1,
           borderColor: 'rgba(255, 255, 255, 0.2)',
         }}>
           {/* Header */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
-            <View style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: '#EEF2FF',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: 12,
-            }}>
-              <Text style={{ fontSize: 18 }}>💤</Text>
-            </View>
-            <View>
-              <Text style={{
-                fontSize: 22,
-                fontWeight: '800',
-                color: '#0F172A',
-                letterSpacing: -0.5,
-              }}>
-                Sleep Goal
-              </Text>
-              <Text style={{
-                fontSize: 14,
-                color: '#64748B',
-                marginTop: 2,
-              }}>
-                {todayPercent}% of {sleepGoal} hours
-              </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent:'space-between', marginBottom: 14 }}>
+            <View style={{ flexDirection:'row', alignItems:'center' }}>
+              <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                <Text style={{ fontSize: 16 }}>💤</Text>
+              </View>
+              <View>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 }}>Sleep Goal</Text>
+                <Text style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>{todayPercent}% of {sleepGoal} hours</Text>
+              </View>
             </View>
           </View>
-
-          {/* Progress Bar */}
-          <View style={{
-            height: 12,
-            backgroundColor: '#F1F5F9',
-            borderRadius: 24,
-            overflow: 'hidden',
-            marginBottom: 8,
-            shadowColor: '#6366F1',
-            shadowOpacity: 0.3,
-            shadowRadius: 6,
-            shadowOffset: { width: 0, height: 0 },
-          }}>
-            <LinearGradient
-              colors={['#8B5CF6', '#3B82F6', '#06B6D4']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={{
-                width: `${todayPercent}%`,
-                height: '100%',
-                borderRadius: 24,
-              }}
-            />
-          </View>
-
-                                           {/* Time Markers - Horizontal Scrollable Picker */}
-            <View style={{ marginBottom: 28, alignItems: 'center' }}>
-             
-                                                                                   {/* Navigation Arrows - Positioned inside the Sleep Goal card */}
-                <View style={{ flexDirection: 'row', marginTop: 16, alignItems: 'center', justifyContent: 'space-between' }}>
-                  {/* Left Arrow - positioned inside the card */}
-                  <TouchableOpacity 
-                    onPress={() => {
-                      const newGoal = Math.max(1, sleepGoal - 1);
-                      setSleepGoal(newGoal);
-                      saveSleepGoal(newGoal); // Save the new goal to database
-                    }}
-                    disabled={sleepGoal <= 1}
-                    style={{
-                      paddingHorizontal: 12,
-                      paddingVertical: 6,
-                      borderRadius: 16,
-                      backgroundColor: sleepGoal <= 1 ? '#E5E7EB' : '#4F46E5',
-                    }}
-                  >
-                    <Text style={{ 
-                      color: sleepGoal <= 1 ? '#9CA3AF' : '#fff',
-                      fontWeight: '600',
-                      fontSize: 12,
-                    }}>
-                      ←
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  {/* Hour values container */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    {Array.from({ length: 3 }, (_, i) => {
-                      // Calculate which 3 hours to show based on current sleepGoal
-                      let hour;
-                      if (sleepGoal <= 2) {
-                        // For 1h and 2h, show 1h, 2h, 3h
-                        hour = i + 1;
-                      } else if (sleepGoal >= 23) {
-                        // For 23h and 24h, show 22h, 23h, 24h
-                        hour = 22 + i;
-                      } else {
-                        // For other values, show the hour before, current, and after
-                        hour = sleepGoal - 1 + i;
-                      }
-                      
-                      const isSelected = hour === sleepGoal;
-                      return (
-                        <View 
-                          key={hour} 
-                          style={{
-                            width: 70,
-                            alignItems: 'center',
-                            marginHorizontal: 6,
-                          }}
-                        >
-                          <View style={{
-                            paddingHorizontal: 14,
-                            paddingVertical: 8,
-                            borderRadius: 18,
-                            backgroundColor: isSelected ? '#EEF2FF' : 'transparent',
-                            borderWidth: isSelected ? 2 : 0,
-                            borderColor: isSelected ? '#4F46E5' : 'transparent',
-                            minWidth: 50,
-                            alignItems: 'center',
-                            transform: [{ scale: isSelected ? 1.1 : 1 }],
-                          }}>
-                            <Text style={{ 
-                              fontSize: 15, 
-                              color: isSelected ? '#4F46E5' : '#94A3B8',
-                              fontWeight: isSelected ? '700' : '500',
-                            }}>
-                              {hour}h
-                            </Text>
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                  
-                  {/* Right Arrow - positioned inside the card */}
-                  <TouchableOpacity 
-                    onPress={() => {
-                      const newGoal = Math.min(24, sleepGoal + 1);
-                      setSleepGoal(newGoal);
-                      saveSleepGoal(newGoal); // Save the new goal to database
-                    }}
-                    disabled={sleepGoal >= 24}
-                    style={{
-                      paddingHorizontal: 12,
-                      paddingVertical: 6,
-                      borderRadius: 16,
-                      backgroundColor: sleepGoal >= 24 ? '#E5E7EB' : '#4F46E5',
-                    }}
-                  >
-                    <Text style={{ 
-                      color: sleepGoal >= 24 ? '#9CA3AF' : '#fff',
-                      fontWeight: '600',
-                      fontSize: 12,
-                    }}>
-                      →
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-           </View>
 
           {/* Reminder Cards */}
           <View style={{ gap: 16 }}>
@@ -837,9 +776,9 @@ const SleepTrackerScreen = () => {
               onPress={() => setShowBedtimeReminderPicker(true)}
               style={{
                 backgroundColor: '#FAFAFB',
-                borderRadius: 24,
-                paddingVertical: 18,
-                paddingHorizontal: 20,
+                borderRadius: 16,
+                paddingVertical: 14,
+                paddingHorizontal: 16,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -847,7 +786,7 @@ const SleepTrackerScreen = () => {
                 borderColor: '#E2E8F0',
                 shadowColor: '#000',
                 shadowOpacity: 0.03,
-                shadowRadius: 8,
+                shadowRadius: 6,
                 shadowOffset: { width: 0, height: 2 },
               }}
               activeOpacity={0.7}
@@ -856,19 +795,19 @@ const SleepTrackerScreen = () => {
                 <LinearGradient
                   colors={['#4F46E5', '#7C3AED']}
                   style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginRight: 14,
+                    marginRight: 12,
                   }}
                 >
-                  <Text style={{ fontSize: 20 }}>🌙</Text>
+                  <Text style={{ fontSize: 18 }}>🌙</Text>
                 </LinearGradient>
                 <View>
                   <Text style={{ 
-                    fontSize: 16, 
+                    fontSize: 15, 
                     fontWeight: '600', 
                     color: '#1E293B',
                     marginBottom: 2,
@@ -884,15 +823,15 @@ const SleepTrackerScreen = () => {
                 </View>
               </View>
               <View style={{
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 16,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 12,
                 backgroundColor: '#F0F9FF',
                 borderWidth: 1,
                 borderColor: '#E0F2FE',
               }}>
                 <Text style={{ 
-                  fontSize: 15, 
+                  fontSize: 14, 
                   fontWeight: '700', 
                   color: '#0369A1',
                 }}>
@@ -972,98 +911,21 @@ const SleepTrackerScreen = () => {
           </View>
         </View>
 
-        {/* Sleep History - FIXED */}
-        <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#222', marginBottom: 8 }}>
-          Sleep History
-        </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18 }}>
-          <View style={{ flexDirection: 'row' }}>
-            {weekDateObjs.map((dateObj, idx) => {
-              const dateStr = dateObj.toISOString().slice(0,10);
-              const log = weekLogMap[dateStr];
-              const dayName = weekDays[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1];
-              const isToday = dateStr === todayStr;
-              
-              return (
-                <View 
-                  key={dateStr} 
-                  style={{ 
-                    width: 80, 
-                    height: 100, 
-                    backgroundColor: isToday ? '#EEF2FF' : '#fff', 
-                    borderRadius: 16, 
-                    padding: 12, 
-                    alignItems: 'center', 
-                    marginRight: 12, 
-                    shadowColor: '#000', 
-                    shadowOpacity: 0.06, 
-                    shadowRadius: 6, 
-                    elevation: 2,
-                    borderWidth: isToday ? 2 : 0,
-                    borderColor: isToday ? '#4F46E5' : 'transparent'
-                  }}
-                >
-                  <Ionicons 
-                    name="moon" 
-                    size={28} 
-                    color={isToday ? "#4F46E5" : "#9CA3AF"} 
-                    style={{ marginBottom: 6 }} 
-                  />
-                  <Text style={{ 
-                    fontWeight: 'bold', 
-                    fontSize: 13, 
-                    color: isToday ? '#4F46E5' : '#222', 
-                    marginBottom: 2 
-                  }}>
-                    {log ? parseIntervalToDisplay(log.duration) : '--'}
-                  </Text>
-                  <Text style={{ 
-                    color: isToday ? '#4F46E5' : '#888', 
-                    fontSize: 13 
-                  }}>
-                    {dayName}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        </ScrollView>
-
-        {/* Apple Health Sync Card */}
-        {/* <View style={{ 
-          backgroundColor: '#fff', 
-          borderRadius: 14, 
-          padding: 16, 
-          flexDirection: 'row', 
-          alignItems: 'center', 
-          marginBottom: 18, 
-          shadowColor: '#000', 
-          shadowOpacity: 0.03, 
-          shadowRadius: 6, 
-          elevation: 1 
-        }}>
-          <Ionicons name="logo-apple" size={24} color="#222" style={{ marginRight: 10 }} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontWeight: 'bold', color: '#222', fontSize: 15 }}>
-              Connected to Apple Health
-            </Text>
-            <Text style={{ color: '#888', fontSize: 13 }}>Last synced 2h ago</Text>
-          </View>
-          <TouchableOpacity 
-            style={{ 
-              backgroundColor: '#F3F4F6', 
-              borderRadius: 8, 
-              paddingHorizontal: 14, 
-              paddingVertical: 7 
-            }}
-            onPress={() => {
-              // Manually refresh data when sync is pressed
-              fetchSleepLogs();
-            }}
-          >
-            <Text style={{ color: '#4F46E5', fontWeight: 'bold' }}>Sync</Text>
-          </TouchableOpacity>
-        </View> */}
+        {/* Sleep Tips */}
+        <Text style={{ fontWeight: '800', fontSize: 18, color: '#111827', marginBottom: 8, marginLeft: 4 }}>Tip of the Day</Text>
+        {(() => {
+          const daySeed = new Date().toISOString().slice(0,10);
+          const key = (daySeed + (realUserId || ''));
+          let hash = 0; for (let i=0;i<key.length;i++){ hash = (hash * 31 + key.charCodeAt(i)) >>> 0; }
+          const tipIdx = hash % SLEEP_TIPS.length;
+          const tip = SLEEP_TIPS[tipIdx];
+          return (
+            <View style={{ backgroundColor:'#fff', borderRadius:16, padding:16, marginBottom:16, shadowColor:'#000', shadowOpacity:0.05, shadowRadius:8, flexDirection:'row' }}>
+              <Text style={{ marginRight:10 }}>💡</Text>
+              <Text style={{ color:'#374151', flex:1 }}>{tip}</Text>
+            </View>
+          );
+        })()}
 
         {/* Log Sleep Button */}
         <TouchableOpacity 
@@ -1072,7 +934,6 @@ const SleepTrackerScreen = () => {
             borderRadius: 16, 
             paddingVertical: 16, 
             alignItems: 'center', 
-            marginBottom: 18 
           }} 
           onPress={() => {
             const existingLog = sleepLogs.find(l => getDateOnly(l.date) === todayStr && l.user_id === realUserId);
@@ -1309,6 +1170,28 @@ const SleepTrackerScreen = () => {
           />
         )}
       </ScrollView>
+
+      {/* Footer bar */}
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#fff', paddingTop: 10, paddingBottom: 20, borderTopLeftRadius: 16, borderTopRightRadius: 16, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 10 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+          <View style={{ alignItems: 'center' }}>
+            <Ionicons name="home-outline" size={20} color="#6B7280" />
+            <Text style={{ color: '#6B7280', marginTop: 4 }}>Home</Text>
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Ionicons name="fitness-outline" size={20} color="#6B7280" />
+            <Text style={{ color: '#6B7280', marginTop: 4 }}>Workouts</Text>
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Ionicons name="moon" size={20} color="#4F46E5" />
+            <Text style={{ color: '#4F46E5', marginTop: 4, fontWeight: '700' }}>Sleep</Text>
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Ionicons name="person-outline" size={20} color="#6B7280" />
+            <Text style={{ color: '#6B7280', marginTop: 4 }}>Profile</Text>
+          </View>
+        </View>
+      </View>
     </View>
   );
 };

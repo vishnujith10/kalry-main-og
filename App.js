@@ -6,6 +6,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useCallback } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { OnboardingProvider } from './src/context/OnboardingContext';
 import HomeScreen from './src/homescreens/HomeScreen';
 import MainDashboardScreen from './src/homescreens/MainDashboardScreen';
@@ -102,9 +103,10 @@ export default function App() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <OnboardingProvider>
-        <NavigationContainer>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <OnboardingProvider>
+          <NavigationContainer>
           <Stack.Navigator initialRouteName="AuthLoading" screenOptions={{ headerShown: false }}>
             <Stack.Screen name="AuthLoading" component={AuthLoadingScreen} />
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
@@ -153,5 +155,6 @@ export default function App() {
         </NavigationContainer>
       </OnboardingProvider>
     </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }

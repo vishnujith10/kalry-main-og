@@ -2,6 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PRIMARY = '#7B61FF';
 const PURPLE = '#A084E8';
@@ -48,6 +49,7 @@ export default function ExerciseScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     fetch('http://192.168.1.4:3000/api/exercise')
@@ -100,7 +102,7 @@ export default function ExerciseScreen() {
         <View style={{ width: 28 }} />
       </View>
       
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 80, paddingTop: 20 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100, paddingTop: 20 }}>
         <Text style={styles.header}>Weekly Activity</Text>
         {/* Days Row */}
         <View style={styles.daysRow}>
@@ -193,19 +195,25 @@ export default function ExerciseScreen() {
           </View>
         ))}
       </ScrollView>
-      {/* Custom Footer Bar */}
-      <View style={footerStyles.footerBar}>
+      {/* Footer Bar */}
+      <View style={[footerStyles.footerBar, { paddingBottom: insets.bottom + 8 }]}>
         <TouchableOpacity style={footerStyles.footerBtn} onPress={() => navigation.navigate('Workouts')}>
-          <Ionicons name="barbell-outline" size={26} color="#7B61FF" />
+          <Ionicons name="dumbbell-outline" size={26} color="#7B61FF" />
           <Text style={footerStyles.footerLabel}>Workouts</Text>
         </TouchableOpacity>
         <TouchableOpacity style={footerStyles.footerBtn} onPress={() => navigation.navigate('Create')}>
-          <Ionicons name="add-circle-outline" size={26} color="#7B61FF" />
+          <View style={footerStyles.createButton}>
+            <Ionicons name="add" size={24} color="#fff" />
+          </View>
           <Text style={footerStyles.footerLabel}>Create</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={footerStyles.footerBtn} onPress={() => navigation.navigate('SavedMeals')}>
+          <Ionicons name="bookmark-outline" size={26} color="#7B61FF" />
+          <Text style={footerStyles.footerLabel}>Saved</Text>
         </TouchableOpacity>
         <TouchableOpacity style={footerStyles.footerBtn} onPress={() => navigation.navigate('Workouts')}>
           <Ionicons name="bookmark-outline" size={26} color="#7B61FF" />
-          <Text style={footerStyles.footerLabel}>Saved</Text>
+          <Text style={footerStyles.footerLabel}>History</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -294,11 +302,21 @@ const footerStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
+    paddingHorizontal: 4, // Add some horizontal padding for better spacing
   },
   footerLabel: {
-    fontSize: 13,
+    fontSize: 12, // Slightly smaller to ensure it fits
     color: '#7B61FF',
-    marginTop: 2,
+    marginTop: 4,
     fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  createButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#7B61FF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 }); 
