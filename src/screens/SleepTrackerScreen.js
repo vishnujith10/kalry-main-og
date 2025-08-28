@@ -549,14 +549,28 @@ const SleepTrackerScreen = () => {
     weekLogMap[getDateOnly(log.date)] = log; 
   });
 
+  // Debug logging for weekly chart
+  console.log('=== WEEKLY CHART DEBUG ===');
+  console.log('Today:', today.toDateString());
+  console.log('Monday of current week:', monday.toDateString());
+  console.log('Week date objects:', weekDateObjs.map(d => d.toDateString()));
+  console.log('Sleep logs:', sleepLogs.map(log => ({ date: log.date, duration: log.duration })));
+  console.log('Week log map:', weekLogMap);
+  console.log('Sleep goal:', sleepGoal);
+
   // Weekly consistency: total minutes logged divided by (goal * 7)
   const weekTotalMins = weekDateObjs.reduce((sum, d) => {
     const key = d.toISOString().slice(0,10);
     const log = weekLogMap[key];
     const mins = log && log.duration ? parseIntervalToMinutes(log.duration) : 0;
+    console.log(`Day ${key}: ${mins} minutes (${log ? 'has log' : 'no log'})`);
     return sum + mins;
   }, 0);
   const weekConsistencyPercent = sleepGoal > 0 ? Math.max(0, Math.min(100, Math.round((weekTotalMins / (sleepGoal * 60 * 7)) * 100))) : 0;
+  
+  console.log('Week total minutes:', weekTotalMins);
+  console.log('Week consistency percent:', weekConsistencyPercent);
+  console.log('=== END WEEKLY CHART DEBUG ===');
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F8F7FC' }}>
@@ -601,16 +615,53 @@ const SleepTrackerScreen = () => {
               const mins = log && log.duration ? parseIntervalToMinutes(log.duration) : 0;
               const progress = sleepGoal > 0 ? Math.min(1, mins / (sleepGoal*60)) : 0;
               const filled = 120 * progress;
+              const hours = Math.floor(mins / 60);
+              const minutes = mins % 60;
+              const timeDisplay = mins > 0 ? `${hours}h${minutes > 0 ? ` ${minutes}m` : ''}` : '--';
+              
               return (
                 <View key={key} style={{ alignItems:'center', width:32 }}>
-                  <View style={{ width:22, height:120, borderRadius:12, backgroundColor:'#E5E7EB', overflow:'hidden', justifyContent:'flex-end' }}>
-                    <LinearGradient colors={["#C4B5FD","#A7F3D0"]} start={{x:0,y:0}} end={{x:0,y:1}} style={{ width:'100%', height:filled }} />
+                  <View style={{ 
+                    width:22, 
+                    height:120, 
+                    borderRadius:12, 
+                    backgroundColor:'#E5E7EB', 
+                    overflow:'hidden', 
+                    justifyContent:'flex-end',
+                    position: 'relative'
+                  }}>
+                    {filled > 0 ? (
+                      <LinearGradient 
+                        colors={["#C4B5FD","#A7F3D0"]} 
+                        start={{x:0,y:0}} 
+                        end={{x:0,y:1}} 
+                        style={{ width:'100%', height:filled }} 
+                      />
+                    ) : (
+                      <View style={{ 
+                        width:'100%', 
+                        height:120, 
+                        backgroundColor:'#F3F4F6',
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                      }}>
+                        <Text style={{ fontSize: 8, color: '#9CA3AF' }}>--</Text>
+                      </View>
+                    )}
                   </View>
                   <Text style={{ color:'#6B7280', fontSize:12, marginTop:6 }}>{d}</Text>
+                  <Text style={{ color:'#9CA3AF', fontSize:10, marginTop:2 }}>{timeDisplay}</Text>
                 </View>
               );
             })}
           </View>
+          {weekTotalMins === 0 && (
+            <View style={{ alignItems: 'center', marginTop: 10, padding: 10 }}>
+              <Text style={{ color: '#9CA3AF', fontSize: 14, textAlign: 'center' }}>
+                No sleep data for this week yet. Log your sleep to see the chart!
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Sleep Log header */}
