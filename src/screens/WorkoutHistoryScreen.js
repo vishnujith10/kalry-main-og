@@ -1,216 +1,363 @@
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ScrollView } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import {
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
-const COLORS = {
-  primary: '#7B61FF',
-  background: '#F9FAFB',
-  card: '#fff',
-  gray: '#B0B0B0',
-  dark: '#181A20',
-  border: '#E5E7EB',
-  blue: '#7B61FF',
-  blueLight: '#EDE9FE',
-  purple: '#A084E8',
-  red: '#F472B6',
-};
+const WorkoutHistoryScreen = () => {
+  const [selectedFilter, setSelectedFilter] = useState('All');
+  const [selectedTimeFilter, setSelectedTimeFilter] = useState('Last 7 Days');
+  const [selectedSort, setSelectedSort] = useState('Most Recent');
 
-const FILTERS = ['All', 'This Week', 'This Month', 'By Type'];
+  const filters = ['All', 'Running', 'Cycling', 'Strength', 'More'];
+  
+  const workoutData = [
+    {
+      date: 'Today',
+      workouts: [
+        {
+          id: 1,
+          name: 'Morning Run',
+          icon: 'running',
+          iconType: 'MaterialIcons',
+          distance: '5.2 km',
+          duration: '30 min',
+          calories: '450 kcal',
+          time: '08:15 AM',
+          color: '#4A90E2'
+        }
+      ]
+    },
+    {
+      date: 'Yesterday',
+      workouts: [
+        {
+          id: 2,
+          name: 'Full Body Strength',
+          icon: 'fitness-center',
+          iconType: 'MaterialIcons',
+          duration: '45 min',
+          calories: '350 kcal',
+          time: '06:30 PM',
+          color: '#4A90E2'
+        },
+        {
+          id: 3,
+          name: 'Evening Cycle',
+          icon: 'directions-bike',
+          iconType: 'MaterialIcons',
+          distance: '12.5 km',
+          duration: '40 min',
+          calories: '550 kcal',
+          time: '08:00 PM',
+          color: '#4A90E2'
+        }
+      ]
+    },
+    {
+      date: 'October 23, 2023',
+      workouts: [
+        {
+          id: 4,
+          name: 'Lunch Swim',
+          icon: 'pool',
+          iconType: 'MaterialIcons',
+          distance: '1500 m',
+          duration: '35 min',
+          calories: '300 kcal',
+          time: '12:30 PM',
+          color: '#4A90E2'
+        }
+      ]
+    }
+  ];
 
-const mockAnalytics = {
-  workouts: 5,
-  calories: 1250,
-  minutes: 225,
-  bars: [2, 4, 1, 5, 3, 4, 2],
-};
+  const renderIcon = (iconName, iconType, color) => {
+    if (iconType === 'MaterialIcons') {
+      return <MaterialIcons name={iconName} size={24} color={color} />;
+    }
+    return <Ionicons name={iconName} size={24} color={color} />;
+  };
 
-const mockWorkouts = [
-  {
-    id: 1,
-    date: 'Today',
-    name: 'Upper Body Strength',
-    kcal: 320,
-    min: 35,
-    exercises: 6,
-  },
-  {
-    id: 2,
-    date: 'Yesterday',
-    name: 'Yoga Flow',
-    kcal: 110,
-    min: 20,
-    exercises: 4,
-  },
-  {
-    id: 3,
-    date: 'July 8',
-    name: 'HIIT Cardio',
-    kcal: 450,
-    min: 45,
-    exercises: 8,
-  },
-];
-
-export default function WorkoutHistoryScreen() {
-  const [search, setSearch] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState(0);
-  const navigation = useNavigation();
+  const renderWorkoutItem = (workout) => (
+    <TouchableOpacity key={workout.id} style={styles.workoutItem}>
+      <View style={[styles.iconContainer, { backgroundColor: workout.color + '20' }]}>
+        {renderIcon(workout.icon, workout.iconType, workout.color)}
+      </View>
+      
+      <View style={styles.workoutDetails}>
+        <Text style={styles.workoutName}>{workout.name}</Text>
+        <Text style={styles.workoutSubtitle}>
+          {workout.distance ? `${workout.distance} • ` : ''}{workout.duration}
+        </Text>
+      </View>
+      
+      <View style={styles.workoutStats}>
+        <Text style={styles.caloriesText}>{workout.calories}</Text>
+        <Text style={styles.timeText}>{workout.time}</Text>
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <Text style={styles.headerTitle}>Workout History</Text>
-        <Text style={styles.headerSubtitle}>Track your fitness journey</Text>
-        {/* Search Bar */}
-        <View style={styles.searchBarWrap}>
-          <Ionicons name="search" size={20} color={COLORS.gray} style={{ marginLeft: 12, marginRight: 6 }} />
-          <TextInput
-            style={styles.searchBar}
-            placeholder="Search workouts..."
-            placeholderTextColor={COLORS.gray}
-            value={search}
-            onChangeText={setSearch}
-          />
-        </View>
-        {/* Filter Chips */}
-        <View style={styles.filterRow}>
-          {FILTERS.map((f, idx) => (
-            <TouchableOpacity
-              key={f}
-              style={[styles.filterChip, selectedFilter === idx && styles.filterChipActive]}
-              onPress={() => setSelectedFilter(idx)}
-            >
-              <Text style={[styles.filterChipText, selectedFilter === idx && styles.filterChipTextActive]}>{f}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        {/* Analytics Card */}
-        <View style={styles.analyticsCard}>
-          <View style={styles.analyticsRow}>
-            <View style={styles.analyticsCol}><Text style={styles.analyticsLabel}>Workouts</Text><Text style={styles.analyticsValue}>{mockAnalytics.workouts}</Text></View>
-            <View style={styles.analyticsCol}><Text style={styles.analyticsLabel}>Calories</Text><Text style={styles.analyticsValue}>{mockAnalytics.calories.toLocaleString()}</Text></View>
-            <View style={styles.analyticsCol}><Text style={styles.analyticsLabel}>Minutes</Text><Text style={styles.analyticsValue}>{Math.floor(mockAnalytics.minutes / 60)}h {mockAnalytics.minutes % 60}m</Text></View>
-          </View>
-          {/* Bar Chart */}
-          <View style={styles.barChartRow}>
-            {mockAnalytics.bars.map((v, i) => (
-              <View key={i} style={styles.barCol}>
-                <View style={[styles.bar, { height: 16 * v }]} />
-                <View style={styles.barBg} />
-              </View>
-            ))}
-          </View>
-        </View>
-        {/* Saved Workouts List */}
-        <FlatList
-          data={mockWorkouts}
-          keyExtractor={item => String(item.id)}
-          renderItem={({ item }) => (
-            <View style={styles.workoutCard}>
-              <Text style={styles.workoutDate}>{item.date}</Text>
-              <Text style={styles.workoutName}>{item.name}</Text>
-              <View style={styles.workoutStatsRow}>
-                <MaterialCommunityIcons name="fire" size={16} color={COLORS.red} style={{ marginRight: 4 }} />
-                <Text style={styles.workoutStat}>{item.kcal} kcal</Text>
-                <MaterialCommunityIcons name="clock-outline" size={16} color={COLORS.gray} style={{ marginLeft: 12, marginRight: 4 }} />
-                <Text style={styles.workoutStat}>{item.min} min</Text>
-                <MaterialCommunityIcons name="arm-flex" size={16} color={COLORS.purple} style={{ marginLeft: 12, marginRight: 4 }} />
-                <Text style={styles.workoutStat}>{item.exercises} exercises</Text>
-              </View>
-              <View style={styles.workoutBtnRow}>
-                <TouchableOpacity style={styles.repeatBtn}><Text style={styles.repeatBtnText}>Repeat Workout</Text></TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.detailsBtn}
-                  onPress={() => navigation.navigate('Exercise', { workout: item })}
-                >
-                  <Text style={styles.detailsBtnText}>View Details</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.detailsBtn, { backgroundColor: COLORS.blue }]}
-                  onPress={() => navigation.navigate('EditWorkoutScreen', { workout: item })}
-                >
-                  <Text style={styles.detailsBtnText}>Edit</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-          scrollEnabled={false}
-          contentContainerStyle={{ paddingBottom: 32 }}
-        />
-      </ScrollView>
-      {/* Custom Footer Bar */}
-      <View style={footerStyles.footerBar}>
-        <TouchableOpacity style={footerStyles.footerBtn} onPress={() => navigation.navigate('Exercise')}>
-          <Ionicons name="fitness-outline" size={26} color={COLORS.primary} />
-          <Text style={footerStyles.footerLabel}>Exercise</Text>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton}>
+          <Ionicons name="chevron-back" size={24} color="#000" />
         </TouchableOpacity>
-        <TouchableOpacity style={footerStyles.footerBtn} onPress={() => navigation.navigate('Create')}>
-          <Ionicons name="add-circle-outline" size={26} color={COLORS.primary} />
-          <Text style={footerStyles.footerLabel}>Create</Text>
+        <Text style={styles.headerTitle}>Workout History</Text>
+        <TouchableOpacity style={styles.themeButton}>
+          <Ionicons name="moon-outline" size={24} color="#000" />
         </TouchableOpacity>
       </View>
-    </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Filter Tabs */}
+        <View style={styles.filterContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterScrollContainer}
+          >
+            {filters.map((filter) => (
+              <TouchableOpacity
+                key={filter}
+                style={[
+                  styles.filterTab,
+                  selectedFilter === filter && styles.activeFilterTab
+                ]}
+                onPress={() => setSelectedFilter(filter)}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    selectedFilter === filter && styles.activeFilterText
+                  ]}
+                >
+                  {filter}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Time and Sort Filters */}
+        <View style={styles.controlsContainer}>
+          <TouchableOpacity style={styles.controlButton}>
+            <Ionicons name="calendar-outline" size={16} color="#666" />
+            <Text style={styles.controlText}>{selectedTimeFilter}</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.controlButton}>
+            <MaterialIcons name="swap-vert" size={16} color="#666" />
+            <Text style={styles.controlText}>{selectedSort}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Workout List */}
+        <View style={styles.workoutList}>
+          {workoutData.map((section) => (
+            <View key={section.date} style={styles.dateSection}>
+              <Text style={styles.dateHeader}>{section.date}</Text>
+              {section.workouts.map(renderWorkoutItem)}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+
+      {/* Bottom Navigation */}
+      <View style={styles.bottomNav}>
+        <TouchableOpacity style={styles.navItem}>
+          <Ionicons name="home-outline" size={24} color="#999" />
+          <Text style={styles.navText}>Home</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.navItem}>
+          <MaterialIcons name="fitness-center" size={24} color="#4A90E2" />
+          <Text style={[styles.navText, styles.activeNavText]}>Workouts</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.navItem}>
+          <Ionicons name="stats-chart-outline" size={24} color="#999" />
+          <Text style={styles.navText}>Progress</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.navItem}>
+          <Ionicons name="person-outline" size={24} color="#999" />
+          <Text style={styles.navText}>Profile</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: COLORS.dark, marginTop: 24, marginLeft: 18 },
-  headerSubtitle: { color: COLORS.gray, fontSize: 15, marginLeft: 18, marginBottom: 8 },
-  searchBarWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.card, borderRadius: 16, marginHorizontal: 16, marginBottom: 4, height: 44 },
-  searchBar: { flex: 1, fontSize: 16, color: COLORS.dark, backgroundColor: 'transparent', paddingHorizontal: 8 },
-  filterRow: { flexDirection: 'row', alignItems: 'center', marginLeft: 12, marginVertical: 14 },
-  filterChip: { backgroundColor: COLORS.card, borderRadius: 16, paddingVertical: 8, paddingHorizontal: 18, marginRight: 8 },
-  filterChipActive: { backgroundColor: COLORS.blueLight },
-  filterChipText: { color: COLORS.gray, fontWeight: 'bold', fontSize: 15 },
-  filterChipTextActive: { color: COLORS.primary },
-  analyticsCard: { backgroundColor: COLORS.card, borderRadius: 16, marginHorizontal: 16, marginBottom: 18, padding: 16, borderWidth: 1, borderColor: COLORS.border },
-  analyticsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  analyticsCol: { alignItems: 'center', flex: 1 },
-  analyticsLabel: { color: COLORS.gray, fontSize: 13, marginBottom: 2 },
-  analyticsValue: { color: COLORS.primary, fontWeight: 'bold', fontSize: 18 },
-  barChartRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 2, marginHorizontal: 8 },
-  barCol: { alignItems: 'center', width: 18, height: 40, justifyContent: 'flex-end' },
-  bar: { width: 12, borderRadius: 6, backgroundColor: COLORS.primary, marginBottom: 2 },
-  barBg: { width: 12, height: 16, borderRadius: 6, backgroundColor: COLORS.blueLight, position: 'absolute', bottom: 0 },
-  workoutCard: { backgroundColor: COLORS.card, borderRadius: 16, marginHorizontal: 16, marginBottom: 18, padding: 16, borderWidth: 1, borderColor: COLORS.border },
-  workoutDate: { color: COLORS.gray, fontSize: 13, marginBottom: 2 },
-  workoutName: { fontWeight: 'bold', fontSize: 17, color: COLORS.dark, marginBottom: 8 },
-  workoutStatsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  workoutStat: { color: COLORS.dark, fontSize: 14, fontWeight: '600' },
-  workoutBtnRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  repeatBtn: { borderWidth: 1.5, borderColor: COLORS.primary, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, backgroundColor: COLORS.card },
-  repeatBtnText: { color: COLORS.primary, fontWeight: 'bold', fontSize: 15 },
-  detailsBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16 },
-  detailsBtnText: { color: COLORS.card, fontWeight: 'bold', fontSize: 15 },
-});
-
-const footerStyles = StyleSheet.create({
-  footerBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    paddingVertical: 8,
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 60,
-    zIndex: 10,
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
-  footerBtn: {
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#FFFFFF',
+  },
+  backButton: {
+    padding: 5,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#000',
+  },
+  themeButton: {
+    padding: 5,
+  },
+  content: {
     flex: 1,
   },
-  footerLabel: {
-    fontSize: 13,
-    color: COLORS.primary,
-    marginTop: 2,
-    fontWeight: 'bold',
+  filterContainer: {
+    paddingVertical: 10,
   },
-}); 
+  filterScrollContainer: {
+    paddingHorizontal: 20,
+  },
+  filterTab: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    marginRight: 15,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+  },
+  activeFilterTab: {
+    backgroundColor: '#E3F2FD',
+  },
+  filterText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+  },
+  activeFilterText: {
+    color: '#4A90E2',
+    fontWeight: '600',
+  },
+  controlsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    gap: 15,
+  },
+  controlButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 20,
+    gap: 5,
+  },
+  controlText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  workoutList: {
+    paddingHorizontal: 20,
+  },
+  dateSection: {
+    marginBottom: 25,
+  },
+  dateHeader: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#999',
+    marginBottom: 15,
+  },
+  workoutItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  iconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  workoutDetails: {
+    flex: 1,
+  },
+  workoutName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+  },
+  workoutSubtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+  workoutStats: {
+    alignItems: 'flex-end',
+  },
+  caloriesText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+  },
+  timeText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 5,
+  },
+  navText: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  activeNavText: {
+    color: '#4A90E2',
+    fontWeight: '600',
+  },
+});
+
+export default WorkoutHistoryScreen;
