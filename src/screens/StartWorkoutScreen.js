@@ -4,6 +4,7 @@ import {
   Alert,
   Animated,
   Dimensions,
+  Keyboard,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -42,6 +43,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
   const [saveError, setSaveError] = useState(null);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [editingExerciseId, setEditingExerciseId] = useState(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   
   const timerStartedRef = useRef(false);
   const workoutTimeRef = useRef(0);
@@ -77,6 +79,21 @@ export default function StartWorkoutScreen({ navigation, route }) {
         useNativeDriver: true,
       }).start();
     }
+  }, []);
+
+  // Keyboard event listeners
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
   }, []);
 
   const formatTime = (seconds) => {
@@ -283,7 +300,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
             style={styles.endButton}
             onPress={handleFinishWorkout}
           >
-            <Text style={styles.endButtonText}>End Workout</Text>
+            <Text style={styles.endButtonText}>Finish</Text>
           </TouchableOpacity>
         </View>
         
@@ -325,6 +342,8 @@ export default function StartWorkoutScreen({ navigation, route }) {
         style={styles.exercisesList}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.exercisesContent}
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={() => Keyboard.dismiss()}
       >
         {exercises.length === 0 ? (
           <View style={styles.emptyState}>
@@ -420,9 +439,10 @@ export default function StartWorkoutScreen({ navigation, route }) {
       </ScrollView>
 
       {/* Add Exercise Button */}
-      <TouchableOpacity 
-        style={styles.addExerciseButton}
-        onPress={() => {
+      {keyboardHeight === 0 && (
+        <TouchableOpacity 
+          style={styles.addExerciseButton}
+          onPress={() => {
           navigation.navigate('AllExercisesScreen', {
             onExercisesSelected: (selectedExercises) => {
               setExercises(prev => [
@@ -450,6 +470,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
         <Ionicons name="add" size={20} color={COLORS.white} />
         <Text style={styles.addExerciseText}>Add Exercise</Text>
       </TouchableOpacity>
+      )}
 
       {saveError && (
         <Text style={styles.errorText}>{saveError}</Text>
@@ -465,7 +486,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: COLORS.white,
-    paddingTop: 60,
+    paddingTop: 20,
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
@@ -484,13 +505,23 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   endButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   endButtonText: {
-    color: COLORS.error,
-    fontSize: 16,
-    fontWeight: '500',
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
   },
   dateText: {
     fontSize: 16,
@@ -681,6 +712,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 6,
+    zIndex: 1000,
   },
   addExerciseText: {
     color: COLORS.white,
