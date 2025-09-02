@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.user_food_logs (
     protein DECIMAL(8,2) DEFAULT 0,
     carbohydrates DECIMAL(8,2) DEFAULT 0,
     fat DECIMAL(8,2) DEFAULT 0,
+    photo_url TEXT, -- Add photo URL field for food images
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -15,6 +16,9 @@ CREATE TABLE IF NOT EXISTS public.user_food_logs (
 -- Create index for better performance
 CREATE INDEX IF NOT EXISTS idx_user_food_logs_user_id ON public.user_food_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_food_logs_created_at ON public.user_food_logs(created_at);
+
+-- Add photo_url column to existing user_food_logs table if it doesn't exist
+ALTER TABLE public.user_food_logs ADD COLUMN IF NOT EXISTS photo_url TEXT;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.user_food_logs ENABLE ROW LEVEL SECURITY;

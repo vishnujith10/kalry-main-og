@@ -109,6 +109,13 @@ const SavedMealsScreen = ({ navigation, route }) => {
         Alert.alert('You must be logged in to log food.');
         return;
       }
+      
+      console.log('🔍 Logging saved meal:', {
+        dish_name: meal.dish_name,
+        image: meal.image,
+        photo_url: meal.image
+      });
+      
       const today = new Date().toISOString().slice(0, 10);
       const logData = {
         user_id,
@@ -122,8 +129,12 @@ const SavedMealsScreen = ({ navigation, route }) => {
         date_time: today,
         meal_type: 'Saved Meal',
         notes: '',
+        photo_url: meal.image, // Include the photo URL from saved meal
         created_at: new Date().toISOString(),
       };
+      
+      console.log('🔍 Log data being inserted:', logData);
+      
       const { error } = await supabase.from('user_food_logs').insert([logData]);
       if (error) throw error;
       Alert.alert('Success', 'Meal added to today\'s plan!', [
