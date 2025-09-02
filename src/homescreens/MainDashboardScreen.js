@@ -105,17 +105,17 @@ const FooterBar = ({ navigation, activeTab }) => {
       route: 'Exercise',
     },
     {
-      key: 'Mind',
-      label: 'Mind',
-      icon: <MaterialCommunityIcons name="meditation" size={24} color={activeTab === 'Mind' ? '#232B3A' : '#232B3A'} />, // icon size 24
-      route: 'GoalMoodScreen',
+      key: 'Profile',
+      label: 'Profile',
+      icon: <Ionicons name="person-outline" size={24} color={activeTab === 'Profile' ? '#232B3A' : '#232B3A'} />, // icon size 24
+      route: 'Profile',
     },
-    {
-      key: 'Insights',
-      label: 'Insights',
-      icon: <Ionicons name="bar-chart-outline" size={24} color={activeTab === 'Insights' ? '#232B3A' : '#232B3A'} />, // icon size 24
-      route: 'TargetSummary', // changed from 'TargetSummaryScreen'
-    },
+    // {
+    //   key: 'Insights',
+    //   label: 'Insights',
+    //   icon: <Ionicons name="bar-chart-outline" size={24} color={activeTab === 'Insights' ? '#232B3A' : '#232B3A'} />, // icon size 24
+    //   route: 'TargetSummary', // changed from 'TargetSummaryScreen'
+    // },
   ];
 
   return (

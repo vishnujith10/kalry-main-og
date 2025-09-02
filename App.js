@@ -49,9 +49,10 @@ import WeightTrackerScreen from './src/screens/WeightTrackerScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import WorkoutHistoryScreen from './src/screens/WorkoutHistoryScreen';
 import WorkoutPreferencesScreen from './src/screens/WorkoutPreferencesScreen';
+import WorkoutSaveScreen from './src/screens/WorkoutSaveScreen';
 import WorkoutSpaceScreen from './src/screens/WorkoutSpaceScreen';
 import WorkoutStartScreen from './src/screens/WorkoutStartScreen';
-import WorkoutSaveScreen from './src/screens/WorkoutSaveScreen';
+
 if (typeof global.structuredClone !== 'function') {
   global.structuredClone = (obj) => JSON.parse(JSON.stringify(obj));
 }
