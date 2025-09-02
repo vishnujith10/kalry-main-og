@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import {
     Image,
@@ -11,15 +12,17 @@ import {
 } from 'react-native';
 
 const ProfileScreen = () => {
+  const navigation = useNavigation();
+  
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#E8E9F0" />
       
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#333" />
-        </TouchableOpacity>
+             {/* Header */}
+       <View style={styles.header}>
+         <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('MainDashboard')}>
+           <Ionicons name="chevron-back" size={24} color="#333" />
+         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
         <View style={styles.placeholder} />
       </View>
@@ -122,12 +125,12 @@ const ProfileScreen = () => {
         </View>
       </ScrollView>
 
-      {/* Bottom Tab Bar */}
-      <View style={styles.bottomTabBar}>
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="home-outline" size={24} color="#999" />
-          <Text style={styles.tabLabel}>Home</Text>
-        </TouchableOpacity>
+             {/* Bottom Tab Bar */}
+       <View style={styles.bottomTabBar}>
+         <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('MainDashboard')}>
+           <Ionicons name="home-outline" size={24} color="#999" />
+           <Text style={styles.tabLabel}>Home</Text>
+         </TouchableOpacity>
         
         <TouchableOpacity style={styles.tabItem}>
           <Ionicons name="fitness-outline" size={24} color="#999" />
@@ -157,7 +160,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 20,
+    paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 10,
     backgroundColor: '#E8E9F0',
@@ -311,6 +314,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   bottomTabBar: {
+    borderRadius: 40,
     flexDirection: 'row',
     backgroundColor: 'white',
     paddingVertical: 10,
