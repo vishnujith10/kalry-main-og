@@ -541,9 +541,9 @@ const PostCalorieScreen = ({ route, navigation }) => {
         <View style={styles.titleSection}>
           <Text style={styles.title}>Meal Reflected</Text>
           {isEditing ? (
-            <TextInput
+        <TextInput
               style={[styles.mealName, styles.editableText]}
-              value={mealNameState}
+          value={mealNameState}
               onChangeText={setMealNameState}
               placeholder="Enter meal name"
             />
@@ -584,7 +584,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
         {macrosLoaded && (
           <View style={styles.macrosGrid}>
             <View style={[styles.macroCard, { backgroundColor: '#FFF2E6' }]}>
-              <Text style={styles.macroLabel}>Carbs</Text>
+            <Text style={styles.macroLabel}>Carbs</Text>
               <Ionicons name="restaurant-outline" size={20} color="#333" style={styles.macroIcon} />
               {isEditing ? (
                 <TextInput
@@ -600,7 +600,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
             <View style={[styles.macroCard, { backgroundColor: '#E6F3FF' }]}>
               <Text style={styles.macroLabel}>Protein</Text>
               <Ionicons name="fitness-outline" size={20} color="#333" style={styles.macroIcon} />
-              {isEditing ? (
+            {isEditing ? (
                 <TextInput
                   style={[styles.macroValue, styles.editableText]}
                   value={Math.round(macros.protein).toString()}
@@ -609,12 +609,12 @@ const PostCalorieScreen = ({ route, navigation }) => {
                 />
               ) : (
                 <Text style={styles.macroValue}>{Math.round(macros.protein)}g</Text>
-              )}
-            </View>
+            )}
+          </View>
             <View style={[styles.macroCard, { backgroundColor: '#F0FFE6' }]}>
               <Text style={styles.macroLabel}>Fat</Text>
               <Ionicons name="leaf-outline" size={20} color="#333" style={styles.macroIcon} />
-              {isEditing ? (
+            {isEditing ? (
                 <TextInput
                   style={[styles.macroValue, styles.editableText]}
                   value={Math.round(macros.fat).toString()}
@@ -623,12 +623,12 @@ const PostCalorieScreen = ({ route, navigation }) => {
                 />
               ) : (
                 <Text style={styles.macroValue}>{Math.round(macros.fat)}g</Text>
-              )}
-            </View>
+            )}
+          </View>
             <View style={[styles.macroCard, { backgroundColor: '#F3E6FF' }]}>
-              <Text style={styles.macroLabel}>Fiber</Text>
+            <Text style={styles.macroLabel}>Fiber</Text>
               <Ionicons name="nutrition-outline" size={20} color="#333" style={styles.macroIcon} />
-              {isEditing ? (
+            {isEditing ? (
                 <TextInput
                   style={[styles.macroValue, styles.editableText]}
                   value={Math.round(macros.fiber).toString()}
@@ -637,9 +637,9 @@ const PostCalorieScreen = ({ route, navigation }) => {
                 />
               ) : (
                 <Text style={styles.macroValue}>{Math.round(macros.fiber)}g</Text>
-              )}
-            </View>
+            )}
           </View>
+        </View>
         )}
         
         {!macrosLoaded && (
@@ -727,7 +727,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
           <Text style={styles.moodTitle}>How do you feel?</Text>
           <View style={styles.moodOptions}>
             {moodOptions.map((mood, index) => (
-              <TouchableOpacity
+          <TouchableOpacity
                 key={index}
                 style={[
                   styles.moodOption,
@@ -763,7 +763,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
               <Text style={styles.saveButtonText}>
                 {logging ? 'Logging...' : 'Log Food'}
               </Text>
-            </TouchableOpacity>
+          </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -1099,4 +1099,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PostCalorieScreen;
+export default PostCalorieScreen; 

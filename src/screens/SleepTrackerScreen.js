@@ -518,7 +518,7 @@ const SleepTrackerScreen = () => {
     let totalMinutes = 0;
     recentValidLogs.forEach(log => {
       const mins = parseIntervalToMinutes(log.duration);
-      totalMinutes += mins;
+        totalMinutes += mins;
       console.log('Adding minutes:', mins, 'Total so far:', totalMinutes);
     });
     
@@ -564,9 +564,9 @@ const SleepTrackerScreen = () => {
   console.log('sleepLogs length:', sleepLogs.length);
   console.log('sleepLogs type:', typeof sleepLogs);
   console.log('sleepLogs is array:', Array.isArray(sleepLogs));
-  
+
   const averageSleep = getAverageSleepDuration(sleepLogs);
-  
+
   // Debug logging for average sleep calculation
   console.log('Sleep logs for average calculation:', sleepLogs.map(log => ({
     id: log.id,
@@ -759,33 +759,33 @@ const SleepTrackerScreen = () => {
 
           const Item = ({ log }) => {
             return (
-              <View style={{ 
-                backgroundColor: '#fff', 
-                borderRadius: 16, 
+        <View style={{
+          backgroundColor: '#fff',
+          borderRadius: 16,
                 padding: 16, 
                 marginBottom: 12, 
-                shadowColor: '#000', 
-                shadowOpacity: 0.05, 
+          shadowColor: '#000',
+          shadowOpacity: 0.05,
                 shadowRadius: 8
               }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <View>
+          <View>
                     <Text style={{ fontWeight: '700', color: '#111827', fontSize: 16 }}>
                       {formatDateLabel(log.date)}
-                    </Text>
+            </Text>
                     <Text style={{ color: '#6B7280', marginTop: 4 }}>
                       {`${formatTime12h(log.start_time)} - ${formatTime12h(log.end_time)}`}
                     </Text>
-                  </View>
-                  <Text style={{ 
+              </View>
+            <Text style={{ 
                     fontWeight: '800', 
                     color: '#7C3AED', 
                     fontSize: 16 
                   }}>
                     {parseIntervalToDisplay(log.duration)} {moodToEmoji(log.mood)}
-                  </Text>
-                </View>
-              </View>
+            </Text>
+          </View>
+        </View>
             );
           };
 
@@ -832,7 +832,7 @@ const SleepTrackerScreen = () => {
                       {!month.isCurrentMonth && (
                         <>
                           {/* Month header with expand/collapse button */}
-                          <TouchableOpacity 
+          <TouchableOpacity
                             onPress={() => toggleMonthExpansion(month.monthKey)}
                             style={{ 
                               flexDirection: 'row', 
@@ -868,7 +868,7 @@ const SleepTrackerScreen = () => {
                                 ⌄
                               </Text>
                             </View>
-                          </TouchableOpacity>
+          </TouchableOpacity>
                           
                           {/* Expanded month logs */}
                           {isExpanded && (
@@ -880,7 +880,7 @@ const SleepTrackerScreen = () => {
                           )}
                         </>
                       )}
-                    </View>
+        </View>
                   );
                 })}
               </>
@@ -948,12 +948,12 @@ const SleepTrackerScreen = () => {
             <View style={{ flexDirection:'row', alignItems:'center' }}>
               <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
                 <Text style={{ fontSize: 16 }}>💤</Text>
-              </View>
-              <View>
+            </View>
+            <View>
                 <Text style={{ fontSize: 18, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 }}>Sleep Goal</Text>
                 <Text style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>{todayPercent}% of {sleepGoal} hours</Text>
-              </View>
             </View>
+          </View>
           </View>
 
           {/* Reminder Cards */}
@@ -1106,12 +1106,12 @@ const SleepTrackerScreen = () => {
           let hash = 0; for (let i=0;i<key.length;i++){ hash = (hash * 31 + key.charCodeAt(i)) >>> 0; }
           const tipIdx = hash % SLEEP_TIPS.length;
           const tip = SLEEP_TIPS[tipIdx];
-          return (
+              return (
             <View style={{ backgroundColor:'#fff', borderRadius:16, padding:16, marginBottom:16, shadowColor:'#000', shadowOpacity:0.05, shadowRadius:8, flexDirection:'row' }}>
               <Text style={{ marginRight:10 }}>💡</Text>
               <Text style={{ color:'#374151', flex:1 }}>{tip}</Text>
-            </View>
-          );
+                </View>
+              );
         })()}
 
         {/* Log Sleep Button */}

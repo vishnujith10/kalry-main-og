@@ -430,14 +430,14 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
       const { description } = analysis || {};
       
       const mealData = {
-        user_id: user.id,
-        dish_name: mealNameState,
+          user_id: user.id,
+          dish_name: mealNameState,
         description: description || '',
-        calories: calories || 0,
-        protein: protein || 0,
-        carbs: carbs || 0,
-        fat: fat || 0,
-        fiber: fiber || 0,
+          calories: calories || 0,
+          protein: protein || 0,
+          carbs: carbs || 0,
+          fat: fat || 0,
+          fiber: fiber || 0,
         created_at: new Date().toISOString(),
       };
       
@@ -514,12 +514,12 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
+      {/* Header */}
+      <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={24} color="#333" />
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
+      </View>
 
         {/* Title and Time */}
         <View style={styles.titleSection}>
@@ -552,20 +552,20 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
                  style={styles.mealImageStyle}
                  resizeMode="cover"
                />
-             </View>
-             
+        </View>
+
              {/* Right side - Calorie Ring */}
              <View style={styles.calorieRing}>
                <View style={styles.calorieRingInner}>
                  <Text style={styles.calorieNumber}>{analysis?.total?.calories || 785}</Text>
-                 <Text style={styles.calorieLabel}>kcal</Text>
-               </View>
+              <Text style={styles.calorieLabel}>kcal</Text>
+            </View>
              </View>
            </View>
          </View>
 
          {/* Macros Grid */}
-         <View style={styles.macrosGrid}>
+            <View style={styles.macrosGrid}>
   <View style={[styles.macroCard, { backgroundColor: '#FFF2E6' }]}>
     <View style={styles.macroIconColumn}>
       <Ionicons name="restaurant-outline" size={20} color="#333" />
@@ -596,8 +596,8 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
         <Text style={styles.macroValue}>{Math.round(macros.protein)}g</Text>
       )}
     </View>
-    <Text style={styles.macroLabel}>Protein</Text>
-  </View>
+                <Text style={styles.macroLabel}>Protein</Text>
+              </View>
   <View style={[styles.macroCard, { backgroundColor: '#F0FFE6' }]}>
     <View style={styles.macroIconColumn}>
       <Ionicons name="leaf-outline" size={20} color="#333" />
@@ -611,9 +611,9 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
       ) : (
         <Text style={styles.macroValue}>{Math.round(macros.fat)}g</Text>
       )}
-    </View>
-    <Text style={styles.macroLabel}>Fat</Text>
-  </View>
+              </View>
+                <Text style={styles.macroLabel}>Fat</Text>
+              </View>
   <View style={[styles.macroCard, { backgroundColor: '#F3E6FF' }]}>
     <View style={styles.macroIconColumn}>
       <Ionicons name="nutrition-outline" size={20} color="#333" />
@@ -628,15 +628,15 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
         <Text style={styles.macroValue}>{Math.round(macros.fiber)}g</Text>
       )}
     </View>
-    <Text style={styles.macroLabel}>Fiber</Text>
-  </View>
-</View>
+                <Text style={styles.macroLabel}>Fiber</Text>
+          </View>
+        </View>
 
         {/* Health Score */}
         <View style={styles.healthScoreSection}>
           <View style={styles.healthScoreCircle}>
             <Text style={styles.healthScoreNumber}>{healthScore}</Text>
-          </View>
+            </View>
           <View style={styles.healthScoreInfo}>
             <Text style={styles.healthScoreTitle}>{healthText}</Text>
             <Text style={styles.healthScoreDescription}>{infoText}</Text>
@@ -700,9 +700,9 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
                   </TouchableOpacity>
                 )}
               </View>
-            </View>
-          ))}
-        </View>
+              </View>
+            ))}
+          </View>
 
         {/* Mood Selection */}
         <View style={styles.moodSection}>
@@ -739,14 +739,14 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
               <Text style={styles.saveToMealsButtonText}>
                 {saving ? 'Saving...' : 'Save'}
               </Text>
-            </TouchableOpacity>
+        </TouchableOpacity>
             
             <TouchableOpacity style={styles.saveButton} onPress={handleDone} disabled={logging}>
               <Text style={styles.saveButtonText}>
                 {logging ? 'Logging...' : 'Log Food'}
               </Text>
-            </TouchableOpacity>
-          </View>
+        </TouchableOpacity>
+      </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -761,9 +761,9 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 5,
@@ -785,7 +785,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   editableText: {
-    borderBottomWidth: 1,
+    borderBottomWidth: 1, 
     borderBottomColor: '#6366F1',
     paddingVertical: 5,
   },
@@ -859,8 +859,8 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 2,
   },
-  macrosGrid: {
-    flexDirection: 'row',
+  macrosGrid: { 
+    flexDirection: 'row', 
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
@@ -868,7 +868,7 @@ const styles = StyleSheet.create({
   },
   macroCard: {
     width: '48%',
-    borderRadius: 12,
+    borderRadius: 12, 
     padding: 16,
     marginBottom: 8,
     flexDirection: 'row', // Row layout for icon column and name
@@ -932,8 +932,8 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   ingredientsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
     alignItems: 'center',
     marginBottom: 16,
   },
@@ -1036,7 +1036,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  saveButton: {
+  saveButton: { 
     backgroundColor: '#6366F1',
     borderRadius: 12,
     padding: 18,
@@ -1053,7 +1053,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 2,
     borderColor: '#6366F1',
-    borderRadius: 12,
+    borderRadius: 12, 
     padding: 15,
     alignItems: 'center',
   },
@@ -1064,7 +1064,7 @@ const styles = StyleSheet.create({
   },
   saveToMealsButton: {
     backgroundColor: '#8B5CF6',
-    borderRadius: 12,
+    borderRadius: 12, 
     padding: 18,
     alignItems: 'center',
     flex: 1,
@@ -1083,4 +1083,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default VoicePostCalorieScreen;
+export default VoicePostCalorieScreen; 

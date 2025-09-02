@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as FileSystem from 'expo-file-system';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import supabase from '../lib/supabase';
 import { createFoodLog } from '../utils/api';
@@ -22,6 +22,10 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
     fat: 0,
     fiber: 0,
   });
+  
+  // Ref for timeout
+  const reanalysisTimeoutRef = useRef(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   // Helper function to get ingredient icon
   const getIngredientIcon = (name) => {
@@ -51,6 +55,7 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
   // Initialize state from analysis
   useEffect(() => {
     if (analysis) {
+      // Update macros from analysis
       setMacros({
         protein: analysis?.total_nutrition?.protein || 0,
         carbs: analysis?.total_nutrition?.carbs || 0,
@@ -58,6 +63,7 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
         fiber: analysis?.total_nutrition?.fiber || 0,
       });
       
+      // Update ingredients from analysis
       if (analysis?.ingredients && Array.isArray(analysis.ingredients)) {
         const newIngredients = analysis.ingredients.map(item => ({
           name: item?.name || 'Unknown Ingredient',
@@ -67,6 +73,8 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
         }));
         setIngredients(newIngredients);
       }
+      
+      console.log('Analysis updated:', analysis.dish_name, 'Calories:', analysis?.total_nutrition?.calories);
     }
   }, [analysis]);
 
@@ -85,6 +93,13 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
     if (photoUri) {
       handleImageToCalorie(photoUri);
     }
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (reanalysisTimeoutRef.current) {
+        clearTimeout(reanalysisTimeoutRef.current);
+      }
+    };
   }, [photoUri]);
 
   const handleImageToCalorie = async (uri) => {
@@ -407,6 +422,118 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
     setMacros({ ...macros, [key]: value });
   };
 
+  // Function to re-analyze food when name changes
+  const reanalyzeFood = async (newFoodName) => {
+    if (!newFoodName.trim() || newFoodName === analysis.dish_name) {
+      console.log('Skipping re-analysis - same name or empty');
+      return;
+    }
+    
+    console.log('Starting re-analysis for:', newFoodName);
+    setIsLoading(true);
+    
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const imageBase64 = await FileSystem.readAsStringAsync(photoUri, { encoding: FileSystem.EncodingType.Base64 });
+      
+      const prompt = `
+        You are a nutrition expert. Analyze this food image and provide accurate nutrition information for: "${newFoodName.trim()}"
+        
+        IMPORTANT: The user has corrected the food name to "${newFoodName.trim()}", so provide nutrition data specifically for this food item, not what you see in the image.
+        
+        Your response MUST be a valid JSON object only. Do not include any text outside of the JSON object.
+        
+        The JSON object should have this structure:
+        {
+          "is_food": true,
+          "dish_name": "${newFoodName.trim()}",
+          "description": "A one-sentence savory description of ${newFoodName.trim()}.",
+          "total_nutrition": {
+            "calories": <accurate number for ${newFoodName.trim()}>,
+            "protein": <accurate number for ${newFoodName.trim()}>,
+            "fat": <accurate number for ${newFoodName.trim()}>,
+            "carbs": <accurate number for ${newFoodName.trim()}>,
+            "fiber": <accurate number for ${newFoodName.trim()}>
+          },
+          "ingredients": [
+            { "name": "ingredient name", "calories": <number> },
+            { "name": "ingredient name", "calories": <number> }
+          ]
+        }
+        
+        Provide accurate nutrition values for a standard serving size of ${newFoodName.trim()}.
+        
+        IMPORTANT: Provide realistic fiber values based on the food type:
+        - Fruits and vegetables: 2-8g fiber per serving
+        - Whole grains and breads: 2-4g fiber per serving  
+        - Legumes and beans: 5-15g fiber per serving
+        - Nuts and seeds: 2-6g fiber per serving
+        - Processed foods: 0-2g fiber per serving
+      `;
+
+      console.log('Sending prompt to AI:', prompt);
+      const result = await model.generateContent([prompt, { inlineData: { mimeType: 'image/jpeg', data: imageBase64 } }]);
+      const response = await result.response;
+      let text = response.text();
+      
+      console.log('AI Response:', text);
+      
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+          const data = JSON.parse(jsonMatch[0]);
+          console.log('Parsed AI data:', data);
+          
+          // Update the analysis with new data
+          setAnalysis(data);
+          
+          // Update macros and ingredients
+          const newMacros = {
+            protein: data?.total_nutrition?.protein || 0,
+            carbs: data?.total_nutrition?.carbs || 0,
+            fat: data?.total_nutrition?.fat || 0,
+            fiber: data?.total_nutrition?.fiber || 0,
+          };
+          console.log('Setting new macros:', newMacros);
+          setMacros(newMacros);
+          
+          if (data?.ingredients && Array.isArray(data.ingredients)) {
+            const newIngredients = data.ingredients.map(item => ({
+              name: item?.name || 'Unknown Ingredient',
+              amount: '1 serving',
+              calories: Math.round(item?.calories || 0),
+              icon: getIngredientIcon(item?.name || ''),
+            }));
+            console.log('Setting new ingredients:', newIngredients);
+            setIngredients(newIngredients);
+          }
+          
+          console.log('Food re-analyzed successfully for:', newFoodName);
+          
+          // Set last updated time
+          setLastUpdated(new Date());
+          
+          // Show success message
+          Alert.alert(
+            'Nutrition Updated!', 
+            `Nutritional information has been updated for "${newFoodName.trim()}"`,
+            [{ text: 'OK' }]
+          );
+      } else {
+          throw new Error('Invalid JSON format from API.');
+      }
+
+    } catch (error) {
+      console.error("Error re-analyzing image:", error);
+      // Fallback: just update the name without re-analyzing
+      setAnalysis({
+        ...analysis,
+        dish_name: newFoodName.trim()
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleIngredientChange = (index, field, value) => {
     const newIngredients = [...ingredients];
     newIngredients[index] = { ...newIngredients[index], [field]: value };
@@ -441,12 +568,51 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
         <View style={styles.titleSection}>
           <Text style={styles.title}>Meal Reflected</Text>
           {isEditing ? (
-            <TextInput
-              style={[styles.mealName, styles.editableText]}
-              value={dish_name}
-              onChangeText={(value) => setAnalysis({...analysis, dish_name: value})}
-              placeholder="Enter meal name"
-            />
+            <View style={styles.editNameContainer}>
+              <TextInput
+                style={[styles.mealName, styles.editableText]}
+                value={dish_name}
+                              onChangeText={(value) => {
+                setAnalysis({...analysis, dish_name: value});
+                // Trigger re-analysis after a delay to avoid too many API calls
+                if (reanalysisTimeoutRef.current) {
+                  clearTimeout(reanalysisTimeoutRef.current);
+                }
+                reanalysisTimeoutRef.current = setTimeout(() => {
+                  console.log('Timeout triggered, calling reanalyzeFood with:', value);
+                  reanalyzeFood(value);
+                }, 2000); // Wait 2 seconds after user stops typing
+              }}
+              onEndEditing={() => {
+                // Also trigger re-analysis when user finishes editing
+                console.log('User finished editing, triggering re-analysis for:', dish_name);
+                reanalyzeFood(dish_name);
+              }}
+                placeholder="Enter meal name"
+              />
+              {isLoading && (
+                <View style={styles.reanalysisIndicator}>
+                  <ActivityIndicator size={16} color="#7B61FF" />
+                  <Text style={styles.reanalysisText}>🔄 Updating nutrition for {dish_name}...</Text>
+                </View>
+              )}
+              <TouchableOpacity 
+                style={styles.testButton}
+                onPress={() => {
+                  console.log('Current analysis:', analysis);
+                  console.log('Current macros:', macros);
+                  console.log('Current ingredients:', ingredients);
+                  reanalyzeFood(dish_name);
+                }}
+              >
+                <Text style={styles.testButtonText}>🔄 Force Re-analysis</Text>
+              </TouchableOpacity>
+              {lastUpdated && (
+                <Text style={styles.lastUpdatedText}>
+                  Last updated: {lastUpdated.toLocaleTimeString()}
+                </Text>
+              )}
+            </View>
           ) : (
             <Text style={styles.mealName}>{dish_name}</Text>
           )}
@@ -473,7 +639,7 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
             {/* Right side - Calorie Ring */}
             <View style={styles.calorieRing}>
               <View style={styles.calorieRingInner}>
-                <Text style={styles.calorieNumber}>250</Text>
+                <Text style={styles.calorieNumber}>{total_nutrition?.calories || 0}</Text>
                 <Text style={styles.calorieLabel}>kcal</Text>
               </View>
             </View>
@@ -557,8 +723,8 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
             <Text style={styles.healthScoreTitle}>{getHealthText()}</Text>
             <Text style={styles.healthScoreDescription}>{getInfoText()}</Text>
           </View>
-        </View>
-
+          </View>
+          
         {/* Ingredients */}
         <View style={styles.ingredientsSection}>
           <View style={styles.ingredientsHeader}>
@@ -573,7 +739,7 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
             </View>
           </View>
           {ingredients.map((ingredient, index) => (
-            <View key={index} style={styles.ingredientItem}>
+              <View key={index} style={styles.ingredientItem}>
               <Text style={styles.ingredientEmoji}>{ingredient.icon}</Text>
               <View style={styles.ingredientInfo}>
                 {isEditing ? (
@@ -646,9 +812,16 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(!isEditing)}>
-            <Text style={styles.editButtonText}>{isEditing ? 'Done' : 'Edit Meal'}</Text>
-          </TouchableOpacity>
+                  <TouchableOpacity style={styles.editButton} onPress={() => {
+          if (isEditing) {
+            // When finishing editing, trigger re-analysis immediately
+            console.log('Finishing edit, triggering re-analysis for:', dish_name);
+            reanalyzeFood(dish_name);
+          }
+          setIsEditing(!isEditing);
+        }}>
+          <Text style={styles.editButtonText}>{isEditing ? 'Done' : 'Edit Meal'}</Text>
+        </TouchableOpacity>
           
           <View style={styles.bottomButtonsRow}>
             <TouchableOpacity style={styles.saveToMealsButton} onPress={handleSaveToSavedMeals} disabled={isLoading}>
@@ -719,8 +892,8 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
               />
               <TouchableOpacity onPress={handleSaveEdit} style={styles.saveButton}>
                 <Text style={styles.saveButtonText}>Save Changes</Text>
-              </TouchableOpacity>
-            </View>
+        </TouchableOpacity>
+      </View>
           </View>
         </View>
       )}
@@ -770,6 +943,40 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#666',
     marginBottom: 8,
+  },
+  editNameContainer: {
+    marginBottom: 8,
+  },
+  reanalysisIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  reanalysisText: {
+    fontSize: 12,
+    color: '#7B61FF',
+    fontStyle: 'italic',
+  },
+  testButton: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginTop: 8,
+    alignSelf: 'center',
+  },
+  testButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  lastUpdatedText: {
+    fontSize: 11,
+    color: '#666',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 4,
   },
   editableText: {
     backgroundColor: '#F8FAFC',
@@ -855,7 +1062,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   macroCard: {
-    width: '48%',
+    width: '48%', 
     borderRadius: 12,
     padding: 16, // Increased padding for better spacing
     marginBottom: 8,
@@ -1038,8 +1245,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 2,
     borderColor: '#6366F1',
-    borderRadius: 12,
-    padding: 15,
+    borderRadius: 12, 
+    padding: 15, 
     alignItems: 'center',
   },
   editButtonText: {

@@ -33,7 +33,7 @@ const COLORS = {
 
 
 // Session Type Options
-const SESSION_TYPES = [
+  const SESSION_TYPES = [
   ' Cardio', 
   'HIIT',
   'Custom'
@@ -364,7 +364,7 @@ export default function CardioSessionBuilder({ navigation }) {
         // Workout complete
         completeWorkout();
       }
-    } else {
+      } else {
       // Exercise complete, start rest or move to next
       if (currentRound < totalRounds) {
         setIsResting(true);
@@ -441,7 +441,7 @@ export default function CardioSessionBuilder({ navigation }) {
             </Text>
             <Text style={styles.sessionTypeArrow}>▼</Text>
           </TouchableOpacity>
-        </View>
+                        </View>
 
         {/* Intensity Buttons */}
         <View style={styles.card}>
@@ -458,8 +458,8 @@ export default function CardioSessionBuilder({ navigation }) {
                 styles.intensityButtonText,
                 intensity <= 33 && styles.intensityButtonTextActive
               ]}>Low</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
+                    </TouchableOpacity>
+                <TouchableOpacity
               style={[
                 styles.intensityButton,
                 intensity > 33 && intensity <= 66 && styles.intensityButtonActive
@@ -470,8 +470,8 @@ export default function CardioSessionBuilder({ navigation }) {
                 styles.intensityButtonText,
                 intensity > 33 && intensity <= 66 && styles.intensityButtonTextActive
               ]}>Medium</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
+                </TouchableOpacity>
+                <TouchableOpacity
               style={[
                 styles.intensityButton,
                 intensity > 66 && styles.intensityButtonActive
@@ -482,8 +482,8 @@ export default function CardioSessionBuilder({ navigation }) {
                 styles.intensityButtonText,
                 intensity > 66 && styles.intensityButtonTextActive
               ]}>High</Text>
-            </TouchableOpacity>
-          </View>
+                </TouchableOpacity>
+              </View>
         </View>
 
         {/* Exercises List */}
@@ -559,7 +559,7 @@ export default function CardioSessionBuilder({ navigation }) {
               trackColor={{ true: COLORS.primary, false: COLORS.cardBorder }}
               thumbColor={COLORS.white}
             />
-          </View>
+              </View>
         </View>
 
         {/* Session Summary */}
@@ -570,17 +570,17 @@ export default function CardioSessionBuilder({ navigation }) {
               <Text style={styles.summaryIcon}>⏱️</Text>
               <Text style={styles.summaryValue}>{summary.totalTime}</Text>
               <Text style={styles.summaryLabel}>Minutes</Text>
-            </View>
+      </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryIcon}>🔥</Text>
               <Text style={styles.summaryValue}>{summary.totalCalories}</Text>
               <Text style={styles.summaryLabel}>Calories</Text>
-            </View>
+        </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryIcon}>📊</Text>
               <Text style={styles.summaryValue}>{summary.difficulty}</Text>
               <Text style={styles.summaryLabel}>Difficulty</Text>
-            </View>
+              </View>
           </View>
         </View>
 
@@ -588,11 +588,11 @@ export default function CardioSessionBuilder({ navigation }) {
         <View style={styles.actionButtons}>
           <TouchableOpacity style={styles.clearButton} onPress={clearAll}>
             <Text style={styles.clearButtonText}>Clear All</Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
           <TouchableOpacity style={styles.startButton} onPress={startWorkout}>
             <Text style={styles.startButtonText}>Start Workout</Text>
           </TouchableOpacity>
-        </View>
+              </View>
       </ScrollView>
 
       {/* Add Exercise Modal */}
@@ -603,8 +603,8 @@ export default function CardioSessionBuilder({ navigation }) {
               <Text style={styles.modalTitle}>Add Exercise</Text>
               <TouchableOpacity onPress={() => setAddModalVisible(false)}>
                 <Text style={styles.modalClose}>×</Text>
-              </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
+        </View>
             
             <TextInput
               style={styles.searchInput}
@@ -625,7 +625,7 @@ export default function CardioSessionBuilder({ navigation }) {
                     data={filteredExercises}
                     keyExtractor={item => item.id?.toString() || Math.random().toString()}
                     renderItem={({ item }) => (
-                      <TouchableOpacity 
+              <TouchableOpacity
                         style={styles.exerciseOption}
                         onPress={() => setSelectedExercise(item)}
                       >
@@ -636,24 +636,24 @@ export default function CardioSessionBuilder({ navigation }) {
                             {item.body_part && (
                               <View style={styles.tag}>
                                 <Text style={styles.tagText}>{item.body_part}</Text>
-                              </View>
-                            )}
+                    </View>
+                  )}
                             {item.type && (
                               <View style={styles.tag}>
                                 <Text style={styles.tagText}>{item.type}</Text>
                               </View>
                             )}
-                          </View>
-                        </View>
+                    </View>
+                  </View>
                         <Text style={styles.difficultyBadge}>{item.type || 'Cardio'}</Text>
-                      </TouchableOpacity>
+                  </TouchableOpacity>
                     )}
                     style={styles.exerciseList}
                     ListEmptyComponent={
                       <View style={styles.emptyListContainer}>
                         <Text style={styles.emptyListText}>No exercises found</Text>
                         <Text style={styles.emptyListSubtext}>Try adjusting your search</Text>
-                      </View>
+                </View>
                     }
                   />
                 )}
@@ -664,14 +664,14 @@ export default function CardioSessionBuilder({ navigation }) {
                 
                 <View style={styles.configRow}>
                   <Text style={styles.configLabel}>Duration (seconds)</Text>
-                  <TextInput
+                    <TextInput
                     style={styles.configInput}
                     placeholder={selectedExercise.baseDuration?.toString() || "45"}
                     placeholderTextColor={COLORS.textSecondary}
                     value={exerciseDuration}
                     onChangeText={setExerciseDuration}
-                    keyboardType="numeric"
-                  />
+                      keyboardType="numeric"
+                    />
                 </View>
 
                 <View style={styles.configRow}>
@@ -694,30 +694,30 @@ export default function CardioSessionBuilder({ navigation }) {
                       onPress={() => setExerciseRounds(Math.max(1, exerciseRounds - 1))}
                     >
                       <Text style={styles.stepperButtonText}>-</Text>
-                    </TouchableOpacity>
+              </TouchableOpacity>
                     <Text style={styles.stepperValue}>{exerciseRounds}</Text>
                     <TouchableOpacity 
                       style={styles.stepperButton}
                       onPress={() => setExerciseRounds(exerciseRounds + 1)}
                     >
                       <Text style={styles.stepperButtonText}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
+          </TouchableOpacity>
+        </View>
+            </View>
 
                 <View style={styles.modalActions}>
-                  <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.modalCancelButton}
                     onPress={() => setSelectedExercise(null)}
-                  >
+                >
                     <Text style={styles.modalCancelText}>Back</Text>
-                  </TouchableOpacity>
+                </TouchableOpacity>
                   <TouchableOpacity style={styles.modalAddButton} onPress={addExercise}>
                     <Text style={styles.modalAddText}>Add Exercise</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
-            )}
+            </View>
+          )}
           </View>
         </View>
       </Modal>
@@ -734,7 +734,7 @@ export default function CardioSessionBuilder({ navigation }) {
               }}>
                 <Text style={styles.playerClose}>×</Text>
               </TouchableOpacity>
-            </View>
+          </View>
 
             {exercises.length > 0 && (
               <View style={styles.playerContent}>
@@ -767,8 +767,8 @@ export default function CardioSessionBuilder({ navigation }) {
                   >
                     <Text style={styles.playerButtonText}>⏭️</Text>
                   </TouchableOpacity>
-                </View>
-              </View>
+          </View>
+          </View>
             )}
           </Animated.View>
         </View>
@@ -801,7 +801,7 @@ export default function CardioSessionBuilder({ navigation }) {
                 }}
               >
                 <Text style={styles.sessionTypeOptionText}>{type}</Text>
-              </TouchableOpacity>
+          </TouchableOpacity>
             ))}
             {sessionType === 'Custom' && (
               <View style={styles.customInputContainer}>
@@ -815,7 +815,7 @@ export default function CardioSessionBuilder({ navigation }) {
               </View>
             )}
           </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
       </Modal>
 
       {/* Success Toast */}

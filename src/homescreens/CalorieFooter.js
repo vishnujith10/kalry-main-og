@@ -91,7 +91,7 @@ const CalorieFooter = ({ navigation, activeTab }) => {
       {
         key: 'Stats',
         icon: <Ionicons name="bar-chart-outline" size={24} color="#fff" />, // Summary
-        route: 'TargetSummary', // changed from 'TargetSummaryScreen'
+        route: 'ProgressScreen', // changed from 'TargetSummaryScreen'
       },
       {
         key: 'Profile',

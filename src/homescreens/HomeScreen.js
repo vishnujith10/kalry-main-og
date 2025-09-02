@@ -1,13 +1,25 @@
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import React, { useContext, useEffect, useState } from 'react';
-import { Alert, Dimensions, Image, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { ProgressChart } from 'react-native-chart-kit';
-import { OnboardingContext } from '../context/OnboardingContext';
-import supabase from '../lib/supabase';
-import { createFoodLog, deleteFoodLog, getFoodLogs } from '../utils/api';
-import useTodaySteps from '../utils/useTodaySteps';
-import CalorieFooter from './CalorieFooter';
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import React, { useContext, useEffect, useState } from "react";
+import {
+  Alert,
+  Dimensions,
+  Image,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { ProgressChart } from "react-native-chart-kit";
+import { OnboardingContext } from "../context/OnboardingContext";
+import supabase from "../lib/supabase";
+import { createFoodLog, deleteFoodLog, getFoodLogs } from "../utils/api";
+import useTodaySteps from "../utils/useTodaySteps";
+import CalorieFooter from "./CalorieFooter";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -19,13 +31,13 @@ function getCurrentWeekDates() {
   const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
   const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // If Sunday, go back 6 days; otherwise go back (dayOfWeek - 1) days
   monday.setDate(today.getDate() - daysToMonday);
-  
+
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
     week.push({
       date: d,
-      dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
+      dayName: d.toLocaleDateString("en-US", { weekday: "short" }),
       dayNumber: d.getDate(),
       isToday:
         d.getDate() === today.getDate() &&
@@ -41,8 +53,13 @@ const HomeScreen = ({ navigation }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [user, setUser] = useState({ id: null });
   const [foodLogs, setFoodLogs] = useState([]);
-  const [totals, setTotals] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0 });
-  const [userName, setUserName] = useState(onboardingData?.name || 'User');
+  const [totals, setTotals] = useState({
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+  });
+  const [userName, setUserName] = useState(onboardingData?.name || "User");
   const [recentMeals, setRecentMeals] = useState([]);
   const [expandedMeal, setExpandedMeal] = useState(null);
   const { stepsToday, calories: stepCalories } = useTodaySteps();
@@ -50,7 +67,7 @@ const HomeScreen = ({ navigation }) => {
 
   // Calorie calculation helpers
   function calculateBMR(gender, weight_kg, height_cm, age) {
-    return gender === 'male'
+    return gender === "male"
       ? 10 * weight_kg + 6.25 * height_cm - 5 * age + 5
       : 10 * weight_kg + 6.25 * height_cm - 5 * age - 161;
   }
@@ -60,38 +77,43 @@ const HomeScreen = ({ navigation }) => {
       light: 1.375,
       moderate: 1.55,
       very: 1.725,
-      extra: 1.9
+      extra: 1.9,
     };
     return bmr * (multiplier[activity_level] || 1.2);
   }
   function adjustForGoal(tdee, goal) {
     switch (goal) {
-      case 'lose': return tdee * 0.85;
-      case 'gain': return tdee * 1.10;
-      default: return tdee;
+      case "lose":
+        return tdee * 0.85;
+      case "gain":
+        return tdee * 1.1;
+      default:
+        return tdee;
     }
   }
   function getMacroTargets(calories) {
     return {
       protein_g: Math.round((calories * 0.3) / 4),
       fat_g: Math.round((calories * 0.3) / 9),
-      carbs_g: Math.round((calories * 0.4) / 4)
+      carbs_g: Math.round((calories * 0.4) / 4),
     };
   }
   function getMinCalories(gender) {
-    return gender === 'male' ? 1500 : 1200;
+    return gender === "male" ? 1500 : 1200;
   }
 
   // Calorie goal logic
   const age = Number(onboardingData?.age) || 25;
-  const gender = (onboardingData?.gender || 'female').toLowerCase();
+  const gender = (onboardingData?.gender || "female").toLowerCase();
   const weight_kg = Number(onboardingData?.weight) || 60;
   const height_cm = Number(onboardingData?.height) || 165;
-  const activity_level = (onboardingData?.daily_activity_level || 'moderate').toLowerCase();
-  let goal_type = (onboardingData?.goal_focus || 'maintain').toLowerCase();
-  if (goal_type.includes('lose')) goal_type = 'lose';
-  else if (goal_type.includes('gain')) goal_type = 'gain';
-  else goal_type = 'maintain';
+  const activity_level = (
+    onboardingData?.daily_activity_level || "moderate"
+  ).toLowerCase();
+  let goal_type = (onboardingData?.goal_focus || "maintain").toLowerCase();
+  if (goal_type.includes("lose")) goal_type = "lose";
+  else if (goal_type.includes("gain")) goal_type = "gain";
+  else goal_type = "maintain";
 
   const bmr = calculateBMR(gender, weight_kg, height_cm, age);
   const tdee = calculateTDEE(bmr, activity_level);
@@ -107,17 +129,19 @@ const HomeScreen = ({ navigation }) => {
       if (onboardingData.daily_calorie_goal) {
         calorie_goal = onboardingData.daily_calorie_goal;
       }
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (session?.user?.id) {
         setUser({ id: session.user.id });
-        
+
         // Fetch user's name from database
         const { data: profileData } = await supabase
-          .from('user_profile')
-          .select('name')
-          .eq('id', session.user.id)
+          .from("user_profile")
+          .select("name")
+          .eq("id", session.user.id)
           .single();
-        
+
         if (profileData?.name) {
           setUserName(profileData.name);
         }
@@ -143,7 +167,7 @@ const HomeScreen = ({ navigation }) => {
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
-      const filteredLogs = logs.filter(log => {
+      const filteredLogs = logs.filter((log) => {
         const logDate = new Date(log.created_at);
         return logDate >= startOfDay && logDate <= endOfDay;
       });
@@ -151,26 +175,29 @@ const HomeScreen = ({ navigation }) => {
       calculateTotals(filteredLogs);
       setRecentMeals(filteredLogs.slice(-5).reverse());
     } catch (error) {
-      console.error('Error fetching food logs:', error);
+      console.error("Error fetching food logs:", error);
     }
   };
 
   const calculateTotals = (logs) => {
-    const newTotals = logs.reduce((acc, log) => {
-      acc.calories += log.calories || 0;
-      acc.protein += log.protein || 0;
-      acc.carbs += log.carbs || 0;
-      acc.fat += log.fat || 0;
-      acc.fiber += log.fiber || 0;
-      return acc;
-    }, { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+    const newTotals = logs.reduce(
+      (acc, log) => {
+        acc.calories += log.calories || 0;
+        acc.protein += log.protein || 0;
+        acc.carbs += log.carbs || 0;
+        acc.fat += log.fat || 0;
+        acc.fiber += log.fiber || 0;
+        return acc;
+      },
+      { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
+    );
     setTotals(newTotals);
   };
 
   const launchImagePicker = async (pickerFunction, mealType) => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera permission is required.');
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Camera permission is required.");
       return;
     }
     const result = await pickerFunction({
@@ -179,7 +206,10 @@ const HomeScreen = ({ navigation }) => {
       quality: 1,
     });
     if (!result.canceled) {
-      navigation.navigate('PhotoCalorieScreen', { photoUri: result.assets[0].uri, mealType });
+      navigation.navigate("PhotoCalorieScreen", {
+        photoUri: result.assets[0].uri,
+        mealType,
+      });
     }
   };
 
@@ -190,11 +220,13 @@ const HomeScreen = ({ navigation }) => {
       [
         {
           text: "Take a photo",
-          onPress: () => launchImagePicker(ImagePicker.launchCameraAsync, mealType),
+          onPress: () =>
+            launchImagePicker(ImagePicker.launchCameraAsync, mealType),
         },
         {
           text: "Choose from Library",
-          onPress: () => launchImagePicker(ImagePicker.launchImageLibraryAsync, mealType),
+          onPress: () =>
+            launchImagePicker(ImagePicker.launchImageLibraryAsync, mealType),
         },
         {
           text: "Cancel",
@@ -213,32 +245,37 @@ const HomeScreen = ({ navigation }) => {
         food_name: nutritionData.food_name,
         calories: nutritionData.calories,
         protein: nutritionData.protein,
-        carbs: nutritionData.carbs, 
+        carbs: nutritionData.carbs,
         fat: nutritionData.fat,
         user_id: user.id,
       };
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       logData.user_id = session?.user?.id;
       if (!logData.user_id) {
-        Alert.alert('You must be logged in to log food.');
+        Alert.alert("You must be logged in to log food.");
         return;
       }
       await createFoodLog(logData);
       fetchFoodLogs(selectedDate);
-      Alert.alert("Success!", `${nutritionData.food_name} logged for ${mealType}.`);
+      Alert.alert(
+        "Success!",
+        `${nutritionData.food_name} logged for ${mealType}.`
+      );
     } catch (error) {
-      console.error('Error logging food:', error);
+      console.error("Error logging food:", error);
       Alert.alert("Error", "Failed to log food.");
     }
   };
 
   const openVoiceModal = (mealType) => {
-    navigation.navigate('VoiceCalorieScreen', { mealType, selectedDate });
+    navigation.navigate("VoiceCalorieScreen", { mealType, selectedDate });
   };
 
   const renderMealSection = (mealType, iconName, time) => (
     <View style={styles.mealSection}>
-      <View style={{flexDirection: 'row', alignItems: 'center', flex: 1}}>
+      <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
         <View style={styles.mealIconContainer}>
           <Ionicons name={iconName} size={20} color="#7B61FF" />
         </View>
@@ -248,13 +285,27 @@ const HomeScreen = ({ navigation }) => {
         </View>
       </View>
       <View style={styles.mealActions}>
-        <TouchableOpacity style={styles.mealButton} onPress={() => showImagePickerOptions(mealType)}>
+        <TouchableOpacity
+          style={styles.mealButton}
+          onPress={() => showImagePickerOptions(mealType)}
+        >
           <Ionicons name="camera-outline" size={24} color="#A9A9A9" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.mealButton} onPress={() => openVoiceModal(mealType)}>
+        <TouchableOpacity
+          style={styles.mealButton}
+          onPress={() => openVoiceModal(mealType)}
+        >
           <Ionicons name="mic-outline" size={24} color="#A9A9A9" />
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.mealButton, styles.mealAddButton]} onPress={() => navigation.navigate('ManualLogScreen', { mealType, selectedDate: selectedDate.toISOString() })}>
+        <TouchableOpacity
+          style={[styles.mealButton, styles.mealAddButton]}
+          onPress={() =>
+            navigation.navigate("ManualLogScreen", {
+              mealType,
+              selectedDate: selectedDate.toISOString(),
+            })
+          }
+        >
           <Ionicons name="add" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -263,55 +314,66 @@ const HomeScreen = ({ navigation }) => {
 
   const calorieProgress = dailyGoal > 0 ? totals.calories / dailyGoal : 0;
   const progressChartData = {
-    data: [calorieProgress > 1 ? 1 : calorieProgress]
+    data: [calorieProgress > 1 ? 1 : calorieProgress],
   };
 
   const calorieBalance = dailyGoal - totals.calories;
-  const balanceSign = calorieBalance > 0 ? '+' : calorieBalance < 0 ? '-' : '';
+  const balanceSign = calorieBalance > 0 ? "+" : calorieBalance < 0 ? "-" : "";
   const balanceDisplay = `${balanceSign}${Math.abs(calorieBalance)}`;
   const caloriesBurned = stepCalories || 0;
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+      <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Hello, {userName}</Text>
             <Text style={styles.date}>{selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
           </View>
           <View style={{flexDirection: 'row', alignItems: 'center'}}>
-            <TouchableOpacity style={styles.headerButton}>
-              <Ionicons name="camera-outline" size={24} color="#7B61FF" />
+            <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate('ProgressScreen')}>
+              <Ionicons name="stats-chart-outline" size={24} color="#7B61FF" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('Welcome')} style={styles.headerButton}>
-              <Ionicons name="log-out-outline" size={24} color="#7B61FF" />
+            <TouchableOpacity onPress={() => navigation.navigate('Exercise')} style={styles.headerButton}>
+              <Ionicons name="barbell-outline" size={24} color="#7B61FF" />
             </TouchableOpacity>
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 12, paddingHorizontal: 10 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            marginVertical: 12,
+            paddingHorizontal: 10,
+          }}
+        >
           {weekDates.map((d, i) => {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const dateToCheck = new Date(d.date);
             dateToCheck.setHours(0, 0, 0, 0);
             const isFutureDate = dateToCheck > today;
-            
+
             const isSelected =
               selectedDate.getDate() === d.date.getDate() &&
               selectedDate.getMonth() === d.date.getMonth() &&
               selectedDate.getFullYear() === d.date.getFullYear();
-            
+
             return (
               <TouchableOpacity
                 key={i}
                 onPress={() => !isFutureDate && setSelectedDate(d.date)}
-                style={{ alignItems: 'center', flex: 1 }}
+                style={{ alignItems: "center", flex: 1 }}
                 disabled={isFutureDate}
               >
                 <View
                   style={{
-                    backgroundColor: isSelected ? '#7B61FF' : isFutureDate ? '#F0F0F0' : '#F6F6F6',
+                    backgroundColor: isSelected
+                      ? "#7B61FF"
+                      : isFutureDate
+                      ? "#F0F0F0"
+                      : "#F6F6F6",
                     borderRadius: 24,
                     paddingVertical: 8,
                     paddingHorizontal: 0,
@@ -321,20 +383,28 @@ const HomeScreen = ({ navigation }) => {
                 >
                   <Text
                     style={{
-                      color: isSelected ? '#fff' : isFutureDate ? '#CCC' : '#888',
-                      fontFamily: 'Lexend-SemiBold',
+                      color: isSelected
+                        ? "#fff"
+                        : isFutureDate
+                        ? "#CCC"
+                        : "#888",
+                      fontFamily: "Lexend-SemiBold",
                       fontSize: 14,
-                      textAlign: 'center',
+                      textAlign: "center",
                     }}
                   >
                     {d.dayName}
                   </Text>
                   <Text
                     style={{
-                      color: isSelected ? '#fff' : isFutureDate ? '#CCC' : '#222',
-                      fontFamily: 'Lexend-Bold',
+                      color: isSelected
+                        ? "#fff"
+                        : isFutureDate
+                        ? "#CCC"
+                        : "#222",
+                      fontFamily: "Lexend-Bold",
                       fontSize: 18,
-                      textAlign: 'center',
+                      textAlign: "center",
                     }}
                   >
                     {d.dayNumber}
@@ -350,13 +420,22 @@ const HomeScreen = ({ navigation }) => {
             <Text style={styles.cardTitle}>Today's Summary</Text>
             <TouchableOpacity style={styles.dateChip}>
               <Ionicons name="calendar-outline" size={16} color="#7B61FF" />
-              <Text style={styles.dateChipText}>{selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+              <Text style={styles.dateChipText}>
+                {selectedDate.toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </Text>
             </TouchableOpacity>
           </View>
           <View style={styles.summaryBody}>
             <View style={styles.caloriesInfo}>
-              <Text style={styles.caloriesCount}>{totals.calories.toFixed(0)}</Text>
-              <Text style={styles.caloriesUnit}>kcal / {dailyGoal.toFixed(0)}</Text>
+              <Text style={styles.caloriesCount}>
+                {totals.calories.toFixed(0)}
+              </Text>
+              <Text style={styles.caloriesUnit}>
+                kcal / {dailyGoal.toFixed(0)}
+              </Text>
             </View>
             <View style={styles.progressContainer}>
               <ProgressChart
@@ -368,14 +447,17 @@ const HomeScreen = ({ navigation }) => {
                 chartConfig={{
                   backgroundGradientFrom: "#fff",
                   backgroundGradientTo: "#fff",
-                  color: (opacity = 1, _index) => `rgba(123, 97, 255, ${opacity})`,
+                  color: (opacity = 1, _index) =>
+                    `rgba(123, 97, 255, ${opacity})`,
                   propsForLabels: {
                     fontSize: 0,
                   },
                 }}
                 hideLegend
               />
-              <Text style={styles.progressText}>{(calorieProgress * 100).toFixed(0)}%</Text>
+              <Text style={styles.progressText}>
+                {(calorieProgress * 100).toFixed(0)}%
+              </Text>
             </View>
           </View>
           <View style={styles.pillRow}>
@@ -394,251 +476,356 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.macroRow}>
             <View style={[styles.macroCard, { marginRight: 12 }]}>
               <View style={styles.macroCardTopRow}>
-                <Ionicons name="barbell" size={28} color="#222" style={styles.macroIconLarge} />
+                <Ionicons
+                  name="barbell"
+                  size={28}
+                  color="#222"
+                  style={styles.macroIconLarge}
+                />
                 <Text style={styles.macroTitle}>Protein</Text>
               </View>
-              <Text style={styles.macroValueLarge}>{totals.protein?.toFixed(0) || 0}g</Text>
+              <Text style={styles.macroValueLarge}>
+                {totals.protein?.toFixed(0) || 0}g
+              </Text>
               <View style={styles.macroDivider} />
-              <Text style={styles.macroGoalSmall}>Goal: {macro_targets.protein_g}g</Text>
+              <Text style={styles.macroGoalSmall}>
+                Goal: {macro_targets.protein_g}g
+              </Text>
             </View>
             <View style={styles.macroCard}>
               <View style={styles.macroCardTopRow}>
-                <Ionicons name="nutrition" size={28} color="#222" style={styles.macroIconLarge} />
+                <Ionicons
+                  name="nutrition"
+                  size={28}
+                  color="#222"
+                  style={styles.macroIconLarge}
+                />
                 <Text style={styles.macroTitle}>Carbs</Text>
               </View>
-              <Text style={styles.macroValueLarge}>{totals.carbs?.toFixed(0) || 0}g</Text>
+              <Text style={styles.macroValueLarge}>
+                {totals.carbs?.toFixed(0) || 0}g
+              </Text>
               <View style={styles.macroDivider} />
-              <Text style={styles.macroGoalSmall}>Goal: {macro_targets.carbs_g}g</Text>
+              <Text style={styles.macroGoalSmall}>
+                Goal: {macro_targets.carbs_g}g
+              </Text>
             </View>
           </View>
           <View style={styles.macroRow}>
             <View style={styles.macroCard}>
               <View style={styles.macroCardTopRow}>
-                <Ionicons name="leaf" size={28} color="#222" style={styles.macroIconLarge} />
+                <Ionicons
+                  name="leaf"
+                  size={28}
+                  color="#222"
+                  style={styles.macroIconLarge}
+                />
                 <Text style={styles.macroTitle}>Fat</Text>
               </View>
-              <Text style={styles.macroValueLarge}>{totals.fat?.toFixed(0) || 0}g</Text>
+              <Text style={styles.macroValueLarge}>
+                {totals.fat?.toFixed(0) || 0}g
+              </Text>
               <View style={styles.macroDivider} />
-              <Text style={styles.macroGoalSmall}>Goal: {macro_targets.fat_g}g</Text>
+              <Text style={styles.macroGoalSmall}>
+                Goal: {macro_targets.fat_g}g
+              </Text>
             </View>
             <View style={styles.macroCard}>
               <View style={styles.macroCardTopRow}>
-                <Ionicons name="restaurant" size={28} color="#222" style={styles.macroIconLarge} />
+                <Ionicons
+                  name="restaurant"
+                  size={28}
+                  color="#222"
+                  style={styles.macroIconLarge}
+                />
                 <Text style={styles.macroTitle}>Fiber</Text>
               </View>
-              <Text style={styles.macroValueLarge}>{Math.round(totals.fiber)}g</Text>
+              <Text style={styles.macroValueLarge}>
+                {Math.round(totals.fiber)}g
+              </Text>
               <View style={styles.macroDivider} />
               <Text style={styles.macroGoalSmall}>Goal: 30g</Text>
             </View>
           </View>
         </View>
         {/* Recent Meals Section */}
-        <View style={{ marginHorizontal: 20, marginBottom: 30,paddingBottom:80, }}>
-  <Text style={{ fontFamily: 'Lexend-SemiBold', fontSize: 18, color: '#181A20', marginBottom: 14 }}>
-    Recent Meals
-  </Text>
-
-  {recentMeals.length === 0 ? (
-    <Text style={{ fontFamily: 'Manrope-Regular', fontSize: 15, color: '#888' }}>
-      No meals logged yet today.
-    </Text>
-  ) : (
-    <View style={{ gap: 12 }}>
-      {recentMeals.map((meal, i) => (
-        <TouchableOpacity
-          key={meal.id || i}
-          onPress={() => setExpandedMeal(expandedMeal === i ? null : i)}
-          style={{
-            backgroundColor: '#fff',
-            borderRadius: 16,
-            padding: 12,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.06,
-            shadowRadius: 10,
-            elevation: 4,
-            transform: [{ scale: expandedMeal === i ? 1.02 : 1 }],
-          }}
-          activeOpacity={0.8}
+        <View
+          style={{ marginHorizontal: 20, marginBottom: 30, paddingBottom: 80 }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {/* Meal Image */}
-          {meal.photo_url ? (
-            <Image
-              source={{ uri: meal.photo_url }}
-              style={{ width: 60, height: 60, borderRadius: 12, backgroundColor: '#F3F0FF' }}
-            />
-          ) : (
-            <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop' }}
-              style={{ width: 60, height: 60, borderRadius: 12, backgroundColor: '#F3F0FF' }}
-              defaultSource={{ uri: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop' }}
-            />
-          )}
+          <Text
+            style={{
+              fontFamily: "Lexend-SemiBold",
+              fontSize: 18,
+              color: "#181A20",
+              marginBottom: 14,
+            }}
+          >
+            Recent Meals
+          </Text>
 
-          {/* Meal Details */}
-          <View style={{ flex: 1, marginLeft: 12 }}>
+          {recentMeals.length === 0 ? (
             <Text
               style={{
-                fontFamily: 'Lexend-SemiBold',
-                fontSize: 16,
-                color: '#181A20',
-                marginBottom: 4,
+                fontFamily: "Manrope-Regular",
+                fontSize: 15,
+                color: "#888",
               }}
-              numberOfLines={1}
-              ellipsizeMode="tail"
             >
-              {meal.food_name || meal.meal_type || 'Meal'}
+              No meals logged yet today.
             </Text>
-            <Text style={{ fontFamily: 'Manrope-Regular', fontSize: 14, color: '#666' }}>
-              {meal.calories ? `${meal.calories} kcal` : '-- kcal'}
-            </Text>
-          </View>
+          ) : (
+            <View style={{ gap: 12 }}>
+              {recentMeals.map((meal, i) => (
+                <TouchableOpacity
+                  key={meal.id || i}
+                  onPress={() => setExpandedMeal(expandedMeal === i ? null : i)}
+                  style={{
+                    backgroundColor: "#fff",
+                    borderRadius: 16,
+                    padding: 12,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.06,
+                    shadowRadius: 10,
+                    elevation: 4,
+                    transform: [{ scale: expandedMeal === i ? 1.02 : 1 }],
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    {/* Meal Image */}
+                    {meal.photo_url ? (
+                      <Image
+                        source={{ uri: meal.photo_url }}
+                        style={{
+                          width: 60,
+                          height: 60,
+                          borderRadius: 12,
+                          backgroundColor: "#F3F0FF",
+                        }}
+                      />
+                    ) : (
+                      <Image
+                        source={{
+                          uri: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop",
+                        }}
+                        style={{
+                          width: 60,
+                          height: 60,
+                          borderRadius: 12,
+                          backgroundColor: "#F3F0FF",
+                        }}
+                        defaultSource={{
+                          uri: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop",
+                        }}
+                      />
+                    )}
 
-          {/* Delete Icon */}
-          <TouchableOpacity
-            onPress={async () => {
-              try {
-                await deleteFoodLog(meal.id);
-                setRecentMeals(recentMeals.filter(m => m.id !== meal.id));
-                setFoodLogs(foodLogs.filter(m => m.id !== meal.id));
-                calculateTotals(foodLogs.filter(m => m.id !== meal.id));
-              } catch (e) {
-                Alert.alert('Error', 'Failed to delete food log.');
-              }
-            }}
-            style={{ padding: 6 }}
-          >
-            <Ionicons name="trash-outline" size={22} color="#FF3B30" />
-          </TouchableOpacity>
-          </View>
-          
-          {/* Expanded Nutrition Details - Inside the same card */}
-          {expandedMeal === i && (
-            <View style={{
-              marginTop: 12,
-              paddingTop: 12,
-              borderTopWidth: 1,
-              borderTopColor: '#F0F0F0',
-            }}>
-              <Text style={{
-                fontFamily: 'Lexend-SemiBold',
-                fontSize: 14,
-                color: '#181A20',
-                marginBottom: 8,
-              }}>
-                 Nutrition Details
-              </Text>
-              <View style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-              }}>
-                <View style={{
-                  alignItems: 'center',
-                  backgroundColor: '#E6F7EC',
-                  borderRadius: 8,
-                  padding: 8,
-                  minWidth: '22%',
-                  marginBottom: 4,
-                }}>
-                  <Text style={{
-                    fontFamily: 'Manrope-Bold',
-                    fontSize: 12,
-                    color: '#22C55E',
-                  }}>
-                    Protein
-                  </Text>
-                  <Text style={{
-                    fontFamily: 'Lexend-SemiBold',
-                    fontSize: 14,
-                    color: '#22C55E',
-                  }}>
-                    {meal.protein || 0}g
-                  </Text>
-                </View>
-                
-                <View style={{
-                  alignItems: 'center',
-                  backgroundColor: '#FFF2E2',
-                  borderRadius: 8,
-                  padding: 8,
-                  minWidth: '22%',
-                  marginBottom: 4,
-                }}>
-                  <Text style={{
-                    fontFamily: 'Manrope-Bold',
-                    fontSize: 12,
-                    color: '#FF9100',
-                  }}>
-                    Carbs
-                  </Text>
-                  <Text style={{
-                    fontFamily: 'Lexend-SemiBold',
-                    fontSize: 14,
-                    color: '#FF9100',
-                  }}>
-                    {meal.carbs || 0}g
-                  </Text>
-                </View>
-                
-                <View style={{
-                  alignItems: 'center',
-                  backgroundColor: '#EEE8FF',
-                  borderRadius: 8,
-                  padding: 8,
-                  minWidth: '22%',
-                  marginBottom: 4,
-                }}>
-                  <Text style={{
-                    fontFamily: 'Manrope-Bold',
-                    fontSize: 12,
-                    color: '#A084E8',
-                  }}>
-                    Fat
-                  </Text>
-                  <Text style={{
-                    fontFamily: 'Lexend-SemiBold',
-                    fontSize: 14,
-                    color: '#A084E8',
-                  }}>
-                    {meal.fat || 0}g
-                  </Text>
-                </View>
-                
-                <View style={{
-                  alignItems: 'center',
-                  backgroundColor: '#E8F5E8',
-                  borderRadius: 8,
-                  padding: 8,
-                  minWidth: '22%',
-                  marginBottom: 4,
-                }}>
-                  <Text style={{
-                    fontFamily: 'Manrope-Bold',
-                    fontSize: 12,
-                    color: '#28a745',
-                  }}>
-                    Fiber
-                  </Text>
-                  <Text style={{
-                    fontFamily: 'Lexend-SemiBold',
-                    fontSize: 14,
-                    color: '#28a745',
-                  }}>
-                    {meal.fiber || 0}g
-                  </Text>
-                </View>
-              </View>
+                    {/* Meal Details */}
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text
+                        style={{
+                          fontFamily: "Lexend-SemiBold",
+                          fontSize: 16,
+                          color: "#181A20",
+                          marginBottom: 4,
+                        }}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {meal.food_name || meal.meal_type || "Meal"}
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: "Manrope-Regular",
+                          fontSize: 14,
+                          color: "#666",
+                        }}
+                      >
+                        {meal.calories ? `${meal.calories} kcal` : "-- kcal"}
+                      </Text>
+                    </View>
+
+                    {/* Delete Icon */}
+                    <TouchableOpacity
+                      onPress={async () => {
+                        try {
+                          await deleteFoodLog(meal.id);
+                          setRecentMeals(
+                            recentMeals.filter((m) => m.id !== meal.id)
+                          );
+                          setFoodLogs(foodLogs.filter((m) => m.id !== meal.id));
+                          calculateTotals(
+                            foodLogs.filter((m) => m.id !== meal.id)
+                          );
+                        } catch (e) {
+                          Alert.alert("Error", "Failed to delete food log.");
+                        }
+                      }}
+                      style={{ padding: 6 }}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={22}
+                        color="#FF3B30"
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Expanded Nutrition Details - Inside the same card */}
+                  {expandedMeal === i && (
+                    <View
+                      style={{
+                        marginTop: 12,
+                        paddingTop: 12,
+                        borderTopWidth: 1,
+                        borderTopColor: "#F0F0F0",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: "Lexend-SemiBold",
+                          fontSize: 14,
+                          color: "#181A20",
+                          marginBottom: 8,
+                        }}
+                      >
+                        Nutrition Details
+                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <View
+                          style={{
+                            alignItems: "center",
+                            backgroundColor: "#E6F7EC",
+                            borderRadius: 8,
+                            padding: 8,
+                            minWidth: "22%",
+                            marginBottom: 4,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontFamily: "Manrope-Bold",
+                              fontSize: 12,
+                              color: "#22C55E",
+                            }}
+                          >
+                            Protein
+                          </Text>
+                          <Text
+                            style={{
+                              fontFamily: "Lexend-SemiBold",
+                              fontSize: 14,
+                              color: "#22C55E",
+                            }}
+                          >
+                            {meal.protein || 0}g
+                          </Text>
+                        </View>
+
+                        <View
+                          style={{
+                            alignItems: "center",
+                            backgroundColor: "#FFF2E2",
+                            borderRadius: 8,
+                            padding: 8,
+                            minWidth: "22%",
+                            marginBottom: 4,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontFamily: "Manrope-Bold",
+                              fontSize: 12,
+                              color: "#FF9100",
+                            }}
+                          >
+                            Carbs
+                          </Text>
+                          <Text
+                            style={{
+                              fontFamily: "Lexend-SemiBold",
+                              fontSize: 14,
+                              color: "#FF9100",
+                            }}
+                          >
+                            {meal.carbs || 0}g
+                          </Text>
+                        </View>
+
+                        <View
+                          style={{
+                            alignItems: "center",
+                            backgroundColor: "#EEE8FF",
+                            borderRadius: 8,
+                            padding: 8,
+                            minWidth: "22%",
+                            marginBottom: 4,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontFamily: "Manrope-Bold",
+                              fontSize: 12,
+                              color: "#A084E8",
+                            }}
+                          >
+                            Fat
+                          </Text>
+                          <Text
+                            style={{
+                              fontFamily: "Lexend-SemiBold",
+                              fontSize: 14,
+                              color: "#A084E8",
+                            }}
+                          >
+                            {meal.fat || 0}g
+                          </Text>
+                        </View>
+
+                        <View
+                          style={{
+                            alignItems: "center",
+                            backgroundColor: "#E8F5E8",
+                            borderRadius: 8,
+                            padding: 8,
+                            minWidth: "22%",
+                            marginBottom: 4,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontFamily: "Manrope-Bold",
+                              fontSize: 12,
+                              color: "#28a745",
+                            }}
+                          >
+                            Fiber
+                          </Text>
+                          <Text
+                            style={{
+                              fontFamily: "Lexend-SemiBold",
+                              fontSize: 14,
+                              color: "#28a745",
+                            }}
+                          >
+                            {meal.fiber || 0}g
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
             </View>
           )}
-        </TouchableOpacity>
-      ))}
-    </View>
-  )}
-</View>
-
-
+        </View>
       </ScrollView>
       <CalorieFooter navigation={navigation} activeTab="Home" />
     </SafeAreaView>
@@ -646,40 +833,94 @@ const HomeScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
-  header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  greeting: { fontSize: 24, fontWeight: 'bold', color: '#343a40' },
-  date: { fontSize: 16, color: '#6c757d' },
-  headerButton: { marginLeft: 16, backgroundColor: '#e9ecef', padding: 8, borderRadius: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: "#f8f9fa",
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  greeting: { fontSize: 24, fontWeight: "bold", color: "#343a40" },
+  date: { fontSize: 16, color: "#6c757d" },
+  headerButton: {
+    marginLeft: 16,
+    backgroundColor: "#e9ecef",
+    padding: 8,
+    borderRadius: 20,
+  },
 
   dateScrollView: { paddingHorizontal: 20, paddingVertical: 10 },
-  dateItem: { alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, marginRight: 10, backgroundColor: '#fff'},
-  dateItemActive: { backgroundColor: '#7B61FF' },
-  dateDay: { fontSize: 14, color: '#6c757d' },
-  dateNumber: { fontSize: 18, fontWeight: 'bold', color: '#343a40' },
-  dateTextActive: { color: '#fff' },
+  dateItem: {
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginRight: 10,
+    backgroundColor: "#fff",
+  },
+  dateItemActive: { backgroundColor: "#7B61FF" },
+  dateDay: { fontSize: 14, color: "#6c757d" },
+  dateNumber: { fontSize: 18, fontWeight: "bold", color: "#343a40" },
+  dateTextActive: { color: "#fff" },
 
-  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#343a40' },
-  summaryCard: { backgroundColor: '#fff', margin: 20, marginTop: 10, padding: 16, borderRadius: 15, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
-  summaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  dateChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#e9ecef', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 15 },
-  dateChipText: { color: '#7B61FF', fontWeight: 'bold', marginLeft: 6 },
-  summaryBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  caloriesInfo: { alignItems: 'flex-start' },
-  caloriesCount: { fontSize: 40, fontWeight: 'bold', color: '#343a40' },
-  caloriesUnit: { fontSize: 16, color: '#6c757d', marginTop: -5 },
-  progressContainer: { justifyContent: 'center', alignItems: 'center' },
-  progressText: { position: 'absolute', fontSize: 18, fontWeight: 'bold', color: '#7B61FF' },
+  cardTitle: { fontSize: 18, fontWeight: "bold", color: "#343a40" },
+  summaryCard: {
+    backgroundColor: "#fff",
+    margin: 20,
+    marginTop: 10,
+    padding: 16,
+    borderRadius: 15,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+  },
+  summaryHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  dateChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#e9ecef",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 15,
+  },
+  dateChipText: { color: "#7B61FF", fontWeight: "bold", marginLeft: 6 },
+  summaryBody: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  caloriesInfo: { alignItems: "flex-start" },
+  caloriesCount: { fontSize: 40, fontWeight: "bold", color: "#343a40" },
+  caloriesUnit: { fontSize: 16, color: "#6c757d", marginTop: -5 },
+  progressContainer: { justifyContent: "center", alignItems: "center" },
+  progressText: {
+    position: "absolute",
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#7B61FF",
+  },
 
   pillRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "flex-start",
     marginTop: 8,
     marginBottom: 8,
   },
   pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderRadius: 20,
     paddingVertical: 2,
     paddingHorizontal: 8,
@@ -687,26 +928,26 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   pillBurned: {
-    backgroundColor: '#FFF4E0',
+    backgroundColor: "#FFF4E0",
   },
   pillBalance: {
-    backgroundColor: '#E6F9ED',
+    backgroundColor: "#E6F9ED",
   },
   pillLabel: {
     fontSize: 10,
-    color: '#888',
-    fontWeight: '500',
+    color: "#888",
+    fontWeight: "500",
     marginRight: 3,
   },
   pillValueBurned: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#FF9800',
+    fontWeight: "bold",
+    color: "#FF9800",
   },
   pillValueBalance: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#1abc9c',
+    fontWeight: "bold",
+    color: "#1abc9c",
   },
 
   macroGrid: {
@@ -714,26 +955,26 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   macroRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 18,
   },
   macroCard: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 16,
     padding: 12,
-    width: '45%',
+    width: "45%",
     minHeight: 90,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.10,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 6,
     marginBottom: 0,
   },
   macroCardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 6,
   },
   macroIconLarge: {
@@ -742,57 +983,156 @@ const styles = StyleSheet.create({
   },
   macroTitle: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#222',
+    fontWeight: "600",
+    color: "#222",
   },
   macroValueLarge: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#222',
-    textAlign: 'left',
+    fontWeight: "bold",
+    color: "#222",
+    textAlign: "left",
     marginVertical: 1,
   },
   macroDivider: {
     height: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
     marginVertical: 6,
-    width: '100%',
+    width: "100%",
   },
   macroGoalSmall: {
     fontSize: 11,
-    color: '#888',
-    textAlign: 'left',
+    color: "#888",
+    textAlign: "left",
   },
 
-  mealSection: { backgroundColor: '#fff', marginHorizontal: 20, marginVertical: 8, padding: 16, borderRadius: 15, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  mealIconContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#e9ecef', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  mealTitle: { fontSize: 16, fontWeight: 'bold' },
-  mealTime: { fontSize: 12, color: '#6c757d' },
-  mealActions: { flexDirection: 'row', alignItems: 'center' },
+  mealSection: {
+    backgroundColor: "#fff",
+    marginHorizontal: 20,
+    marginVertical: 8,
+    padding: 16,
+    borderRadius: 15,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  mealIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#e9ecef",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  mealTitle: { fontSize: 16, fontWeight: "bold" },
+  mealTime: { fontSize: 12, color: "#6c757d" },
+  mealActions: { flexDirection: "row", alignItems: "center" },
   mealButton: { padding: 4, marginHorizontal: 4 },
-  mealAddButton: { backgroundColor: '#7B61FF', borderRadius: 15, padding: 6 },
+  mealAddButton: { backgroundColor: "#7B61FF", borderRadius: 15, padding: 6 },
 
-  activityCard: { backgroundColor: '#fff', margin: 20, marginTop: 10, padding: 16, borderRadius: 15, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
-  activityHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  workoutButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8f9fa', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, borderWidth: 1, borderColor: '#7B61FF' },
-  workoutButtonText: { color: '#7B61FF', fontWeight: '600', marginLeft: 6, fontSize: 14 },
-  activityBody: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 16 },
-  activityItem: { alignItems: 'center' },
-  activityValue: { fontSize: 18, fontWeight: 'bold', marginTop: 4 },
-  activityUnit: { fontSize: 12, color: '#6c757d' },
-  
-  modalCenteredView: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0,0,0,0.5)'},
-  modalView: { margin: 20, backgroundColor: "white", borderRadius: 20, padding: 35, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5, width: '90%'},
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15 },
-  recordButton: { backgroundColor: '#7B61FF', borderRadius: 50, width: 100, height: 100, justifyContent: 'center', alignItems: 'center', marginVertical: 20 },
-  recordingStatus: { fontSize: 16, color: '#666', marginVertical: 10 },
-  transcribedText: { fontSize: 16, fontStyle: 'italic', color: '#333', marginVertical: 15, textAlign: 'center' },
-  nutritionResultContainer: { alignItems: 'center', width: '100%'},
-  foodName: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
-  nutritionGrid: { marginVertical: 10, alignItems: 'center' },
-  confirmLogButton: { backgroundColor: '#28a745', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10, width: '100%' },
-  closeButton: { backgroundColor: '#6c757d', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 20, width: '100%'},
-  buttonText: { color: 'white', fontWeight: 'bold' }
+  activityCard: {
+    backgroundColor: "#fff",
+    margin: 20,
+    marginTop: 10,
+    padding: 16,
+    borderRadius: 15,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+  },
+  activityHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  workoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#7B61FF",
+  },
+  workoutButtonText: {
+    color: "#7B61FF",
+    fontWeight: "600",
+    marginLeft: 6,
+    fontSize: 14,
+  },
+  activityBody: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 16,
+  },
+  activityItem: { alignItems: "center" },
+  activityValue: { fontSize: 18, fontWeight: "bold", marginTop: 4 },
+  activityUnit: { fontSize: 12, color: "#6c757d" },
+
+  modalCenteredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: "90%",
+  },
+  modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 15 },
+  recordButton: {
+    backgroundColor: "#7B61FF",
+    borderRadius: 50,
+    width: 100,
+    height: 100,
+    justifyContent: "center",
+    alignItems: "center",
+    marginVertical: 20,
+  },
+  recordingStatus: { fontSize: 16, color: "#666", marginVertical: 10 },
+  transcribedText: {
+    fontSize: 16,
+    fontStyle: "italic",
+    color: "#333",
+    marginVertical: 15,
+    textAlign: "center",
+  },
+  nutritionResultContainer: { alignItems: "center", width: "100%" },
+  foodName: { fontSize: 18, fontWeight: "bold", marginBottom: 10 },
+  nutritionGrid: { marginVertical: 10, alignItems: "center" },
+  confirmLogButton: {
+    backgroundColor: "#28a745",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+    width: "100%",
+  },
+  closeButton: {
+    backgroundColor: "#6c757d",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 20,
+    width: "100%",
+  },
+  buttonText: { color: "white", fontWeight: "bold" },
 });
 
 export default HomeScreen;

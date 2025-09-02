@@ -32,6 +32,7 @@ import MinimalSignupTestScreen from './src/screens/MinimalSignupTestScreen';
 import PhotoCalorieScreen from './src/screens/PhotoCalorieScreen';
 import PostCalorieScreen from './src/screens/PostCalorieScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import ProgressScreen from './src/screens/ProgressScreen';
 import QuickLogScreen from './src/screens/QuickLogScreen';
 import ReferralSourceScreen from './src/screens/ReferralSourceScreen';
 import SavedMealsScreen from './src/screens/SavedMealsScreen';
@@ -151,6 +152,7 @@ export default function App() {
             <Stack.Screen name="CustomCameraScreen" component={CustomCameraScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CardioPlayerScreen" component={CardioPlayerScreen} />
             <Stack.Screen name="WorkoutStart" component={WorkoutStartScreen} />
+            <Stack.Screen name="ProgressScreen" component={ProgressScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </OnboardingProvider>
