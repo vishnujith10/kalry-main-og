@@ -180,7 +180,7 @@ const SavedMealsScreen = ({ navigation, route }) => {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff', paddingTop: 0 }}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation.navigate('Home')} style={{ marginRight: 12 }}>
-          <Ionicons name="arrow-back" size={24} color="#222" />
+        <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Saved Meals</Text>
         <TouchableOpacity style={styles.headerAddBtn}><Ionicons name="add" size={26} color="#222" /></TouchableOpacity>

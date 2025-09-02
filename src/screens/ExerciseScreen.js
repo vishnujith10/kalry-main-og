@@ -203,7 +203,7 @@ export default function ExerciseScreen() {
           <Ionicons name="add-circle-outline" size={26} color="#7B61FF" />
           <Text style={footerStyles.footerLabel}>Create</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={footerStyles.footerBtn} onPress={() => navigation.navigate('Workouts')}>
+        <TouchableOpacity style={footerStyles.footerBtn} onPress={() => navigation.navigate('WorkoutSaveScreen')}>
           <Ionicons name="bookmark-outline" size={26} color="#7B61FF" />
           <Text style={footerStyles.footerLabel}>Saved</Text>
         </TouchableOpacity>

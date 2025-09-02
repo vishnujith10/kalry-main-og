@@ -2,21 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import supabase from '../lib/supabase';
 import { fetchExercises } from '../lib/workoutApi';
-
 const { width, height } = Dimensions.get('window');
 
 // Filter options for better exercise discovery
@@ -218,9 +217,18 @@ export default function AllExercisesScreen({ navigation, route }) {
           <Text style={styles.exerciseName}>
             {item.workout || item.name || 'Unnamed Exercise'}
           </Text>
-          <Text style={styles.exerciseDetails}>
-            {item.type || 'Exercise'} {item.muscle ? `• ${item.muscle}` : ''}
-          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+            {item.body_part && (
+              <View style={{ backgroundColor: '#EDE9FE', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                <Text style={{ fontSize: 12, color: '#7C3AED', fontWeight: '500' }}>{item.body_part}</Text>
+              </View>
+            )}
+            {item.type && (
+              <View style={{ backgroundColor: '#EDE9FE', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                <Text style={{ fontSize: 12, color: '#7C3AED', fontWeight: '500' }}>{item.type}</Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
       <View style={styles.exerciseActions}>

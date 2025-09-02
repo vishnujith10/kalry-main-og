@@ -782,7 +782,7 @@ export default function CardioSessionBuilder({ navigation }) {
         onRequestClose={() => setShowSessionTypeModal(false)}
       >
         <TouchableOpacity 
-          style={styles.modalOverlay}
+          style={styles.sessionTypeModalOverlay}
           activeOpacity={1}
           onPress={() => setShowSessionTypeModal(false)}
         >
@@ -1561,6 +1561,14 @@ const styles = StyleSheet.create({
   },
   
   // Session Type Modal Styles
+  sessionTypeModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    paddingTop: 120, // Account for header height
+  },
+  
   sessionTypeModal: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
@@ -1568,8 +1576,14 @@ const styles = StyleSheet.create({
     width: '80%',
     maxHeight: '70%',
     alignItems: 'center',
-    alignSelf: 'center',
-    marginHorizontal: 'auto',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
   
   sessionTypeModalTitle: {
