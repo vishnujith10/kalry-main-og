@@ -115,25 +115,51 @@ export default function CardioSessionBuilder({ navigation }) {
       setLoadingExercises(true);
       console.log('Fetching exercises from database...');
       
-      const { data, error } = await supabase
-        .from('exercise')
-        .select('*');
+      // Try different possible table names
+      const possibleTableNames = ['exercise', 'exercises', 'workout', 'workouts'];
+      let exercisesData = null;
+      let tableName = null;
       
-      if (error) {
-        console.error('Error fetching exercises:', error);
-        Alert.alert('Error', 'Failed to fetch exercises from database');
-        return;
+      for (const table of possibleTableNames) {
+        console.log(`Trying table: ${table}`);
+        const { data, error } = await supabase
+          .from(table)
+          .select('*')
+          .limit(1);
+        
+        if (!error && data && data.length > 0) {
+          console.log(`✅ Found data in table: ${table}`);
+          exercisesData = data;
+          tableName = table;
+          break;
+        } else {
+          console.log(`❌ No data in table: ${table}`, { error, data });
+        }
       }
       
-      if (data) {
-        console.log('Fetched exercises from DB:', data);
-        console.log('Number of exercises:', data.length);
-        setDbExercises(data);
+      if (exercisesData && tableName) {
+        // Now fetch all data from the working table
+        const { data: allData, error: allError } = await supabase
+          .from(tableName)
+          .select('*');
+        
+        if (allError) {
+          console.error('Error fetching all exercises:', allError);
+          Alert.alert('Error', `Failed to fetch exercises: ${allError.message}`);
+          return;
+        }
+        
+        console.log(`✅ Successfully fetched exercises from table: ${tableName}`);
+        console.log('Number of exercises:', allData.length);
+        console.log('First exercise sample:', allData[0]);
+        console.log('Exercise fields available:', Object.keys(allData[0]));
+        setDbExercises(allData);
       } else {
-        console.log('No data returned from database');
+        console.log('⚠️ No exercises found in any table');
+        setDbExercises([]);
       }
     } catch (error) {
-      console.error('Error fetching exercises:', error);
+      console.error('❌ Exception while fetching exercises:', error);
       Alert.alert('Error', 'Failed to fetch exercises from database');
     } finally {
       setLoadingExercises(false);
@@ -208,10 +234,15 @@ export default function CardioSessionBuilder({ navigation }) {
 
   // Filter exercises based on search (using database data)
   const filteredExercises = dbExercises.filter(ex =>
-    ex.workout?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    ex.body_part?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    ex.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    ex.body_parts?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     ex.type?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Debug logging
+  console.log('Total exercises in DB:', dbExercises.length);
+  console.log('Filtered exercises:', filteredExercises.length);
+  console.log('Search query:', searchQuery);
 
   // Animation effects
   useEffect(() => {
@@ -281,7 +312,8 @@ export default function CardioSessionBuilder({ navigation }) {
 
     const newExercise = {
       id: selectedExercise.id,
-      name: selectedExercise.workout,
+      name: selectedExercise.name,
+      gif_url: selectedExercise.gif_url,
       icon: '💪',
       blockType: 'time',
       duration: exerciseDuration || 45,
@@ -631,11 +663,11 @@ export default function CardioSessionBuilder({ navigation }) {
                       >
                         <Text style={styles.exerciseOptionIcon}>💪</Text>
                         <View style={styles.exerciseOptionInfo}>
-                          <Text style={styles.exerciseOptionName}>{item.workout}</Text>
+                          <Text style={styles.exerciseOptionName}>{item.name}</Text>
                           <View style={styles.exerciseOptionTags}>
-                            {item.body_part && (
+                            {item.body_parts && (
                               <View style={styles.tag}>
-                                <Text style={styles.tagText}>{item.body_part}</Text>
+                                <Text style={styles.tagText}>{item.body_parts}</Text>
                     </View>
                   )}
                             {item.type && (
@@ -660,7 +692,7 @@ export default function CardioSessionBuilder({ navigation }) {
               </>
             ) : (
               <View style={styles.exerciseConfiguration}>
-                <Text style={styles.selectedExerciseName}>{selectedExercise.workout} 💪</Text>
+                <Text style={styles.selectedExerciseName}>{selectedExercise.name} 💪</Text>
                 
                 <View style={styles.configRow}>
                   <Text style={styles.configLabel}>Duration (seconds)</Text>
@@ -767,8 +799,8 @@ export default function CardioSessionBuilder({ navigation }) {
                   >
                     <Text style={styles.playerButtonText}>⏭️</Text>
                   </TouchableOpacity>
-          </View>
-          </View>
+                </View>
+              </View>
             )}
           </Animated.View>
         </View>
@@ -1496,15 +1528,13 @@ const styles = StyleSheet.create({
   playerContent: {
     alignItems: 'center',
     width: '100%',
+    paddingHorizontal: 20,
   },
   
-  currentExerciseIcon: {
-    fontSize: 80,
-    marginBottom: 16,
-  },
+
   
   currentExerciseName: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     color: '#1e293b',
     textAlign: 'center',
@@ -1512,9 +1542,9 @@ const styles = StyleSheet.create({
   },
   
   currentStatus: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#64748b',
-    marginBottom: 32,
+    textAlign: 'center',
   },
   
   timerDisplay: {

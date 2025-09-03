@@ -131,12 +131,12 @@ const ProfileScreen = () => {
            <Text style={styles.tabLabel}>Home</Text>
          </TouchableOpacity>
 
-         <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('SavedMeals')}>
+         <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Home')}>
           <Ionicons name="restaurant-outline" size={24} color="#999" />
           <Text style={styles.tabLabel}>Meals</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('CreateWorkout')}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Exercise')}>
           <Ionicons name="heart-outline" size={24} color="#999" />
           <Text style={styles.tabLabel}>Workouts</Text>
         </TouchableOpacity>

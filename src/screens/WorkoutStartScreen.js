@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const COLORS = {
   primary: '#7c3aed',
@@ -382,19 +382,34 @@ export default function WorkoutStartScreen({ route, navigation }) {
     <View style={styles.container}>
       {/* Exercise Info */}
       <View style={styles.exerciseInfo}>
-        <Text style={styles.exerciseIcon}>
-          {isResting ? '😴' : '💪'}
-        </Text>
         <Text style={styles.exerciseName}>
           {isResting ? 'Rest Time' : getCurrentExercise().name}
         </Text>
         <Text style={styles.exerciseSubtitle}>
-          {isResting ? 'Take a break' : `Round ${currentRound} - ${getCurrentExercise().name}`}
-        </Text>
-        <Text style={styles.roundsInfo}>
-          Rounds: {getCurrentExercise().rounds || 1}
+          {isResting ? 'Take a break' : `Round ${currentRound} of ${getCurrentExercise().rounds || 1}`}
         </Text>
       </View>
+      
+      {/* Exercise GIF */}
+      {!isResting && (
+        <View style={styles.gifContainer}>
+          {getCurrentExercise().gif_url ? (
+            <Image
+              key={`gif-${currentExerciseIndex}-${currentRound}`}
+              source={{ uri: getCurrentExercise().gif_url }}
+              style={styles.exerciseGif}
+              resizeMode="contain"
+              fadeDuration={0}
+              progressiveRenderingEnabled={false}
+              cachePolicy="memory-disk"
+            />
+          ) : (
+            <View style={styles.noGifPlaceholder}>
+              <Text style={styles.noGifText}>No GIF Available</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Timer */}
       <Animated.View style={[styles.timerContainer, { transform: [{ scale: pulseAnim }] }]}>
@@ -438,9 +453,6 @@ const styles = StyleSheet.create({
   exerciseInfo: {
     alignItems: 'center',
     marginTop: 60,
-  },
-  exerciseIcon: {
-    fontSize: 60,
     marginBottom: 20,
   },
   exerciseName: {
@@ -455,11 +467,40 @@ const styles = StyleSheet.create({
     color: COLORS.grayLight,
     textAlign: 'center',
   },
-  roundsInfo: {
+  
+  gifContainer: {
+    width: '100%',
+    height: 200,
+    marginBottom: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  
+  exerciseGif: {
+    width: '100%',
+    height: '100%',
+  },
+  
+  noGifPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  
+  noGifText: {
     fontSize: 16,
     color: COLORS.grayLight,
-    textAlign: 'center',
-    marginTop: 5,
+    fontStyle: 'italic',
   },
   timerContainer: {
     alignItems: 'center',

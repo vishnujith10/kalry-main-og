@@ -49,8 +49,8 @@ export default {
       eas: {
         projectId: "9e19ec07-3c95-45b3-99d6-2ef59917e324"
       },
-      supabaseUrl: process.env.SUPABASE_URL,
-      supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+      supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     },
     plugins: [
       "expo-system-ui"

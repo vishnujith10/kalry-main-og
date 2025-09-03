@@ -96,7 +96,7 @@ const FooterBar = ({ navigation, activeTab }) => {
       key: 'Meals',
       label: 'Meals',
       icon: <Ionicons name="restaurant-outline" size={24} color={activeTab === 'Meals' ? '#232B3A' : '#232B3A'} />, // icon size 24
-      route: 'PhotoCalorieScreen',
+      route: 'Home',
     },
     {
       key: 'Workout',

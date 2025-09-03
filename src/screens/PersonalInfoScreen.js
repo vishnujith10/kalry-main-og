@@ -2,13 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import supabase from '../lib/supabase';
 
@@ -34,6 +36,8 @@ const PersonalInfoScreen = () => {
   const [activeDays, setActiveDays] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
+  const [editingField, setEditingField] = useState(null);
+  const [editValues, setEditValues] = useState({});
 
   useEffect(() => {
     fetchTodayData();
@@ -127,6 +131,115 @@ const PersonalInfoScreen = () => {
     }
   };
 
+  const handleEdit = (field, currentValue) => {
+    setEditingField(field);
+    setEditValues(prev => ({ ...prev, [field]: currentValue || '' }));
+  };
+
+  const handleSave = async (field) => {
+    try {
+      const newValue = editValues[field];
+      
+      if (!newValue || newValue.toString().trim() === '') {
+        Alert.alert('Error', 'Please enter a valid value');
+        return;
+      }
+
+      // Update local state first
+      setUserProfile(prev => ({
+        ...prev,
+        [field]: newValue
+      }));
+
+      // Update in Supabase
+      const { error } = await supabase
+        .from('user_profile')
+        .update({ [field]: newValue })
+        .eq('name', 'Vishnujith');
+
+      if (error) {
+        console.error('Error updating profile:', error);
+        Alert.alert('Error', 'Failed to update profile');
+        // Revert local state if update failed
+        setUserProfile(prev => ({
+          ...prev,
+          [field]: userProfile[field]
+        }));
+      } else {
+        Alert.alert('Success', 'Profile updated successfully');
+      }
+
+      setEditingField(null);
+      setEditValues(prev => {
+        const newValues = { ...prev };
+        delete newValues[field];
+        return newValues;
+      });
+    } catch (error) {
+      console.error('Error saving field:', error);
+      Alert.alert('Error', 'Failed to save changes');
+    }
+  };
+
+  const handleCancel = (field) => {
+    setEditingField(null);
+    setEditValues(prev => {
+      const newValues = { ...prev };
+      delete newValues[field];
+      return newValues;
+    });
+  };
+
+  const renderEditableField = (field, label, currentValue, unit = '', iconName) => {
+    const isEditing = editingField === field;
+    const value = editValues[field] !== undefined ? editValues[field] : currentValue;
+
+    return (
+      <TouchableOpacity style={styles.settingItem}>
+        <View style={styles.settingLeft}>
+          <Ionicons name={iconName} size={20} color="#666" />
+          <View style={styles.settingText}>
+            <Text style={styles.settingTitle}>{label}</Text>
+            {isEditing ? (
+              <View style={styles.editContainer}>
+                <TextInput
+                  style={styles.editInput}
+                  value={value?.toString() || ''}
+                  onChangeText={(text) => setEditValues(prev => ({ ...prev, [field]: text }))}
+                  placeholder={`Enter ${label.toLowerCase()}`}
+                  autoFocus
+                />
+                <View style={styles.editActions}>
+                  <TouchableOpacity 
+                    style={styles.saveButton} 
+                    onPress={() => handleSave(field)}
+                  >
+                    <Ionicons name="checkmark" size={16} color={COLORS.success} />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.cancelButton} 
+                    onPress={() => handleCancel(field)}
+                  >
+                    <Ionicons name="close" size={16} color={COLORS.error} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.settingSubtitle}>
+                {currentValue ? `${currentValue}${unit}` : 'Not set'}
+              </Text>
+            )}
+          </View>
+        </View>
+        {!isEditing && (
+          <TouchableOpacity onPress={() => handleEdit(field, currentValue)}>
+            <Ionicons name="pencil" size={16} color="#666" />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#E8E9F0" />
@@ -169,127 +282,28 @@ const PersonalInfoScreen = () => {
 
         {/* Personal Information Section */}
         <View style={styles.settingsSection}>
-                     <TouchableOpacity style={styles.settingItem}>
-             <View style={styles.settingLeft}>
-               <Ionicons name="person-outline" size={20} color="#666" />
-               <View style={styles.settingText}>
-                 <Text style={styles.settingTitle}>Age</Text>
-                 <Text style={styles.settingSubtitle}>
-                   {userProfile ? userProfile.age : 'Loading...'}
-                 </Text>
-               </View>
-             </View>
-             <Ionicons name="pencil" size={16} color="#666" />
-           </TouchableOpacity>
+                     {renderEditableField('age', 'Age', userProfile?.age, '', 'person-outline')}
 
-                                                                                        <TouchableOpacity style={styles.settingItem}>
-               <View style={styles.settingLeft}>
-                 <Ionicons name="fitness-outline" size={20} color="#666" />
-                 <View style={styles.settingText}>
-                   <Text style={styles.settingTitle}>Weight</Text>
-                   <Text style={styles.settingSubtitle}>
-                     {userProfile ? `${userProfile.weight} kg` : 'Loading...'}
-                   </Text>
-                 </View>
-               </View>
-               <Ionicons name="pencil" size={16} color="#666" />
-             </TouchableOpacity>
+               {renderEditableField('weight', 'Weight', userProfile?.weight, ' kg', 'fitness-outline')}
 
-                         <TouchableOpacity style={styles.settingItem}>
-               <View style={styles.settingLeft}>
-                 <Ionicons name="trending-up-outline" size={20} color="#666" />
-                 <View style={styles.settingText}>
-                   <Text style={styles.settingTitle}>Goal Weight</Text>
-                   <Text style={styles.settingSubtitle}>
-                     {userProfile ? `${userProfile.target_weight} kg` : 'Not set'}
-                   </Text>
-                 </View>
-               </View>
-               <Ionicons name="pencil" size={16} color="#666" />
-             </TouchableOpacity>
+                         {renderEditableField('target_weight', 'Goal Weight', userProfile?.target_weight, ' kg', 'trending-up-outline')}
 
-                       <TouchableOpacity style={styles.settingItem}>
-              <View style={styles.settingLeft}>
-                <Ionicons name="resize-outline" size={20} color="#666" />
-                <View style={styles.settingText}>
-                  <Text style={styles.settingTitle}>Height</Text>
-                  <Text style={styles.settingSubtitle}>
-                    {userProfile ? `${userProfile.height} cm` : 'Loading...'}
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="pencil" size={16} color="#666" />
-            </TouchableOpacity>
+                       {renderEditableField('height', 'Height', userProfile?.height, ' cm', 'resize-outline')}
 
-                                                                       <TouchableOpacity style={styles.settingItem}>
-               <View style={styles.settingLeft}>
-                 <Ionicons name="calendar-outline" size={20} color="#666" />
-                 <View style={styles.settingText}>
-                   <Text style={styles.settingTitle}>Date of Birth</Text>
-                   <Text style={styles.settingSubtitle}>
-                     {userProfile?.date_of_birth || 'Not set'}
-                   </Text>
-                 </View>
-               </View>
-               <Ionicons name="pencil" size={16} color="#666" />
-             </TouchableOpacity>
+                                                                       {renderEditableField('date_of_birth', 'Date of Birth', userProfile?.date_of_birth, '', 'calendar-outline')}
 
             
 
-                     <TouchableOpacity style={styles.settingItem}>
-             <View style={styles.settingLeft}>
-               <Ionicons name="male-female-outline" size={20} color="#666" />
-               <View style={styles.settingText}>
-                 <Text style={styles.settingTitle}>Gender</Text>
-                 <Text style={styles.settingSubtitle}>
-                   {userProfile ? userProfile.gender : 'Loading...'}
-                 </Text>
-               </View>
-             </View>
-             <Ionicons name="pencil" size={16} color="#666" />
-           </TouchableOpacity>
+                     {renderEditableField('gender', 'Gender', userProfile?.gender, '', 'male-female-outline')}
         </View>
 
         {/* Fitness Goals Section */}
         <View style={styles.settingsSection}>
-                     <TouchableOpacity style={styles.settingItem}>
-             <View style={styles.settingLeft}>
-               <Ionicons name="calendar-outline" size={20} color="#666" />
-               <View style={styles.settingText}>
-                 <Text style={styles.settingTitle}>Weekly Workout Frequency</Text>
-                 <Text style={styles.settingSubtitle}>
-                   {userProfile ? `${userProfile.total_days_per_week} workouts/week` : 'Loading...'}
-                 </Text>
-               </View>
-             </View>
-             <Ionicons name="pencil" size={16} color="#666" />
-           </TouchableOpacity>
+                     {renderEditableField('total_days_per_week', 'Weekly Workout Frequency', userProfile?.total_days_per_week, ' workouts/week', 'calendar-outline')}
 
-                     <TouchableOpacity style={styles.settingItem}>
-             <View style={styles.settingLeft}>
-               <Ionicons name="flame-outline" size={20} color="#666" />
-               <View style={styles.settingText}>
-                 <Text style={styles.settingTitle}>Target Calories</Text>
-                 <Text style={styles.settingSubtitle}>
-                   {userProfile ? `${userProfile.calorie_goal} calories/day` : 'Loading...'}
-                 </Text>
-               </View>
-             </View>
-             <Ionicons name="pencil" size={16} color="#666" />
-           </TouchableOpacity>
+                     {renderEditableField('calorie_goal', 'Target Calories', userProfile?.calorie_goal, ' calories/day', 'flame-outline')}
 
-                     <TouchableOpacity style={styles.settingItem}>
-             <View style={styles.settingLeft}>
-               <Ionicons name="barbell-outline" size={20} color="#666" />
-               <View style={styles.settingText}>
-                 <Text style={styles.settingTitle}>Preferred Workout Types</Text>
-                 <Text style={styles.settingSubtitle}>
-                   {userProfile ? userProfile.prefered_workout : 'Loading...'}
-                 </Text>
-               </View>
-             </View>
-             <Ionicons name="pencil" size={16} color="#666" />
-           </TouchableOpacity>
+                     {renderEditableField('prefered_workout', 'Preferred Workout Types', userProfile?.prefered_workout, '', 'barbell-outline')}
         </View>
       </ScrollView>
     </View>
@@ -398,6 +412,47 @@ const styles = StyleSheet.create({
   settingSubtitle: {
     fontSize: 13,
     color: '#666',
+  },
+  editContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  editInput: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    fontSize: 14,
+    color: '#333',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  editActions: {
+    flexDirection: 'row',
+    marginLeft: 12,
+    gap: 8,
+  },
+  saveButton: {
+    padding: 8,
+    backgroundColor: COLORS.success + '20',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.success,
+  },
+  cancelButton: {
+    padding: 8,
+    backgroundColor: COLORS.error + '20',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.error,
   },
 });
 
