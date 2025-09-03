@@ -130,16 +130,18 @@ const ProfileScreen = () => {
            <Ionicons name="home-outline" size={24} color="#999" />
            <Text style={styles.tabLabel}>Home</Text>
          </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="fitness-outline" size={24} color="#999" />
+
+         <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('SavedMeals')}>
+          <Ionicons name="restaurant-outline" size={24} color="#999" />
+          <Text style={styles.tabLabel}>Meals</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('CreateWorkout')}>
+          <Ionicons name="heart-outline" size={24} color="#999" />
           <Text style={styles.tabLabel}>Workouts</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="stats-chart-outline" size={24} color="#999" />
-          <Text style={styles.tabLabel}>Stats</Text>
-        </TouchableOpacity>
+        
         
         <TouchableOpacity style={[styles.tabItem, styles.activeTab]}>
           <Ionicons name="person" size={24} color="#333" />

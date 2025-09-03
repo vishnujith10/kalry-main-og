@@ -16,11 +16,11 @@ const COLORS = {
   primary: '#3B82F6',
   primaryHover: '#2563EB',
   primaryLight: '#DBEAFE',
-  text: '#000',
-  secondary: '#4B5563',
-  muted: '#9CA3AF',
+  text: '#333',
+  secondary: '#666',
+  muted: '#999',
   placeholder: '#D1D5DB',
-  background: '#FFF',
+  background: '#E8E9F0',
   surface: '#F9FAFB',
   card: '#FFF',
   border: '#E5E7EB',
@@ -99,10 +99,10 @@ const PersonalInfoScreen = () => {
 
     } catch (error) {
       console.error('Error fetching data:', error);
-          } finally {
-        setIsLoading(false);
-      }
-    };
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchUserProfile = async () => {
     try {
@@ -129,7 +129,7 @@ const PersonalInfoScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor="#E8E9F0" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -137,7 +137,7 @@ const PersonalInfoScreen = () => {
           style={styles.backButton} 
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={24} color="black" />
+          <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Personal Info</Text>
         <View style={styles.placeholder} />
@@ -146,6 +146,7 @@ const PersonalInfoScreen = () => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Quick Stats */}
         <View style={styles.quickStatsSection}>
+          <Text style={styles.sectionTitle}>Quick Stats</Text>
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
               <Text style={styles.statNumber}>120</Text>
@@ -157,107 +158,138 @@ const PersonalInfoScreen = () => {
               </Text>
               <Text style={styles.statLabel}>Calories</Text>
             </View>
-                         <View style={styles.statCard}>
-               <Text style={styles.statNumber}>
-                 {isLoading ? <ActivityIndicator size="small" color={COLORS.primary} /> : activeDays}
-               </Text>
-               <Text style={styles.statLabel}>Days Active</Text>
-             </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>
+                {isLoading ? <ActivityIndicator size="small" color={COLORS.primary} /> : activeDays}
+              </Text>
+              <Text style={styles.statLabel}>Days Active</Text>
+            </View>
           </View>
         </View>
 
         {/* Personal Information Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          
-                     <View style={styles.fieldContainer}>
-             <View style={styles.fieldContent}>
-               <View style={styles.fieldInfo}>
-                 <Text style={styles.fieldLabel}>Age</Text>
-                 <Text style={styles.fieldValue}>
+        <View style={styles.settingsSection}>
+                     <TouchableOpacity style={styles.settingItem}>
+             <View style={styles.settingLeft}>
+               <Ionicons name="person-outline" size={20} color="#666" />
+               <View style={styles.settingText}>
+                 <Text style={styles.settingTitle}>Age</Text>
+                 <Text style={styles.settingSubtitle}>
                    {userProfile ? userProfile.age : 'Loading...'}
                  </Text>
                </View>
-               <TouchableOpacity style={styles.editButton}>
-                 <Ionicons name="pencil" size={16} color="#333" />
-               </TouchableOpacity>
              </View>
-           </View>
+             <Ionicons name="pencil" size={16} color="#666" />
+           </TouchableOpacity>
 
-           <View style={styles.fieldContainer}>
-             <View style={styles.fieldContent}>
-               <View style={styles.fieldInfo}>
-                 <Text style={styles.fieldLabel}>Weight</Text>
-                 <Text style={styles.fieldValue}>
-                   {userProfile ? `${userProfile.weight} kg` : 'Loading...'}
-                 </Text>
+                                                                                        <TouchableOpacity style={styles.settingItem}>
+               <View style={styles.settingLeft}>
+                 <Ionicons name="fitness-outline" size={20} color="#666" />
+                 <View style={styles.settingText}>
+                   <Text style={styles.settingTitle}>Weight</Text>
+                   <Text style={styles.settingSubtitle}>
+                     {userProfile ? `${userProfile.weight} kg` : 'Loading...'}
+                   </Text>
+                 </View>
                </View>
-               <TouchableOpacity style={styles.editButton}>
-                 <Ionicons name="pencil" size={16} color="#333" />
-               </TouchableOpacity>
-             </View>
-           </View>
+               <Ionicons name="pencil" size={16} color="#666" />
+             </TouchableOpacity>
 
-           <View style={styles.fieldContainer}>
-             <View style={styles.fieldContent}>
-               <View style={styles.fieldInfo}>
-                 <Text style={styles.fieldLabel}>Gender</Text>
-                 <Text style={styles.fieldValue}>
+                         <TouchableOpacity style={styles.settingItem}>
+               <View style={styles.settingLeft}>
+                 <Ionicons name="trending-up-outline" size={20} color="#666" />
+                 <View style={styles.settingText}>
+                   <Text style={styles.settingTitle}>Goal Weight</Text>
+                   <Text style={styles.settingSubtitle}>
+                     {userProfile ? `${userProfile.target_weight} kg` : 'Not set'}
+                   </Text>
+                 </View>
+               </View>
+               <Ionicons name="pencil" size={16} color="#666" />
+             </TouchableOpacity>
+
+                       <TouchableOpacity style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <Ionicons name="resize-outline" size={20} color="#666" />
+                <View style={styles.settingText}>
+                  <Text style={styles.settingTitle}>Height</Text>
+                  <Text style={styles.settingSubtitle}>
+                    {userProfile ? `${userProfile.height} cm` : 'Loading...'}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="pencil" size={16} color="#666" />
+            </TouchableOpacity>
+
+                                                                       <TouchableOpacity style={styles.settingItem}>
+               <View style={styles.settingLeft}>
+                 <Ionicons name="calendar-outline" size={20} color="#666" />
+                 <View style={styles.settingText}>
+                   <Text style={styles.settingTitle}>Date of Birth</Text>
+                   <Text style={styles.settingSubtitle}>
+                     {userProfile?.date_of_birth || 'Not set'}
+                   </Text>
+                 </View>
+               </View>
+               <Ionicons name="pencil" size={16} color="#666" />
+             </TouchableOpacity>
+
+            
+
+                     <TouchableOpacity style={styles.settingItem}>
+             <View style={styles.settingLeft}>
+               <Ionicons name="male-female-outline" size={20} color="#666" />
+               <View style={styles.settingText}>
+                 <Text style={styles.settingTitle}>Gender</Text>
+                 <Text style={styles.settingSubtitle}>
                    {userProfile ? userProfile.gender : 'Loading...'}
                  </Text>
                </View>
-               <TouchableOpacity style={styles.editButton}>
-                 <Ionicons name="pencil" size={16} color="#333" />
-               </TouchableOpacity>
              </View>
-           </View>
+             <Ionicons name="pencil" size={16} color="#666" />
+           </TouchableOpacity>
         </View>
 
         {/* Fitness Goals Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Fitness Goals</Text>
-          
-                     <View style={styles.fieldContainer}>
-             <View style={styles.fieldContent}>
-               <View style={styles.fieldInfo}>
-                 <Text style={styles.fieldLabel}>Weekly Workout Frequency</Text>
-                 <Text style={styles.fieldValue}>
+        <View style={styles.settingsSection}>
+                     <TouchableOpacity style={styles.settingItem}>
+             <View style={styles.settingLeft}>
+               <Ionicons name="calendar-outline" size={20} color="#666" />
+               <View style={styles.settingText}>
+                 <Text style={styles.settingTitle}>Weekly Workout Frequency</Text>
+                 <Text style={styles.settingSubtitle}>
                    {userProfile ? `${userProfile.total_days_per_week} workouts/week` : 'Loading...'}
                  </Text>
                </View>
-               <TouchableOpacity style={styles.editButton}>
-                 <Ionicons name="pencil" size={16} color="#333" />
-               </TouchableOpacity>
              </View>
-           </View>
+             <Ionicons name="pencil" size={16} color="#666" />
+           </TouchableOpacity>
 
-           <View style={styles.fieldContainer}>
-             <View style={styles.fieldContent}>
-               <View style={styles.fieldInfo}>
-                 <Text style={styles.fieldLabel}>Target Calories</Text>
-                 <Text style={styles.fieldValue}>
+                     <TouchableOpacity style={styles.settingItem}>
+             <View style={styles.settingLeft}>
+               <Ionicons name="flame-outline" size={20} color="#666" />
+               <View style={styles.settingText}>
+                 <Text style={styles.settingTitle}>Target Calories</Text>
+                 <Text style={styles.settingSubtitle}>
                    {userProfile ? `${userProfile.calorie_goal} calories/day` : 'Loading...'}
                  </Text>
                </View>
-               <TouchableOpacity style={styles.editButton}>
-                 <Ionicons name="pencil" size={16} color="#333" />
-               </TouchableOpacity>
              </View>
-           </View>
+             <Ionicons name="pencil" size={16} color="#666" />
+           </TouchableOpacity>
 
-           <View style={styles.fieldContainer}>
-             <View style={styles.fieldContent}>
-               <View style={styles.fieldInfo}>
-                 <Text style={styles.fieldLabel}>Preferred Workout Types</Text>
-                 <Text style={styles.fieldValue}>
+                     <TouchableOpacity style={styles.settingItem}>
+             <View style={styles.settingLeft}>
+               <Ionicons name="barbell-outline" size={20} color="#666" />
+               <View style={styles.settingText}>
+                 <Text style={styles.settingTitle}>Preferred Workout Types</Text>
+                 <Text style={styles.settingSubtitle}>
                    {userProfile ? userProfile.prefered_workout : 'Loading...'}
                  </Text>
                </View>
-               <TouchableOpacity style={styles.editButton}>
-                 <Ionicons name="pencil" size={16} color="#333" />
-               </TouchableOpacity>
              </View>
-           </View>
+             <Ionicons name="pencil" size={16} color="#666" />
+           </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -267,7 +299,7 @@ const PersonalInfoScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#E8E9F0',
   },
   header: {
     flexDirection: 'row',
@@ -275,8 +307,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    backgroundColor: COLORS.background,
+    paddingBottom: 10,
+    backgroundColor: '#E8E9F0',
   },
   backButton: {
     padding: 8,
@@ -284,7 +316,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLORS.text,
+    color: '#333',
   },
   placeholder: {
     width: 40,
@@ -294,80 +326,78 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   quickStatsSection: {
-    marginBottom: 30,
+    marginVertical: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 15,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   statCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 15,
     alignItems: 'center',
     flex: 1,
-    marginHorizontal: 3,
+    marginHorizontal: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   statNumber: {
     fontSize: 24,
     fontWeight: '700',
-    color: COLORS.primary,
-    marginBottom: 6,
+    color: '#333',
+    marginBottom: 5,
   },
   statLabel: {
-    fontSize: 13,
-    color: COLORS.secondary,
+    fontSize: 14,
+    color: '#666',
     fontWeight: '500',
   },
-  section: {
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 16,
-  },
-  fieldContainer: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
+  settingsSection: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    marginVertical: 10,
+    paddingVertical: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  fieldContent: {
+  settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
   },
-  fieldInfo: {
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
-  fieldLabel: {
-    fontSize: 15,
+  settingText: {
+    marginLeft: 15,
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 6,
+    color: '#333',
+    marginBottom: 2,
   },
-  fieldValue: {
-    fontSize: 14,
-    color: COLORS.secondary,
-  },
-  editButton: {
-    padding: 8,
+  settingSubtitle: {
+    fontSize: 13,
+    color: '#666',
   },
 });
 
