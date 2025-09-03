@@ -2,13 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import {
-    Image,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 const ProfileScreen = () => {
@@ -32,10 +31,7 @@ const ProfileScreen = () => {
         <View style={styles.profileSection}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <Image 
-                // source={require('./assets/profile-avatar.png')} 
-                style={styles.avatarImage}
-              />
+            <Ionicons name="person" size={60} color="#999" />
             </View>
             <TouchableOpacity style={styles.cameraButton}>
               <Ionicons name="camera" size={16} color="#666" />
@@ -68,7 +64,10 @@ const ProfileScreen = () => {
 
         {/* Settings Menu */}
         <View style={styles.settingsSection}>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('PersonalInfo')}
+          >
             <View style={styles.settingLeft}>
               <Ionicons name="person-outline" size={20} color="#666" />
               <View style={styles.settingText}>
@@ -192,9 +191,12 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#F4D4A7',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   avatarImage: {
     width: 110,
@@ -314,7 +316,6 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   bottomTabBar: {
-    borderRadius: 40,
     flexDirection: 'row',
     backgroundColor: 'white',
     paddingVertical: 10,

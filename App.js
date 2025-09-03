@@ -29,6 +29,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import ManualLogScreen from './src/screens/ManualLogScreen';
 import MealPreferencesScreen from './src/screens/MealPreferencesScreen';
 import MinimalSignupTestScreen from './src/screens/MinimalSignupTestScreen';
+import PersonalInfoScreen from './src/screens/PersonalInfoScreen';
 import PhotoCalorieScreen from './src/screens/PhotoCalorieScreen';
 import PostCalorieScreen from './src/screens/PostCalorieScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
@@ -156,6 +157,7 @@ export default function App() {
             <Stack.Screen name="WorkoutStart" component={WorkoutStartScreen} />
             <Stack.Screen name="ProgressScreen" component={ProgressScreen} />
             <Stack.Screen name="WorkoutSaveScreen" component={WorkoutSaveScreen} />
+            <Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </OnboardingProvider>
