@@ -189,6 +189,42 @@ export default function WorkoutStartScreen({ route, navigation }) {
     return exercises[currentExerciseIndex] || {};
   };
 
+  const getNextExercise = () => {
+    if (isResting) {
+      // Find next exercise that should be included in current round
+      let nextExerciseIndex = currentExerciseIndex + 1;
+      
+      while (nextExerciseIndex < exercises.length) {
+        const nextExercise = exercises[nextExerciseIndex];
+        const nextExerciseRounds = nextExercise.rounds || 1;
+        
+        // Include exercise if it has rounds remaining for current round
+        if (nextExerciseRounds >= currentRound) {
+          return nextExercise;
+        }
+        nextExerciseIndex++;
+      }
+      
+      // If no more exercises in current round, check if we need to start next round
+      const maxRounds = Math.max(...exercises.map(ex => ex.rounds || 1));
+      
+      if (currentRound < maxRounds) {
+        // Find first exercise that has more rounds
+        let firstExerciseIndex = 0;
+        while (firstExerciseIndex < exercises.length) {
+          const exercise = exercises[firstExerciseIndex];
+          const exerciseRounds = exercise.rounds || 1;
+          
+          if (exerciseRounds > currentRound) {
+            return exercise;
+          }
+          firstExerciseIndex++;
+        }
+      }
+    }
+    return null;
+  };
+
   // Calculate workout stats
   const totalDurationMinutes = Math.floor(exercises.reduce((total, ex) => {
     const exerciseTime = (parseInt(ex.duration) || 45) * (ex.rounds || 1);
@@ -378,20 +414,47 @@ export default function WorkoutStartScreen({ route, navigation }) {
     );
   }
 
+  const handleAddTime = () => {
+    setTimeRemaining(time => time + 20);
+  };
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isResting && styles.restContainer]}>
       {/* Exercise Info */}
       <View style={styles.exerciseInfo}>
-        <Text style={styles.exerciseName}>
-          {isResting ? 'Rest Time' : getCurrentExercise().name}
+        <Text style={[styles.exerciseName, isResting && styles.restText]}>
+          {isResting ? 'REST' : getCurrentExercise().name}
         </Text>
-        <Text style={styles.exerciseSubtitle}>
+        <Text style={[styles.exerciseSubtitle, isResting && styles.restSubtitle]}>
           {isResting ? 'Take a break' : `Round ${currentRound} of ${getCurrentExercise().rounds || 1}`}
         </Text>
+        {isResting && getNextExercise() && (
+          <Text style={[styles.nextExerciseText, isResting && styles.restNextExerciseText]}>
+            Next exercise: {getNextExercise().name}
+          </Text>
+        )}
       </View>
       
       {/* Exercise GIF */}
-      {!isResting && (
+      {isResting && getNextExercise() ? (
+        <View style={styles.restGifContainer}>
+          {getNextExercise().gif_url ? (
+            <Image
+              key={`next-gif-${currentExerciseIndex}-${currentRound}`}
+              source={{ uri: getNextExercise().gif_url }}
+              style={styles.restExerciseGif}
+              resizeMode="contain"
+              fadeDuration={0}
+              progressiveRenderingEnabled={false}
+              cachePolicy="memory-disk"
+            />
+          ) : (
+            <View style={styles.noGifPlaceholder}>
+              <Text style={styles.noGifText}>No GIF Available</Text>
+            </View>
+          )}
+        </View>
+      ) : !isResting && (
         <View style={styles.gifContainer}>
           {getCurrentExercise().gif_url ? (
             <Image
@@ -413,32 +476,43 @@ export default function WorkoutStartScreen({ route, navigation }) {
 
       {/* Timer */}
       <Animated.View style={[styles.timerContainer, { transform: [{ scale: pulseAnim }] }]}>
-        <Text style={styles.timer}>{formatTime(timeRemaining)}</Text>
+        <Text style={[styles.timer, isResting && styles.restTimer]}>{formatTime(timeRemaining)}</Text>
       </Animated.View>
 
       {/* Controls */}
-      <View style={styles.controls}>
-        <TouchableOpacity style={styles.controlButton} onPress={handlePlayPause}>
-          <Ionicons 
-            name={isPlaying ? "pause" : "play"} 
-            size={24} 
-            color={COLORS.white} 
-          />
-          <Text style={styles.controlButtonText}>
-            {isPlaying ? 'Pause' : 'Play'}
-          </Text>
-        </TouchableOpacity>
+      {isResting ? (
+        <View style={styles.restControls}>
+          <TouchableOpacity style={styles.addTimeButton} onPress={handleAddTime}>
+            <Text style={styles.addTimeButtonText}>+20s</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+            <Text style={styles.skipButtonText}>Skip</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.controls}>
+          <TouchableOpacity style={styles.controlButton} onPress={handlePlayPause}>
+            <Ionicons 
+              name={isPlaying ? "pause" : "play"} 
+              size={24} 
+              color={COLORS.white} 
+            />
+            <Text style={styles.controlButtonText}>
+              {isPlaying ? 'Pause' : 'Play'}
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.controlButton} onPress={handleSkip}>
-          <Ionicons name="play-forward" size={24} color={COLORS.white} />
-          <Text style={styles.controlButtonText}>Skip</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.controlButton} onPress={handleSkip}>
+            <Ionicons name="play-forward" size={24} color={COLORS.white} />
+            <Text style={styles.controlButtonText}>Skip</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.controlButton} onPress={handleStop}>
-          <Ionicons name="stop" size={24} color={COLORS.white} />
-          <Text style={styles.controlButtonText}>Stop</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity style={styles.controlButton} onPress={handleStop}>
+            <Ionicons name="stop" size={24} color={COLORS.white} />
+            <Text style={styles.controlButtonText}>Stop</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -446,7 +520,7 @@ export default function WorkoutStartScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.white,
     justifyContent: 'space-between',
     padding: 20,
   },
@@ -458,30 +532,93 @@ const styles = StyleSheet.create({
   exerciseName: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: COLORS.white,
+    color: COLORS.dark,
     textAlign: 'center',
     marginBottom: 10,
   },
   exerciseSubtitle: {
     fontSize: 18,
-    color: COLORS.grayLight,
+    color: COLORS.gray,
     textAlign: 'center',
+  },
+  nextExerciseText: {
+    fontSize: 14,
+    color: COLORS.gray,
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  
+  // Rest page styles
+  restContainer: {
+    backgroundColor: COLORS.primary,
+  },
+  restText: {
+    color: COLORS.white,
+  },
+  restSubtitle: {
+    color: COLORS.white,
+  },
+  restTimer: {
+    color: COLORS.white,
+  },
+  restNextExerciseText: {
+    color: COLORS.white,
+  },
+  restGifContainer: {
+    width: '80%',
+    height: 200,
+    marginBottom: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: COLORS.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+  },
+  restExerciseGif: {
+    width: '100%',
+    height: '100%',
+  },
+  restControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 40,
+    paddingHorizontal: 40,
+  },
+  addTimeButton: {
+    backgroundColor: COLORS.white,
+    paddingVertical: 18,
+    paddingHorizontal: 38,
+    borderRadius: 25,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  addTimeButtonText: {
+    color: COLORS.primary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  skipButton: {
+    backgroundColor: COLORS.white,
+    paddingVertical: 18,
+    paddingHorizontal: 38,
+    borderRadius: 25,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  skipButtonText: {
+    color: COLORS.primary,
+    fontSize: 16,
+    fontWeight: '600',
   },
   
   gifContainer: {
     width: '100%',
-    height: 200,
+    height: 300,
     marginBottom: 20,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
   },
   
   exerciseGif: {
@@ -494,12 +631,13 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.lightGray,
+    borderRadius: 16,
   },
   
   noGifText: {
     fontSize: 16,
-    color: COLORS.grayLight,
+    color: COLORS.gray,
     fontStyle: 'italic',
   },
   timerContainer: {
@@ -510,7 +648,7 @@ const styles = StyleSheet.create({
   timer: {
     fontSize: 72,
     fontWeight: 'bold',
-    color: COLORS.white,
+    color: COLORS.dark,
     textAlign: 'center',
   },
   controls: {
@@ -522,9 +660,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
     borderRadius: 25,
-    borderWidth: 1,
-    borderColor: COLORS.white,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: COLORS.primary,
     minWidth: 80,
   },
   controlButtonText: {

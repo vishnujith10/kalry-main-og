@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import Gif from 'react-native-gif'; // Import react-native-gif
 
 import supabase from '../lib/supabase';
 import { saveWorkout } from '../lib/workoutApi';
@@ -44,14 +45,44 @@ export default function StartWorkoutScreen({ navigation, route }) {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [editingExerciseId, setEditingExerciseId] = useState(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [gifErrors, setGifErrors] = useState({}); // Track GIF loading errors
   
   const timerStartedRef = useRef(false);
   const workoutTimeRef = useRef(0);
   const previousExercisesRef = useRef([]);
   const intentionallyClearingRef = useRef(false);
 
+  // Get exercises from route params if available
+  useEffect(() => {
+    if (route.params?.exercises) {
+      const routeExercises = route.params.exercises.map(ex => ({
+        ...ex,
+        id: generateUniqueId(),
+        sets: [{ id: generateUniqueId(), weight: '', reps: '', completed: false }]
+      }));
+      setExercises(routeExercises);
+    }
+  }, [route.params]);
+
   // Generate unique ID
   const generateUniqueId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+  // Helper function to clean and decode GIF URL
+  const getCleanGifUrl = (url) => {
+    if (!url) return null;
+    try {
+      // Decode URL and clean it
+      let cleanUrl = decodeURIComponent(url);
+      // Remove any extra spaces and re-encode properly
+      cleanUrl = cleanUrl.replace(/\s+/g, '%20');
+      console.log('Original URL:', url);
+      console.log('Cleaned URL:', cleanUrl);
+      return cleanUrl;
+    } catch (error) {
+      console.log('Error cleaning URL:', error);
+      return url;
+    }
+  };
 
   // Timer functionality
   useEffect(() => {
@@ -278,8 +309,6 @@ export default function StartWorkoutScreen({ navigation, route }) {
 
   const { totalKcal, totalWeight, totalSets } = getTotalStats();
 
-
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
@@ -354,86 +383,117 @@ export default function StartWorkoutScreen({ navigation, route }) {
             />
             <Text style={styles.emptyStateTitle}>No Exercises Added</Text>
             <Text style={styles.emptyStateSubtitle}>
-              Tap &quot;Add Exercise&quot; below to start building your workout
+              Tap "Add Exercise" below to start building your workout
             </Text>
           </View>
         ) : (
           exercises.map((exercise) => (
-          <View key={exercise.id} style={styles.exerciseCard}>
-            <View style={styles.exerciseHeader}>
-              <View style={styles.exerciseIconContainer}>
-                <MaterialCommunityIcons 
-                  name="dumbbell" 
-                  size={24} 
-                  color={COLORS.primary} 
-                />
+            <View key={exercise.id} style={styles.exerciseCard}>
+              <View style={styles.exerciseHeader}>
+                <View style={styles.exerciseIconContainer}>
+                  <MaterialCommunityIcons 
+                    name="dumbbell" 
+                    size={24} 
+                    color={COLORS.primary} 
+                  />
+                </View>
+                <View style={styles.exerciseInfo}>
+                  <Text style={styles.exerciseName}>{exercise.workout || exercise.name || 'Unnamed Exercise'}</Text>
+                  <Text style={styles.exerciseMuscle}>{exercise.muscle || exercise.body_part || 'Exercise'}</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.editButton}
+                  onPress={() => setEditingExerciseId(editingExerciseId === exercise.id ? null : exercise.id)}
+                >
+                  <Text style={styles.editButtonText}>
+                    {editingExerciseId === exercise.id ? 'Done' : 'Edit'}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <View style={styles.exerciseInfo}>
-                <Text style={styles.exerciseName}>{exercise.workout || exercise.name || 'Unnamed Exercise'}</Text>
-                <Text style={styles.exerciseMuscle}>{exercise.muscle || exercise.body_part || 'Exercise'}</Text>
-              </View>
+
+              {/* Animated GIF Display using react-native-gif */}
+              {exercise.gif_url && !gifErrors[exercise.id] && (
+                <View style={styles.gifContainer}>
+                  <Gif
+                    source={{ uri: getCleanGifUrl(exercise.gif_url) }}
+                    style={styles.exerciseGif}
+                    resizeMode="contain"
+                    onError={(error) => {
+                      console.log('❌ GIF failed to load for:', exercise.name, error);
+                      setGifErrors(prev => ({ ...prev, [exercise.id]: true }));
+                    }}
+                    onLoad={() => {
+                      console.log('✅ GIF loaded successfully:', exercise.name);
+                    }}
+                  />
+                </View>
+              )}
+
+              {/* Fallback for failed GIFs */}
+              {exercise.gif_url && gifErrors[exercise.id] && (
+                <View style={styles.gifPlaceholder}>
+                  <MaterialCommunityIcons 
+                    name="image-broken-variant" 
+                    size={48} 
+                    color={COLORS.textLight} 
+                  />
+                  <Text style={styles.gifPlaceholderText}>Exercise Animation</Text>
+                  <Text style={styles.gifPlaceholderSubtext}>Failed to load</Text>
+                </View>
+              )}
+
+              {/* Sets */}
+              {exercise.sets.map((set, index) => (
+                <View key={set.id} style={styles.setRow}>
+                  <Text style={styles.setLabel}>Set {index + 1}</Text>
+                  <View style={styles.setInputs}>
+                    <TextInput
+                      style={styles.setInput}
+                      value={set.weight}
+                      onChangeText={(text) => updateSet(exercise.id, set.id, 'weight', text)}
+                      placeholder="0"
+                      keyboardType="numeric"
+                    />
+                    <Text style={styles.setUnit}>kg</Text>
+                    <Text style={styles.setSeparator}>•</Text>
+                    <TextInput
+                      style={styles.setInput}
+                      value={set.reps}
+                      onChangeText={(text) => updateSet(exercise.id, set.id, 'reps', text)}
+                      placeholder="0"
+                      keyboardType="numeric"
+                    />
+                    <Text style={styles.setUnit}>reps</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.checkBox, set.completed && styles.checkBoxCompleted]}
+                    onPress={() => toggleSetCompletion(exercise.id, set.id)}
+                  >
+                    {set.completed && (
+                      <Ionicons name="checkmark" size={16} color={COLORS.white} />
+                    )}
+                  </TouchableOpacity>
+                  
+                  {editingExerciseId === exercise.id && (
+                    <TouchableOpacity
+                      style={styles.deleteSetButton}
+                      onPress={() => deleteSet(exercise.id, set.id)}
+                    >
+                      <Ionicons name="trash-outline" size={16} color={COLORS.error} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+
+              {/* Add Set Button */}
               <TouchableOpacity 
-                style={styles.editButton}
-                onPress={() => setEditingExerciseId(editingExerciseId === exercise.id ? null : exercise.id)}
+                style={styles.addSetButton}
+                onPress={() => addSet(exercise.id)}
               >
-                <Text style={styles.editButtonText}>
-                  {editingExerciseId === exercise.id ? 'Done' : 'Edit'}
-                </Text>
+                <Ionicons name="add" size={16} color={COLORS.primary} />
+                <Text style={styles.addSetText}>Add Set</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Sets */}
-            {exercise.sets.map((set, index) => (
-              <View key={set.id} style={styles.setRow}>
-                <Text style={styles.setLabel}>Set {index + 1}</Text>
-                <View style={styles.setInputs}>
-                  <TextInput
-                    style={styles.setInput}
-                    value={set.weight}
-                    onChangeText={(text) => updateSet(exercise.id, set.id, 'weight', text)}
-                    placeholder="0"
-                    keyboardType="numeric"
-                  />
-                  <Text style={styles.setUnit}>kg</Text>
-                  <Text style={styles.setSeparator}>•</Text>
-                  <TextInput
-                    style={styles.setInput}
-                    value={set.reps}
-                    onChangeText={(text) => updateSet(exercise.id, set.id, 'reps', text)}
-                    placeholder="0"
-                    keyboardType="numeric"
-                  />
-                  <Text style={styles.setUnit}>reps</Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.checkBox, set.completed && styles.checkBoxCompleted]}
-                  onPress={() => toggleSetCompletion(exercise.id, set.id)}
-                >
-                  {set.completed && (
-                    <Ionicons name="checkmark" size={16} color={COLORS.white} />
-                  )}
-                </TouchableOpacity>
-                
-                {editingExerciseId === exercise.id && (
-                  <TouchableOpacity
-                    style={styles.deleteSetButton}
-                    onPress={() => deleteSet(exercise.id, set.id)}
-                  >
-                    <Ionicons name="trash-outline" size={16} color={COLORS.error} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
-
-            {/* Add Set Button */}
-            <TouchableOpacity 
-              style={styles.addSetButton}
-              onPress={() => addSet(exercise.id)}
-            >
-              <Ionicons name="add" size={16} color={COLORS.primary} />
-              <Text style={styles.addSetText}>Add Set</Text>
-            </TouchableOpacity>
-          </View>
           ))
         )}
       </ScrollView>
@@ -443,33 +503,33 @@ export default function StartWorkoutScreen({ navigation, route }) {
         <TouchableOpacity 
           style={styles.addExerciseButton}
           onPress={() => {
-          navigation.navigate('AllExercisesScreen', {
-            onExercisesSelected: (selectedExercises) => {
-              setExercises(prev => [
-                ...prev,
-                ...selectedExercises.map(ex => ({
-                  ...ex,
-                  id: generateUniqueId(),
-                  sets: [{ id: generateUniqueId(), weight: '', reps: '', completed: false }]
-                }))
-              ]);
-            },
-            onSelect: (selectedExercise) => {
-              setExercises(prev => [
-                ...prev,
-                {
-                  ...selectedExercise,
-                  id: generateUniqueId(),
-                  sets: [{ id: generateUniqueId(), weight: '', reps: '', completed: false }]
-                }
-              ]);
-            }
-          });
-        }}
-      >
-        <Ionicons name="add" size={20} color={COLORS.white} />
-        <Text style={styles.addExerciseText}>Add Exercise</Text>
-      </TouchableOpacity>
+            navigation.navigate('AllExercisesScreen', {
+              onExercisesSelected: (selectedExercises) => {
+                setExercises(prev => [
+                  ...prev,
+                  ...selectedExercises.map(ex => ({
+                    ...ex,
+                    id: generateUniqueId(),
+                    sets: [{ id: generateUniqueId(), weight: '', reps: '', completed: false }]
+                  }))
+                ]);
+              },
+              onSelect: (selectedExercise) => {
+                setExercises(prev => [
+                  ...prev,
+                  {
+                    ...selectedExercise,
+                    id: generateUniqueId(),
+                    sets: [{ id: generateUniqueId(), weight: '', reps: '', completed: false }]
+                  }
+                ]);
+              }
+            });
+          }}
+        >
+          <Ionicons name="add" size={20} color={COLORS.white} />
+          <Text style={styles.addExerciseText}>Add Exercise</Text>
+        </TouchableOpacity>
       )}
 
       {saveError && (
@@ -626,6 +686,45 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
+  
+  // GIF Container and Styles
+  gifContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+    backgroundColor: COLORS.bg,
+    borderRadius: 12,
+    padding: 8,
+    overflow: 'hidden',
+  },
+  exerciseGif: {
+    width: 280,
+    height: 180,
+    borderRadius: 8,
+    backgroundColor: COLORS.white,
+  },
+  
+  // GIF Placeholder Styles
+  gifPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    backgroundColor: COLORS.bg,
+    borderRadius: 12,
+    padding: 20,
+    height: 180,
+  },
+  gifPlaceholderText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginTop: 8,
+  },
+  gifPlaceholderSubtext: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    marginTop: 4,
+  },
+  
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
