@@ -94,6 +94,10 @@ export default function CardioSessionBuilder({ navigation }) {
   const [exerciseRest, setExerciseRest] = useState('');
   const [exerciseRounds, setExerciseRounds] = useState(1);
   
+  // Edit functionality
+  const [editingExerciseIndex, setEditingExerciseIndex] = useState(null);
+  const [editValues, setEditValues] = useState({});
+  
   // Workout player states
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [currentRound, setCurrentRound] = useState(1);
@@ -344,6 +348,42 @@ export default function CardioSessionBuilder({ navigation }) {
     );
   };
 
+  // Edit exercise functions
+  const startEditingExercise = (index) => {
+    const exercise = exercises[index];
+    setEditingExerciseIndex(index);
+    setEditValues({
+      duration: exercise.duration?.toString() || '',
+      rest: exercise.rest?.toString() || '',
+      rounds: exercise.rounds?.toString() || '1'
+    });
+  };
+
+  const saveExerciseEdit = (index) => {
+    const updatedExercises = [...exercises];
+    updatedExercises[index] = {
+      ...updatedExercises[index],
+      duration: parseInt(editValues.duration) || 45,
+      rest: parseInt(editValues.rest) || 15,
+      rounds: parseInt(editValues.rounds) || 1
+    };
+    setExercises(updatedExercises);
+    setEditingExerciseIndex(null);
+    setEditValues({});
+  };
+
+  const cancelExerciseEdit = () => {
+    setEditingExerciseIndex(null);
+    setEditValues({});
+  };
+
+  const updateEditValue = (field, value) => {
+    setEditValues(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   // Start workout
   const startWorkout = () => {
     if (exercises.length === 0) {
@@ -531,7 +571,7 @@ export default function CardioSessionBuilder({ navigation }) {
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateIcon}>💪</Text>
               <Text style={styles.emptyStateText}>No exercises added yet</Text>
-              <Text style={styles.emptyStateSubtext}>Tap "Add" to get started</Text>
+              <Text style={styles.emptyStateSubtext}>Tap &quot;Add&quot; to get started</Text>
             </View>
           ) : (
             <FlatList
@@ -543,18 +583,82 @@ export default function CardioSessionBuilder({ navigation }) {
                     <Text style={styles.exerciseIcon}>{item.icon}</Text>
                     <View style={styles.exerciseDetails}>
                       <Text style={styles.exerciseName}>{item.name}</Text>
-                      <View style={styles.exerciseStats}>
-                        <Text style={styles.exerciseStat}>
-                          {item.blockType === 'time' ? `${item.duration}s` : `${item.reps} reps`}
-                        </Text>
-                        <Text style={styles.exerciseStat}>Rest: {item.rest}s</Text>
-                        <Text style={styles.exerciseStat}>Rounds: {item.rounds || 1}</Text>
-                      </View>
+                      {editingExerciseIndex === index ? (
+                        <View style={styles.editFieldsContainer}>
+                          <View style={styles.editFieldRow}>
+                            <Text style={styles.editFieldLabel}>Duration:</Text>
+                            <TextInput
+                              style={styles.editFieldInput}
+                              value={editValues.duration}
+                              onChangeText={(value) => updateEditValue('duration', value)}
+                              placeholder="45"
+                              keyboardType="numeric"
+                            />
+                            <Text style={styles.editFieldUnit}>s</Text>
+                          </View>
+                          <View style={styles.editFieldRow}>
+                            <Text style={styles.editFieldLabel}>Rest:</Text>
+                            <TextInput
+                              style={styles.editFieldInput}
+                              value={editValues.rest}
+                              onChangeText={(value) => updateEditValue('rest', value)}
+                              placeholder="15"
+                              keyboardType="numeric"
+                            />
+                            <Text style={styles.editFieldUnit}>s</Text>
+                          </View>
+                          <View style={styles.editFieldRow}>
+                            <Text style={styles.editFieldLabel}>Rounds:</Text>
+                            <TextInput
+                              style={styles.editFieldInput}
+                              value={editValues.rounds}
+                              onChangeText={(value) => updateEditValue('rounds', value)}
+                              placeholder="1"
+                              keyboardType="numeric"
+                            />
+                          </View>
+                        </View>
+                      ) : (
+                        <View style={styles.exerciseStats}>
+                          <Text style={styles.exerciseStat}>
+                            {item.blockType === 'time' ? `${item.duration}s` : `${item.reps} reps`}
+                          </Text>
+                          <Text style={styles.exerciseStat}>Rest: {item.rest}s</Text>
+                          <Text style={styles.exerciseStat}>Rounds: {item.rounds || 1}</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
-                  <TouchableOpacity onPress={() => removeExercise(index)}>
-                    <Text style={styles.removeButton}>×</Text>
-                  </TouchableOpacity>
+                  <View style={styles.exerciseActions}>
+                    {editingExerciseIndex === index ? (
+                      <View style={styles.editActions}>
+                        <TouchableOpacity 
+                          style={styles.saveButton}
+                          onPress={() => saveExerciseEdit(index)}
+                        >
+                          <Ionicons name="checkmark" size={16} color={COLORS.white} />
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={styles.cancelButton}
+                          onPress={cancelExerciseEdit}
+                        >
+                          <Ionicons name="close" size={16} color={COLORS.error} />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View style={styles.exerciseActionsVertical}>
+                        <TouchableOpacity 
+                          style={styles.editButton}
+                          onPress={() => startEditingExercise(index)}
+                        >
+                          <Ionicons name="pencil" size={16} color={COLORS.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => removeExercise(index)}>
+                          <Text style={styles.removeButton}>×</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
                 </View>
               )}
               scrollEnabled={false}
@@ -1179,6 +1283,80 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     fontWeight: '300',
     paddingHorizontal: 8,
+  },
+  
+  // Edit functionality styles
+  exerciseActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  
+  exerciseActionsVertical: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 8,
+  },
+  
+  editButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f1f5f9',
+  },
+  
+  editActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  
+  saveButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: COLORS.success,
+  },
+  
+  cancelButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#fef2f2',
+  },
+  
+  editFieldsContainer: {
+    marginTop: 8,
+    gap: 8,
+  },
+  
+  editFieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  
+  editFieldLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+    minWidth: 60,
+  },
+  
+  editFieldInput: {
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    fontSize: 12,
+    color: COLORS.text,
+    backgroundColor: COLORS.background,
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  
+  editFieldUnit: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
   },
   
   settingRow: {
