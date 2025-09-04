@@ -386,6 +386,11 @@ export default function CardioSessionBuilder({ navigation }) {
 
   // Start workout
   const startWorkout = () => {
+    if (!sessionType) {
+      Alert.alert('Error', 'Select Session Type');
+      return;
+    }
+    
     if (exercises.length === 0) {
       Alert.alert('Error', 'Add at least one exercise to start the workout');
       return;
@@ -587,37 +592,37 @@ export default function CardioSessionBuilder({ navigation }) {
                         <View style={styles.editFieldsContainer}>
                           <View style={styles.editFieldRow}>
                             <Text style={styles.editFieldLabel}>Duration:</Text>
-                            <TextInput
+                  <TextInput
                               style={styles.editFieldInput}
                               value={editValues.duration}
                               onChangeText={(value) => updateEditValue('duration', value)}
                               placeholder="45"
-                              keyboardType="numeric"
+                    keyboardType="numeric"
                             />
                             <Text style={styles.editFieldUnit}>s</Text>
                           </View>
                           <View style={styles.editFieldRow}>
                             <Text style={styles.editFieldLabel}>Rest:</Text>
-                            <TextInput
+                  <TextInput
                               style={styles.editFieldInput}
                               value={editValues.rest}
                               onChangeText={(value) => updateEditValue('rest', value)}
                               placeholder="15"
-                              keyboardType="numeric"
+                    keyboardType="numeric"
                             />
                             <Text style={styles.editFieldUnit}>s</Text>
                           </View>
                           <View style={styles.editFieldRow}>
                             <Text style={styles.editFieldLabel}>Rounds:</Text>
-                            <TextInput
+              <TextInput
                               style={styles.editFieldInput}
                               value={editValues.rounds}
                               onChangeText={(value) => updateEditValue('rounds', value)}
                               placeholder="1"
-                              keyboardType="numeric"
-                            />
-                          </View>
-                        </View>
+                keyboardType="numeric"
+              />
+              </View>
+        </View>
                       ) : (
                         <View style={styles.exerciseStats}>
                           <Text style={styles.exerciseStat}>
@@ -625,38 +630,38 @@ export default function CardioSessionBuilder({ navigation }) {
                           </Text>
                           <Text style={styles.exerciseStat}>Rest: {item.rest}s</Text>
                           <Text style={styles.exerciseStat}>Rounds: {item.rounds || 1}</Text>
-                        </View>
+      </View>
                       )}
-                    </View>
-                  </View>
+      </View>
+        </View>
                   <View style={styles.exerciseActions}>
                     {editingExerciseIndex === index ? (
                       <View style={styles.editActions}>
-                        <TouchableOpacity 
+          <TouchableOpacity
                           style={styles.saveButton}
                           onPress={() => saveExerciseEdit(index)}
                         >
                           <Ionicons name="checkmark" size={16} color={COLORS.white} />
-                        </TouchableOpacity>
-                        <TouchableOpacity 
+          </TouchableOpacity>
+                  <TouchableOpacity
                           style={styles.cancelButton}
                           onPress={cancelExerciseEdit}
                         >
                           <Ionicons name="close" size={16} color={COLORS.error} />
-                        </TouchableOpacity>
-                      </View>
+                  </TouchableOpacity>
+              </View>
                     ) : (
                       <View style={styles.exerciseActionsVertical}>
-                        <TouchableOpacity 
+          <TouchableOpacity
                           style={styles.editButton}
                           onPress={() => startEditingExercise(index)}
                         >
                           <Ionicons name="pencil" size={16} color={COLORS.primary} />
-                        </TouchableOpacity>
+          </TouchableOpacity>
                         <TouchableOpacity onPress={() => removeExercise(index)}>
                           <Text style={styles.removeButton}>×</Text>
-                        </TouchableOpacity>
-                      </View>
+                  </TouchableOpacity>
+              </View>
                     )}
                   </View>
                 </View>
@@ -728,7 +733,7 @@ export default function CardioSessionBuilder({ navigation }) {
           <TouchableOpacity style={styles.startButton} onPress={startWorkout}>
             <Text style={styles.startButtonText}>Start Workout</Text>
           </TouchableOpacity>
-              </View>
+        </View>
       </ScrollView>
 
       {/* Add Exercise Modal */}
@@ -742,13 +747,15 @@ export default function CardioSessionBuilder({ navigation }) {
             </TouchableOpacity>
         </View>
             
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search exercises..."
-              placeholderTextColor={COLORS.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
+            {!selectedExercise && (
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search exercises..."
+                placeholderTextColor={COLORS.textSecondary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            )}
 
             {!selectedExercise ? (
               <>
@@ -903,8 +910,8 @@ export default function CardioSessionBuilder({ navigation }) {
                   >
                     <Text style={styles.playerButtonText}>⏭️</Text>
                   </TouchableOpacity>
-                </View>
-              </View>
+          </View>
+          </View>
             )}
           </Animated.View>
         </View>

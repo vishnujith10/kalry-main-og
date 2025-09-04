@@ -9,7 +9,7 @@ export async function fetchExercises({ search, type, muscle, bodyPart, equipment
   // Apply filters only if they have values
   if (search && search.trim()) {
     console.log('Applying search filter:', search);
-    query = query.or(`workout.ilike.%${search}%,name.ilike.%${search}%`);
+    query = query.ilike('name', `%${search}%`);
   }
   if (type && type.trim()) {
     console.log('Applying type filter:', type);
@@ -17,15 +17,15 @@ export async function fetchExercises({ search, type, muscle, bodyPart, equipment
   }
   if (muscle && muscle.trim()) {
     console.log('Applying muscle filter:', muscle);
-    query = query.ilike('muscle', `%${muscle}%`);
+    query = query.or(`target_muscles.ilike.%${muscle}%,secondary_muscles.ilike.%${muscle}%`);
   }
   if (bodyPart && bodyPart.trim()) {
     console.log('Applying bodyPart filter:', bodyPart);
-    query = query.ilike('bodyPart', `%${bodyPart}%`);
+    query = query.ilike('body_parts', `%${bodyPart}%`);
   }
   if (equipment && equipment.trim()) {
     console.log('Applying equipment filter:', equipment);
-    query = query.ilike('equipment', `%${equipment}%`);
+    query = query.ilike('equipments', `%${equipment}%`);
   }
   
   console.log('Executing query...');

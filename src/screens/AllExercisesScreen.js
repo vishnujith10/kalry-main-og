@@ -117,23 +117,22 @@ export default function AllExercisesScreen({ navigation, route }) {
       }
       
       // Debug logging
-      console.log('Filtering exercise:', ex.workout || ex.name, {
+      console.log('Filtering exercise:', ex.name, {
         searchQuery,
         exerciseTypeFilter,
         exerciseMuscleFilter,
         exerciseBodyPartFilter,
         exerciseEquipmentFilter,
         exType: ex.type,
-        exMuscle: ex.muscle,
-        exBodyPart: ex.bodyPart,
-        exEquipment: ex.equipment,
-        exWorkout: ex.workout,
+        exTargetMuscles: ex.target_muscles,
+        exSecondaryMuscles: ex.secondary_muscles,
+        exBodyParts: ex.body_parts,
+        exEquipments: ex.equipments,
         exName: ex.name
       });
       
       // Search filter
       const matchesSearch = !searchQuery || 
-        ex.workout?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         ex.name?.toLowerCase().includes(searchQuery.toLowerCase());
       
       // Type filter
@@ -142,20 +141,21 @@ export default function AllExercisesScreen({ navigation, route }) {
       
       // Muscle filter
       const matchesMuscle = !exerciseMuscleFilter || 
-        ex.muscle?.toLowerCase().includes(exerciseMuscleFilter.toLowerCase());
+        ex.target_muscles?.toLowerCase().includes(exerciseMuscleFilter.toLowerCase()) ||
+        ex.secondary_muscles?.toLowerCase().includes(exerciseMuscleFilter.toLowerCase());
       
       // Body part filter
       const matchesBodyPart = !exerciseBodyPartFilter || 
-        ex.bodyPart?.toLowerCase().includes(exerciseBodyPartFilter.toLowerCase());
+        ex.body_parts?.toLowerCase().includes(exerciseBodyPartFilter.toLowerCase());
       
       // Equipment filter
       const matchesEquipment = !exerciseEquipmentFilter || 
-        ex.equipment?.toLowerCase().includes(exerciseEquipmentFilter.toLowerCase());
+        ex.equipments?.toLowerCase().includes(exerciseEquipmentFilter.toLowerCase());
       
       const shouldInclude = matchesSearch && matchesType && matchesMuscle && matchesBodyPart && matchesEquipment;
       
       if (!shouldInclude) {
-        console.log('Filtered out:', ex.workout || ex.name, {
+        console.log('Filtered out:', ex.name, {
           matchesSearch,
           matchesType,
           matchesMuscle,
@@ -215,12 +215,12 @@ export default function AllExercisesScreen({ navigation, route }) {
         )}
         <View style={styles.exerciseInfo}>
           <Text style={styles.exerciseName}>
-            {item.workout || item.name || 'Unnamed Exercise'}
+            {item.name || 'Unnamed Exercise'}
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-            {item.body_part && (
+            {item.body_parts && (
               <View style={{ backgroundColor: '#EDE9FE', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                <Text style={{ fontSize: 12, color: '#7C3AED', fontWeight: '500' }}>{item.body_part}</Text>
+                <Text style={{ fontSize: 12, color: '#7C3AED', fontWeight: '500' }}>{item.body_parts}</Text>
               </View>
             )}
             {item.type && (
@@ -232,12 +232,6 @@ export default function AllExercisesScreen({ navigation, route }) {
         </View>
       </View>
       <View style={styles.exerciseActions}>
-        <TouchableOpacity 
-          onPress={() => { setExerciseDetail(item); setShowExerciseDetail(true); }} 
-          style={styles.infoButton}
-        >
-          <Ionicons name="information-circle-outline" size={20} color="#7B61FF" />
-        </TouchableOpacity>
         {selectedExerciseIds.includes(item.id) && (
           <Ionicons name="checkmark-circle" size={20} color="#7B61FF" />
         )}
@@ -390,13 +384,13 @@ export default function AllExercisesScreen({ navigation, route }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{exerciseDetail.workout || exerciseDetail.name}</Text>
+              <Text style={styles.modalTitle}>{exerciseDetail.name}</Text>
               <TouchableOpacity onPress={() => setShowExerciseDetail(false)}>
                 <Ionicons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalSubtitle}>
-              {exerciseDetail.type || 'Exercise'} {exerciseDetail.muscle ? `• ${exerciseDetail.muscle}` : ''}
+              {exerciseDetail.type || 'Exercise'} {exerciseDetail.target_muscles ? `• ${exerciseDetail.target_muscles}` : ''}
             </Text>
             {exerciseDetail.description && (
               <Text style={styles.modalDescription}>{exerciseDetail.description}</Text>

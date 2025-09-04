@@ -11,6 +11,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View
 } from 'react-native';
 import Gif from 'react-native-gif'; // Import react-native-gif
@@ -46,6 +47,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
   const [editingExerciseId, setEditingExerciseId] = useState(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [gifErrors, setGifErrors] = useState({}); // Track GIF loading errors
+  const [showMenuForExercise, setShowMenuForExercise] = useState(null); // Track which exercise menu is open
   
   const timerStartedRef = useRef(false);
   const workoutTimeRef = useRef(0);
@@ -75,11 +77,8 @@ export default function StartWorkoutScreen({ navigation, route }) {
       let cleanUrl = decodeURIComponent(url);
       // Remove any extra spaces and re-encode properly
       cleanUrl = cleanUrl.replace(/\s+/g, '%20');
-      console.log('Original URL:', url);
-      console.log('Cleaned URL:', cleanUrl);
       return cleanUrl;
     } catch (error) {
-      console.log('Error cleaning URL:', error);
       return url;
     }
   };
@@ -219,6 +218,29 @@ export default function StartWorkoutScreen({ navigation, route }) {
     ));
   };
 
+  const removeExercise = (exerciseId) => {
+    Alert.alert(
+      'Remove Exercise',
+      'Are you sure you want to remove this exercise from your workout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Remove', 
+          style: 'destructive',
+          onPress: () => {
+            setExercises(exercises.filter(ex => ex.id !== exerciseId));
+            setShowMenuForExercise(null);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleEditExercise = (exerciseId) => {
+    setEditingExerciseId(exerciseId);
+    setShowMenuForExercise(null);
+  };
+
   const deleteExercise = (exerciseId) => {
     Alert.alert(
       'Delete Exercise',
@@ -310,8 +332,9 @@ export default function StartWorkoutScreen({ navigation, route }) {
   const { totalKcal, totalWeight, totalSets } = getTotalStats();
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
+    <TouchableWithoutFeedback onPress={() => setShowMenuForExercise(null)}>
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
       
       {/* Header */}
       <View style={styles.header}>
@@ -402,14 +425,34 @@ export default function StartWorkoutScreen({ navigation, route }) {
                   <Text style={styles.exerciseMuscle}>{exercise.muscle || exercise.body_part || 'Exercise'}</Text>
                 </View>
                 <TouchableOpacity 
-                  style={styles.editButton}
-                  onPress={() => setEditingExerciseId(editingExerciseId === exercise.id ? null : exercise.id)}
+                  style={styles.moreButton}
+                  onPress={() => setShowMenuForExercise(showMenuForExercise === exercise.id ? null : exercise.id)}
                 >
-                  <Text style={styles.editButtonText}>
-                    {editingExerciseId === exercise.id ? 'Done' : 'Edit'}
-                  </Text>
+                  <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
                 </TouchableOpacity>
               </View>
+
+              {/* Three-dots menu */}
+              {showMenuForExercise === exercise.id && (
+                <View style={styles.menuOverlay}>
+                  <View style={styles.menuContainer}>
+                    <TouchableOpacity 
+                      style={styles.menuItem}
+                      onPress={() => handleEditExercise(exercise.id)}
+                    >
+                      <Ionicons name="pencil" size={18} color={COLORS.primary} />
+                      <Text style={styles.menuItemText}>Edit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.menuItem}
+                      onPress={() => removeExercise(exercise.id)}
+                    >
+                      <Ionicons name="trash" size={18} color={COLORS.error} />
+                      <Text style={[styles.menuItemText, { color: COLORS.error }]}>Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
 
               {/* Animated GIF Display using react-native-gif */}
               {exercise.gif_url && !gifErrors[exercise.id] && (
@@ -419,11 +462,10 @@ export default function StartWorkoutScreen({ navigation, route }) {
                     style={styles.exerciseGif}
                     resizeMode="contain"
                     onError={(error) => {
-                      console.log('❌ GIF failed to load for:', exercise.name, error);
                       setGifErrors(prev => ({ ...prev, [exercise.id]: true }));
                     }}
                     onLoad={() => {
-                      console.log('✅ GIF loaded successfully:', exercise.name);
+                      // GIF loaded successfully
                     }}
                   />
                 </View>
@@ -535,7 +577,8 @@ export default function StartWorkoutScreen({ navigation, route }) {
       {saveError && (
         <Text style={styles.errorText}>{saveError}</Text>
       )}
-    </View>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -677,6 +720,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
   },
+  exerciseActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   editButton: {
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -685,6 +733,42 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 16,
     fontWeight: '500',
+  },
+  moreButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: COLORS.bg,
+  },
+  menuOverlay: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    zIndex: 1000,
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  menuContainer: {
+    paddingVertical: 8,
+    minWidth: 120,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: COLORS.text,
   },
   
   // GIF Container and Styles
