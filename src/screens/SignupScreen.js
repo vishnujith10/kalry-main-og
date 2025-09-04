@@ -1,21 +1,17 @@
-import React, { useState, useContext, useEffect } from 'react';
+import { MaterialIcons } from '@expo/vector-icons';
+import React, { useContext, useEffect, useState } from 'react';
 import {
-  View,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ScrollView,
+  View
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import supabase from '../lib/supabase';
 import { OnboardingContext } from '../context/OnboardingContext';
-import { BACKEND_URL } from '@env';
-import axios from 'axios';
+import supabase from '../lib/supabase';
 import calculateCalorieProfile from '../utils/calorieCalculator';
 
 const PRIMARY = '#000000';
@@ -226,12 +222,12 @@ const SignupScreen = ({ navigation }) => {
                 {loading ? 'Creating Account...' : 'SIGN UP'}
               </Text>
             </TouchableOpacity>
-            <View style={styles.loginContainer}>
+            {/* <View style={styles.loginContainer}>
               <Text style={styles.loginText}>Already have an account? </Text>
               <TouchableOpacity onPress={() => navigation.navigate('Login')}>
                 <Text style={styles.loginLink}>Sign In</Text>
               </TouchableOpacity>
-            </View>
+            </View> */}
           </View>
         </View>
       </ScrollView>

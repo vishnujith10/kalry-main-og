@@ -1,21 +1,19 @@
-import React, { useState, useEffect, useContext } from 'react';
+import { GOOGLE_CLIENT_ID } from '@env';
+import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
+import { makeRedirectUri } from 'expo-auth-session';
+import React, { useContext, useEffect, useState } from 'react';
 import {
-  View,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ScrollView,
+  View
 } from 'react-native';
-import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
-import supabase from '../lib/supabase';
-import { startAsync, makeRedirectUri } from 'expo-auth-session';
-import { GOOGLE_CLIENT_ID } from '@env';
 import { OnboardingContext } from '../context/OnboardingContext';
+import supabase from '../lib/supabase';
 
 const PRIMARY = '#000000';
 const ORANGE = '  #ff8800';
@@ -231,7 +229,7 @@ const LoginScreen = ({ navigation }) => {
             </TouchableOpacity>
             <View style={styles.signupContainer}>
               <Text style={styles.signupText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+              <TouchableOpacity onPress={() => navigation.navigate('MiniProfile')}>
                 <Text style={styles.signupLink}>Sign Up</Text>
               </TouchableOpacity>
             </View>

@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, StyleSheet, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import React from 'react';
+import { Image, KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const PRIMARY = '#000000';
 const SECONDARY = '#666666';
@@ -30,7 +30,7 @@ const WelcomeScreen = () => {
           </Text>
         </View>
         <View style={styles.bottomArea}>
-          <TouchableOpacity style={styles.ctaButton} onPress={() => navigation.navigate('Profile')}>
+          <TouchableOpacity style={styles.ctaButton} onPress={() => navigation.navigate('MiniProfile')}>
             <Text style={styles.ctaButtonText}>Begin My Journey →</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.alreadyUserBtn} onPress={() => navigation.navigate('Login')}>
