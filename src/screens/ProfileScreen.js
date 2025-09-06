@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import {
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -9,6 +10,68 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+
+// Updated FooterBar component with oval design
+const FooterBar = ({ navigation, activeTab }) => {
+  const tabs = [
+    {
+      key: 'Home',
+      label: 'Home',
+      icon: <Ionicons name="home-outline" size={24} color={activeTab === 'Home' ? '#7B61FF' : '#232B3A'} />,
+      route: 'MainDashboard',
+    },
+    
+    {
+      key: 'Meals',
+      label: 'Meals',
+      icon: <Ionicons name="restaurant-outline" size={24} color={activeTab === 'Meals' ? '#232B3A' : '#232B3A'} />, // icon size 24
+      route: 'Home',
+    },
+    {
+      key: 'Workout',
+      label: 'Workout',
+      icon: <Ionicons name="fitness-outline" size={24} color={activeTab === 'Workout' ? '#7B61FF' : '#232B3A'} />,
+      route: 'Exercise',
+    },
+    {
+      key: 'Profile',
+      label: 'Profile',
+      icon: <Ionicons name="person-outline" size={24} color={activeTab === 'Profile' ? '#7B61FF' : '#232B3A'} />,
+      route: 'Profile',
+    },
+  ];
+
+  return (
+    <View style={footerStyles.container}>
+      <View style={footerStyles.ovalFooter}>
+        {tabs.map(tab => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[
+              footerStyles.tab,
+              tab.key === activeTab && footerStyles.activeTab
+            ]}
+            onPress={() => navigation.navigate(tab.route)}
+            activeOpacity={0.7}
+          >
+            {React.cloneElement(tab.icon, {
+              color: tab.key === activeTab ? '#7B61FF' : '#232B3A',
+            })}
+            <Text
+              style={[
+                footerStyles.label,
+                tab.key === activeTab && footerStyles.activeLabel
+              ]}
+            >
+              {tab.label}
+            </Text>
+            {tab.key === activeTab && <View style={footerStyles.activeIndicator} />}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+};
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
@@ -26,7 +89,7 @@ const ProfileScreen = () => {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         {/* Profile Section */}
         <View style={styles.profileSection}>
           <View style={styles.avatarContainer}>
@@ -124,30 +187,8 @@ const ProfileScreen = () => {
         </View>
       </ScrollView>
 
-             {/* Bottom Tab Bar */}
-       <View style={styles.bottomTabBar}>
-         <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('MainDashboard')}>
-           <Ionicons name="home-outline" size={24} color="#999" />
-           <Text style={styles.tabLabel}>Home</Text>
-         </TouchableOpacity>
-
-         <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Home')}>
-          <Ionicons name="restaurant-outline" size={24} color="#999" />
-          <Text style={styles.tabLabel}>Meals</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Exercise')}>
-          <Ionicons name="heart-outline" size={24} color="#999" />
-          <Text style={styles.tabLabel}>Workouts</Text>
-        </TouchableOpacity>
-        
-        
-        
-        <TouchableOpacity style={[styles.tabItem, styles.activeTab]}>
-          <Ionicons name="person" size={24} color="#333" />
-          <Text style={[styles.tabLabel, styles.activeTabLabel]}>Profile</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Updated FooterBar with oval design */}
+      <FooterBar navigation={navigation} activeTab="Profile" />
     </View>
   );
 };
@@ -317,34 +358,66 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
   },
-  bottomTabBar: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    paddingVertical: 10,
-    paddingBottom: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+});
+
+// Updated footerStyles for oval design
+const footerStyles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: Platform.OS === 'ios' ? 20 : 16,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    zIndex: 100,
   },
-  tabItem: {
+  ovalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 35,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    shadowColor: '#7B61FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 16,
+    // Add backdrop filter effect for iOS
+    ...(Platform.OS === 'ios' && {
+      backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    }),
+  },
+  tab: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 5,
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    position: 'relative',
   },
   activeTab: {
-    // Active tab styling if needed
+    // Additional styling for active tab if needed
   },
-  tabLabel: {
+  label: {
     fontSize: 12,
-    color: '#999',
     marginTop: 4,
+    color: '#232B3A',
+    letterSpacing: 0.1,
     fontWeight: '500',
   },
-  activeTabLabel: {
-    color: '#333',
+  activeLabel: {
+    color: '#7B61FF',
     fontWeight: '600',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: -12,
+    width: 30,
+    height: 3,
+    backgroundColor: '#7B61FF',
+    borderRadius: 2,
   },
 });
 
