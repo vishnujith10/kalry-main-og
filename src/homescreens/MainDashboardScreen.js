@@ -489,6 +489,7 @@ const MainDashboardScreen = () => {
   const [intake1, setIntake1] = useState(250);
   const [intake2, setIntake2] = useState(500);
   const [hydrationLoading, setHydrationLoading] = useState(true);
+  const [hydrationRecordId, setHydrationRecordId] = useState(null); // Track current day's record ID
 
   useEffect(() => {
     const fetchHydration = async () => {
@@ -511,6 +512,14 @@ const MainDashboardScreen = () => {
         setDailyGoal(data.daily_goal_ml / 1000);
         setIntake1(data.intake1_ml || 250);
         setIntake2(data.intake2_ml || 500);
+        setHydrationRecordId(data.id); // Set the record ID
+      } else {
+        // No record for today, create one
+        await createTodayHydrationRecord(userId, today);
+        setCurrentIntake(0);
+        setDailyGoal(2.5);
+        setIntake1(250);
+        setIntake2(500);
       }
       setHydrationLoading(false);
     };
@@ -536,6 +545,14 @@ const MainDashboardScreen = () => {
           setDailyGoal(data.daily_goal_ml / 1000);
           setIntake1(data.intake1_ml || 250);
           setIntake2(data.intake2_ml || 500);
+          setHydrationRecordId(data.id); // Set the record ID
+        } else {
+          // No record for today, create one
+          await createTodayHydrationRecord(userId, today);
+          setCurrentIntake(0);
+          setDailyGoal(2.5);
+          setIntake1(250);
+          setIntake2(500);
         }
         setHydrationLoading(false);
       };
@@ -543,18 +560,58 @@ const MainDashboardScreen = () => {
     }, [])
   );
 
+  // Create today's hydration record if it doesn't exist
+  const createTodayHydrationRecord = async (userId, today) => {
+    try {
+      const { data, error } = await supabase
+        .from('daily_water_intake')
+        .insert({
+          user_id: userId,
+          date: today,
+          current_intake_ml: 0,
+          daily_goal_ml: 2500,
+          intake1_ml: 250,
+          intake2_ml: 500,
+          goal_status: 'not achieved',
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      setHydrationRecordId(data.id);
+      console.log('Created today hydration record:', data.id);
+    } catch (error) {
+      console.error('Error creating today hydration record:', error);
+    }
+  };
+
   const handleAddWater = async (amount) => {
-    const newIntake = Math.min(currentIntake * 1000 + amount, dailyGoal * 1000);
-    setCurrentIntake(newIntake / 1000);
-    // Update in Supabase
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
-    const today = new Date().toISOString().slice(0, 10);
-    await supabase
-      .from('daily_water_intake')
-      .update({ current_intake_ml: newIntake })
-      .eq('user_id', userId)
-      .eq('date', today);
+    if (!hydrationRecordId) {
+      console.error('No hydration record ID available');
+      return;
+    }
+
+    // Convert amount from ml to L (same as HydrationTrackerScreen)
+    const amountInL = amount / 1000;
+    const newIntake = Math.min(currentIntake + amountInL, dailyGoal);
+    setCurrentIntake(newIntake);
+    
+    try {
+      // Update by record ID (same as HydrationTrackerScreen)
+      const { error } = await supabase
+        .from('daily_water_intake')
+        .update({
+          current_intake_ml: Math.round(newIntake * 1000), // Convert L to ml for database
+          goal_status: newIntake >= dailyGoal ? 'achieved' : 'not achieved',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', hydrationRecordId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating water intake:', error);
+    }
   };
 
   return (
@@ -634,7 +691,7 @@ const MainDashboardScreen = () => {
                   <MaterialCommunityIcons name="water-outline" size={22} color="#A084E8" />
                 </View>
                 <Text style={styles.hydrationTitle}>Water Intake</Text>
-                <Text style={styles.hydrationGoal}>{hydrationLoading ? '--' : `${currentIntake.toFixed(1)}L / ${dailyGoal.toFixed(1)}L`}</Text>
+                <Text style={styles.hydrationGoal}>{hydrationLoading ? '--' : `${currentIntake.toFixed(2)}L / ${dailyGoal.toFixed(1)}L`}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.progressBarBg} onPress={() => navigation.navigate('HydrationTrackerScreen')}>
                 <View style={[styles.progressBarFill, { width: hydrationLoading ? '0%' : `${Math.min(100, (currentIntake / dailyGoal) * 100)}%` }]} />

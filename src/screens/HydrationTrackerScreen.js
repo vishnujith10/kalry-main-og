@@ -593,7 +593,7 @@ const HydrationTrackerScreen = () => {
         <View style={styles.waterContainer}>
           <View style={[styles.waterFill, { height: `${progress}%` }]} />
           <View style={styles.waterTextContainer} pointerEvents="box-none">
-            <Text style={styles.waterAmount}>{currentIntake.toFixed(1)}L</Text>
+            <Text style={styles.waterAmount}>{currentIntake.toFixed(2)}L</Text>
             <Text style={styles.waterGoal}>of {dailyGoal}L</Text>
             <Text style={styles.hydrated}>{Math.round(progress)}% Hydrated</Text>
             {isGoalAchieved && (
