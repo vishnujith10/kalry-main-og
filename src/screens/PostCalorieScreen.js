@@ -64,33 +64,44 @@ const PostCalorieScreen = ({ route, navigation }) => {
     
     if (!calories || calories === 0) return { score: 0, text: 'No Data', info: 'No nutritional data available' };
     
-    let score = 5; // Base score
+    let score = 0; // Start from 0 for more realistic scoring
     
     // Protein balance (ideal: 20-30% of calories)
     const proteinCalories = protein * 4;
     const proteinPercentage = (proteinCalories / calories) * 100;
-    if (proteinPercentage >= 20 && proteinPercentage <= 30) score += 2;
-    else if (proteinPercentage >= 15 && proteinPercentage <= 35) score += 1;
+    if (proteinPercentage >= 20 && proteinPercentage <= 30) score += 3; // Excellent protein
+    else if (proteinPercentage >= 15 && proteinPercentage <= 35) score += 2; // Good protein
+    else if (proteinPercentage >= 10 && proteinPercentage <= 40) score += 1; // Fair protein
+    else if (proteinPercentage < 10) score -= 1; // Very low protein
     
     // Carb balance (ideal: 45-65% of calories)
     const carbCalories = carbs * 4;
     const carbPercentage = (carbCalories / calories) * 100;
-    if (carbPercentage >= 45 && carbPercentage <= 65) score += 1.5;
-    else if (carbPercentage >= 35 && carbPercentage <= 75) score += 0.5;
+    if (carbPercentage >= 45 && carbPercentage <= 65) score += 2.5; // Excellent carbs
+    else if (carbPercentage >= 35 && carbPercentage <= 75) score += 1.5; // Good carbs
+    else if (carbPercentage >= 25 && carbPercentage <= 85) score += 0.5; // Fair carbs
+    else if (carbPercentage > 85) score -= 1; // Too many carbs
     
     // Fat balance (ideal: 20-35% of calories)
     const fatCalories = fat * 9;
     const fatPercentage = (fatCalories / calories) * 100;
-    if (fatPercentage >= 20 && fatPercentage <= 35) score += 1;
-    else if (fatPercentage > 35) score -= 0.5;
+    if (fatPercentage >= 20 && fatPercentage <= 35) score += 2; // Excellent fat
+    else if (fatPercentage >= 15 && fatPercentage <= 40) score += 1; // Good fat
+    else if (fatPercentage >= 10 && fatPercentage <= 45) score += 0.5; // Fair fat
+    else if (fatPercentage > 45) score -= 1; // Too much fat
+    else if (fatPercentage < 10) score -= 0.5; // Too little fat
     
     // Fiber content (good: >10g per meal)
-    if (fiber >= 10) score += 0.5;
-    else if (fiber >= 5) score += 0.25;
+    if (fiber >= 10) score += 1.5; // Excellent fiber
+    else if (fiber >= 7) score += 1; // Good fiber
+    else if (fiber >= 5) score += 0.5; // Fair fiber
+    else if (fiber >= 3) score += 0; // Low fiber
+    else score -= 0.5; // Very low fiber
     
     // Calorie appropriateness (assuming 2000 cal daily, ~600-700 per meal)
-    if (calories >= 400 && calories <= 800) score += 0.5;
-    else if (calories < 200 || calories > 1000) score -= 0.5;
+    if (calories >= 400 && calories <= 800) score += 1; // Good calorie range
+    else if (calories >= 300 && calories <= 1000) score += 0.5; // Acceptable range
+    else if (calories < 200 || calories > 1200) score -= 1; // Poor range
     
     // Cap score between 0 and 10
     score = Math.max(0, Math.min(10, score));
@@ -102,17 +113,47 @@ const PostCalorieScreen = ({ route, navigation }) => {
     else if (score >= 4) healthText = 'Balanced';
     else if (score >= 2) healthText = 'Fair';
     
-    // Generate info text
+    // Generate info text based on actual macro percentages
     let infoText = '';
-    if (proteinPercentage < 20) infoText += 'Low protein content. ';
-    else if (proteinPercentage > 30) infoText += 'High protein content. ';
-    else infoText += 'Good protein balance. ';
     
-    if (fatPercentage > 35) infoText += 'High in fats. ';
-    else infoText += 'Good fat balance. ';
+    // Protein feedback
+    if (proteinPercentage >= 20 && proteinPercentage <= 30) {
+      infoText += 'Excellent protein balance. ';
+    } else if (proteinPercentage >= 15 && proteinPercentage <= 35) {
+      infoText += 'Good protein content. ';
+    } else if (proteinPercentage >= 10 && proteinPercentage <= 40) {
+      infoText += 'Fair protein content. ';
+    } else if (proteinPercentage < 10) {
+      infoText += 'Low protein content. ';
+    } else {
+      infoText += 'High protein content. ';
+    }
     
-    if (fiber >= 10) infoText += `Rich in fiber (${fiber}g).`;
-    else infoText += `Low fiber content (${fiber}g).`;
+    // Fat feedback
+    if (fatPercentage >= 20 && fatPercentage <= 35) {
+      infoText += 'Good fat balance. ';
+    } else if (fatPercentage >= 15 && fatPercentage <= 40) {
+      infoText += 'Acceptable fat content. ';
+    } else if (fatPercentage > 45) {
+      infoText += 'High in fats. ';
+    } else if (fatPercentage < 10) {
+      infoText += 'Low fat content. ';
+    } else {
+      infoText += 'Moderate fat content. ';
+    }
+    
+    // Fiber feedback
+    if (fiber >= 10) {
+      infoText += `Excellent fiber content (${fiber}g).`;
+    } else if (fiber >= 7) {
+      infoText += `Good fiber content (${fiber}g).`;
+    } else if (fiber >= 5) {
+      infoText += `Fair fiber content (${fiber}g).`;
+    } else if (fiber >= 3) {
+      infoText += `Low fiber content (${fiber}g).`;
+    } else {
+      infoText += `Very low fiber content (${fiber}g).`;
+    }
     
     return { score: Math.round(score * 10) / 10, text: healthText, info: infoText };
   };
@@ -129,6 +170,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
     if (name.includes('chicken') || name.includes('meat') || name.includes('fish')) return '🍗';
     if (name.includes('vegetable') || name.includes('greens') || name.includes('salad')) return '🥬';
     if (name.includes('fruit') || name.includes('apple') || name.includes('banana')) return '🍎';
+    if (name.includes('juice')) return '🧃';
     if (name.includes('egg')) return '🥚';
     if (name.includes('milk') || name.includes('cheese') || name.includes('yogurt')) return '🥛';
     if (name.includes('nut') || name.includes('seed')) return '🥜';
@@ -318,6 +360,17 @@ const PostCalorieScreen = ({ route, navigation }) => {
         ingredients.push({ name: 'Mixed Vegetables', amount: '60g', icon: '🥬' });
       }
     }
+    else if (name.includes('juice') && !ingredients.length) {
+      if (name.includes('orange')) {
+        ingredients.push({ name: 'Orange Juice', amount: '250ml', icon: '🍊' });
+      } else if (name.includes('apple')) {
+        ingredients.push({ name: 'Apple Juice', amount: '250ml', icon: '🍎' });
+      } else if (name.includes('mango')) {
+        ingredients.push({ name: 'Mango Juice', amount: '250ml', icon: '🥭' });
+      } else {
+        ingredients.push({ name: 'Fruit Juice', amount: '250ml', icon: '🧃' });
+      }
+    }
     
     return ingredients;
   };
@@ -331,14 +384,49 @@ const PostCalorieScreen = ({ route, navigation }) => {
         
         // First, try to get ingredients from analysis
         if (analysis?.items && Array.isArray(analysis.items) && analysis.items.length > 0) {
-          const newIngredients = analysis.items.map(item => ({
-            name: item?.name || 'Unknown Ingredient',
-            amount: item?.quantity || '1 serving',
-            calories: Math.round(item?.calories || 0),
-            icon: getIngredientIcon(item?.name || ''),
-          }));
-          setIngredients(newIngredients);
-          return;
+          // Check if items are complete dishes (like "1 chicken sandwich") or ingredients
+          const firstItem = analysis.items[0];
+          const isCompleteDish = firstItem?.name && (
+            firstItem.name.includes('sandwich') || 
+            firstItem.name.includes('burger') || 
+            firstItem.name.includes('pizza') || 
+            firstItem.name.includes('juice') ||
+            firstItem.name.includes('salad') ||
+            firstItem.name.includes('soup') ||
+            firstItem.name.includes('pasta') ||
+            firstItem.name.includes('rice')
+          );
+          
+          if (isCompleteDish) {
+            // If items are complete dishes, extract ingredients from meal name instead
+            const mealNameToUse = mealNameState || analysis?.dish_name || 'Meal';
+            const mainIngredients = extractMainIngredients(mealNameToUse);
+            if (mainIngredients.length > 0) {
+              const totalCalories = analysis?.total?.calories || analysis?.total_nutrition?.calories || 0;
+              const caloriesPerIngredient = Math.round(totalCalories / mainIngredients.length);
+              
+              const newIngredients = mainIngredients.map((ingredient, index) => ({
+                name: ingredient.name,
+                amount: ingredient.amount,
+                calories: index === mainIngredients.length - 1 ? 
+                  totalCalories - (caloriesPerIngredient * (mainIngredients.length - 1)) : 
+                  caloriesPerIngredient,
+                icon: ingredient.icon,
+              }));
+              setIngredients(newIngredients);
+              return;
+            }
+          } else {
+            // If items are actual ingredients, use them directly
+            const newIngredients = analysis.items.map(item => ({
+              name: item?.name || 'Unknown Ingredient',
+              amount: item?.quantity || '1 serving',
+              calories: Math.round(item?.calories || 0),
+              icon: getIngredientIcon(item?.name || ''),
+            }));
+            setIngredients(newIngredients);
+            return;
+          }
         }
         
         // If no analysis items, extract main ingredients from meal name

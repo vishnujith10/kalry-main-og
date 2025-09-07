@@ -83,6 +83,16 @@ const LoginScreen = ({ navigation }) => {
         .single();
 
       if (!profile) {
+        // For production: Verify session exists after login
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          console.error('No session found after login - this should not happen');
+          Alert.alert('Error', 'Login failed to establish session. Please try again.');
+          return;
+        }
+        
+        console.log('Session verified, proceeding with profile creation...');
+
         // Insert onboardingData
         const userProfile = {
           id: user.id,
@@ -101,6 +111,8 @@ const LoginScreen = ({ navigation }) => {
           total_days_per_week: Number(onboardingData.total_days_per_week),
           prefered_time: onboardingData.prefered_time,
         };
+        
+        console.log('Attempting to insert profile for user:', user.id);
         const { error: insertError } = await supabase
           .from('user_profile')
           .insert([userProfile]);

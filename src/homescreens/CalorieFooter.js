@@ -333,13 +333,52 @@ const VoiceLoggingModal = ({ visible, onClose, onLog, mealType }) => {
     try {
       const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
       const audioData = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-      const prompt = `Analyze the food items in this audio. Your response MUST be a single valid JSON object and nothing else. Do not include markdown formatting like \`\`\`json. The JSON object must have this structure: { "transcription": "The full text of what you heard", "items": [ { "name": "food item", "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } ], "total": { "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } }`;
+      const prompt = `Analyze the food items in this audio. Your response MUST be a single valid JSON object and nothing else. Do not include markdown formatting like \`\`\`json.
+
+🚨 CRITICAL QUANTITY PRESERVATION RULES 🚨
+1. If the audio does NOT contain any food items or is unclear, respond with: {"error": "No food items detected. Please speak clearly about what you ate."}
+
+2. 🚨 MOST IMPORTANT: ALWAYS preserve EXACT quantities and units mentioned in the audio:
+   - If user says "200 grams of black beans" → you MUST output "200g black beans" (NOT "1 black beans")
+   - If user says "150 grams of chicken" → you MUST output "150g chicken" (NOT "1 chicken")
+   - If user says "1 cup of rice" → you MUST output "1 cup rice" (NOT "1 rice")
+   - If user says "2 slices of bread" → you MUST output "2 bread" (NOT "1 bread")
+   - If user says "500ml juice" → you MUST output "500ml juice" (NOT "1 juice")
+
+3. 🚨 QUANTITY CONVERSION RULES:
+   - "grams" → "g" (e.g., "200 grams" → "200g")
+   - "milliliters" → "ml" (e.g., "500 milliliters" → "500ml")
+   - "cups" → "cup" (e.g., "1 cup" → "1 cup")
+   - "slices" → "slice" (e.g., "2 slices" → "2")
+   - "pieces" → "piece" (e.g., "3 pieces" → "3")
+
+4. 🚨 EXAMPLES OF CORRECT EXTRACTION:
+   - "I had 200 grams of black beans" → extract "200g black beans"
+   - "I ate 150 grams of chicken" → extract "150g chicken"
+   - "I had 1 cup of rice" → extract "1 cup rice"
+   - "I ate 2 slices of pizza" → extract "2 pizza"
+   - "I had a chicken sandwich and a juice" → extract "1 chicken sandwich" and "1 juice"
+   - "I had a burger and fries" → extract "1 burger" and "1 fries"
+
+5. 🚨 WRONG EXAMPLES (DO NOT DO THIS):
+   - "200 grams of black beans" → "1 black beans" ❌ WRONG!
+   - "150g chicken" → "1 chicken" ❌ WRONG!
+   - "1 cup rice" → "1 rice" ❌ WRONG!
+
+6. If no specific quantity is mentioned, assume quantity of 1 (e.g., "1 sandwich", "1 juice")
+
+The JSON object must have this structure: 
+{ "transcription": "The full text of what you heard", "items": [ { "name": "EXACT_QUANTITY + food item", "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } ], "total": { "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number> } }`;
       const result = await model.generateContent([prompt, { inlineData: { mimeType: 'audio/mp4', data: audioData } }]);
       const response = await result.response;
       let text = response.text();
+      
+      console.log('CalorieFooter - Raw AI response:', text);
+      
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const jsonString = jsonMatch[0];
+        console.log('CalorieFooter - Extracted JSON:', jsonString);
         const data = JSON.parse(jsonString);
         if (!data.total || !Array.isArray(data.items) || !data.transcription) {
           throw new Error('Invalid JSON structure from API.');

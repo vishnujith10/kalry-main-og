@@ -3,15 +3,15 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useState } from "react";
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import supabase from "../lib/supabase";
 
@@ -82,10 +82,17 @@ IMPORTANT RULES:
    - "some apples and a sandwich" → extract "1 apple" and "1 sandwich"
    - "3 pieces of pizza" → extract "3 pizza"
 
-5. ALWAYS include quantities in the food names (e.g., "200g black beans", "2 bread", "1 omelette", "3 apple")
+5. CRITICAL: ALWAYS preserve EXACT quantities and units mentioned:
+   - "200 grams of black beans" → "200g black beans" (NOT "1 black beans")
+   - "150g chicken" → "150g chicken" (NOT "1 chicken")
+   - "1 cup rice" → "1 cup rice" (NOT "1 rice")
+   - "2 slices bread" → "2 bread" (NOT "1 bread")
+   - "500ml juice" → "500ml juice" (NOT "1 juice")
+
 6. If no specific quantity is mentioned, assume quantity of 1 (e.g., "1 sandwich", "1 rice")
 7. Convert words to numbers: "one" → "1", "two" → "2", "three" → "3", etc.
-8. Use CONSISTENT calorie values for similar foods:
+8. Convert units: "grams" → "g", "milliliters" → "ml", "cups" → "cup", "slices" → "slice"
+9. Use CONSISTENT calorie values for similar foods:
    - "omelette", "mini omelette", "egg omelette" → use same calorie value (~90-120 calories per omelette)
    - "bread", "slice of bread", "bread slice" → use same calorie value (~80-100 calories per slice)
    - "apple", "red apple", "green apple" → use same calorie value (~80-100 calories per apple)

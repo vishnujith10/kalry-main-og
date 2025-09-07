@@ -2,15 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import supabase from '../lib/supabase';
 
@@ -112,19 +112,24 @@ const PersonalInfoScreen = () => {
     try {
       console.log('Fetching user profile...');
       
-      // Fetch user profile data for Vishnujith
-      const { data: profile, error } = await supabase
-        .from('user_profile')
-        .select('*')
-        .eq('name', 'Vishnujith')
-        .single();
+      // Get current authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile, error } = await supabase
+          .from('user_profile')
+          .select('*')
+          .eq('id', user.id)
+          .single();
 
-      console.log('User profile response:', { profile, error });
+        console.log('User profile response:', { profile, error });
 
-      if (error) {
-        console.error('Error fetching user profile:', error);
+        if (error) {
+          console.error('Error fetching user profile:', error);
+        } else {
+          setUserProfile(profile);
+        }
       } else {
-        setUserProfile(profile);
+        console.log('No authenticated user found');
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);

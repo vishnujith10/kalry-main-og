@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Platform,
   ScrollView,
   StatusBar,
@@ -10,6 +11,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import supabase from '../lib/supabase';
 
 // Updated FooterBar component with oval design
 const FooterBar = ({ navigation, activeTab }) => {
@@ -75,6 +77,47 @@ const FooterBar = ({ navigation, activeTab }) => {
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
+  const [userProfile, setUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+  
+  const fetchUserProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from('user_profile')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching user profile:', error);
+        } else {
+          setUserProfile(data);
+        }
+      }
+    } catch (error) {
+      console.error('Error in fetchUserProfile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#E8E9F0" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#7B61FF" />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </View>
+    );
+  }
   
   return (
     <View style={styles.container}>
@@ -101,7 +144,7 @@ const ProfileScreen = () => {
             </TouchableOpacity>
           </View>
           
-          <Text style={styles.profileName}>Sophia Carter</Text>
+          <Text style={styles.profileName}>{userProfile?.name || 'User'}</Text>
           <Text style={styles.profileStatement}>Your Kalry Statement</Text>
        
         </View>
@@ -141,7 +184,10 @@ const ProfileScreen = () => {
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('Preferences')}
+          >
             <View style={styles.settingLeft}>
               <Ionicons name="options-outline" size={20} color="#666" />
               <View style={styles.settingText}>
@@ -418,6 +464,17 @@ const footerStyles = StyleSheet.create({
     height: 3,
     backgroundColor: '#7B61FF',
     borderRadius: 2,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#E8E9F0',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
 });
 

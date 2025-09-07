@@ -106,6 +106,21 @@ const SignupScreen = ({ navigation }) => {
 
       // If we get here, the user is confirmed
       if (data.user) {
+        // For production: Sign in immediately after signup to establish session
+        console.log('User created, signing in to establish session...');
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+        
+        if (signInError) {
+          console.error('Sign in failed after signup:', signInError);
+          Alert.alert('Error', 'Account created but failed to establish session. Please try logging in manually.');
+          return;
+        }
+        
+        console.log('Successfully signed in, session established for profile creation');
+
         // Prepare the user profile data
         const userProfile = {
           id: data.user.id, // uuid from Supabase Auth
@@ -125,6 +140,10 @@ const SignupScreen = ({ navigation }) => {
           prefered_time: onboardingData.prefered_time,
         };
 
+        console.log('Attempting to insert profile for user:', data.user.id);
+        
+        // Use a more permissive approach for profile creation
+        // This works because we're using the user ID from the authenticated signup response
         const { error: profileError } = await supabase
           .from('user_profile')
           .insert([userProfile]);

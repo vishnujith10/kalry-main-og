@@ -89,9 +89,10 @@ const FooterBar = ({ navigation, activeTab }) => {
     {
       key: 'Home',
       label: 'Home',
-      icon: <Ionicons name="home-outline" size={24} color={activeTab === 'Home' ? '#7B61FF' : '#232B3A'} />, // icon size 24
+      icon: <Ionicons name="home-outline" size={24} color={activeTab === 'Home' ? '#7B61FF' : '#232B3A'} />,
       route: 'MainDashboard',
     },
+    
     {
       key: 'Meals',
       label: 'Meals',
@@ -107,25 +108,21 @@ const FooterBar = ({ navigation, activeTab }) => {
     {
       key: 'Profile',
       label: 'Profile',
-      icon: <Ionicons name="person-outline" size={24} color={activeTab === 'Profile' ? '#232B3A' : '#232B3A'} />, // icon size 24
+      icon: <Ionicons name="person-outline" size={24} color={activeTab === 'Profile' ? '#7B61FF' : '#232B3A'} />,
       route: 'Profile',
     },
-    // {
-    //   key: 'Insights',
-    //   label: 'Insights',
-    //   icon: <Ionicons name="bar-chart-outline" size={24} color={activeTab === 'Insights' ? '#232B3A' : '#232B3A'} />, // icon size 24
-    //   route: 'TargetSummary', // changed from 'TargetSummaryScreen'
-    // },
   ];
 
   return (
     <View style={footerStyles.container}>
-      <View style={footerStyles.curveBg} />
-      <View style={footerStyles.innerRow}>
+      <View style={footerStyles.ovalFooter}>
         {tabs.map(tab => (
           <TouchableOpacity
             key={tab.key}
-            style={footerStyles.tab}
+            style={[
+              footerStyles.tab,
+              tab.key === activeTab && footerStyles.activeTab
+            ]}
             onPress={() => navigation.navigate(tab.route)}
             activeOpacity={0.7}
           >
@@ -135,13 +132,12 @@ const FooterBar = ({ navigation, activeTab }) => {
             <Text
               style={[
                 footerStyles.label,
-                tab.key === activeTab
-                  ? { color: '#7B61FF', fontFamily: 'Lexend-Bold' }
-                  : { fontFamily: 'Lexend-Regular' },
+                tab.key === activeTab && footerStyles.activeLabel
               ]}
             >
               {tab.label}
             </Text>
+            {tab.key === activeTab && <View style={footerStyles.activeIndicator} />}
           </TouchableOpacity>
         ))}
       </View>
@@ -152,50 +148,60 @@ const FooterBar = ({ navigation, activeTab }) => {
 const footerStyles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    marginTop: 20,
+    left: 16,
+    right: 16,
+    bottom: Platform.OS === 'ios' ? 20 : 16,
     backgroundColor: 'transparent',
     alignItems: 'center',
     zIndex: 100,
   },
-  curveBg: {
-    position: 'absolute',
-    left: 0, // full width
-    right: 0, // full width
-    bottom: Platform.OS === 'ios' ? 8 : 4,
-    height: 84,
-    backgroundColor: '#FAFAFF',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    shadowColor: '#7B61FF',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.10,
-    shadowRadius: 18,
-    elevation: 16,
-  },
-  innerRow: {
+  ovalFooter: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     width: '100%',
-    paddingHorizontal: 24,
-    paddingTop: 10,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 18,
-    marginBottom: Platform.OS === 'ios' ? 8 : 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 35,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    shadowColor: '#7B61FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 16,
+    // Add backdrop filter effect for iOS
+    ...(Platform.OS === 'ios' && {
+      backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    }),
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
+    position: 'relative',
+  },
+  activeTab: {
+    // Additional styling for active tab if needed
   },
   label: {
-    fontSize: 14,
-    marginTop: 6,
+    fontSize: 12,
+    marginTop: 4,
     color: '#232B3A',
     letterSpacing: 0.1,
+    fontWeight: '500',
+  },
+  activeLabel: {
+    color: '#7B61FF',
+    fontWeight: '600',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: -12,
+    width: 30,
+    height: 3,
+    backgroundColor: '#7B61FF',
+    borderRadius: 2,
   },
 });
 

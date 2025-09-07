@@ -181,52 +181,55 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
           });
           const prompt = `Analyze the food items in this audio. Your response MUST be a single valid JSON object and nothing else. Do not include markdown formatting like \`\`\`json.
 
-IMPORTANT RULES:
+🚨 CRITICAL QUANTITY PRESERVATION RULES 🚨
 1. If the audio does NOT contain any food items or is unclear, respond with: {"error": "No food items detected. Please speak clearly about what you ate."}
-2. CRITICAL: ALWAYS preserve the EXACT quantities mentioned in the audio (e.g., "200g black beans" → "200g black beans", NOT "1 black beans")
-3. Extract ONLY the essential food name and quantity. REMOVE unnecessary words like:
-   - "plate of", "bowl of", "cup of", "piece of", "slice of"
-   - "some", "a bit of", "portion of"
-   - "with", "and", "plus", "along with"
-   - "during", "for", "at", "in"
-   - Any descriptive words that aren't part of the food name
 
-4. Examples of correct extraction:
-   - "I had 200g of black beans" → extract "200g black beans"
-   - "I ate 2 slices of bread" → extract "2 bread"
-   - "I had a bowl of rice with chicken" → extract "1 rice" and "1 chicken"
-   - "I ate some apples and a sandwich" → extract "1 apple" and "1 sandwich"
+2. 🚨 MOST IMPORTANT: ALWAYS preserve EXACT quantities and units mentioned in the audio:
+   - If user says "200 grams of black beans" → you MUST output "200g black beans" (NOT "1 black beans")
+   - If user says "150 grams of chicken" → you MUST output "150g chicken" (NOT "1 chicken")
+   - If user says "1 cup of rice" → you MUST output "1 cup rice" (NOT "1 rice")
+   - If user says "2 slices of bread" → you MUST output "2 bread" (NOT "1 bread")
+   - If user says "500ml juice" → you MUST output "500ml juice" (NOT "1 juice")
+
+3. 🚨 QUANTITY CONVERSION RULES:
+   - "grams" → "g" (e.g., "200 grams" → "200g")
+   - "milliliters" → "ml" (e.g., "500 milliliters" → "500ml")
+   - "cups" → "cup" (e.g., "1 cup" → "1 cup")
+   - "slices" → "slice" (e.g., "2 slices" → "2")
+   - "pieces" → "piece" (e.g., "3 pieces" → "3")
+
+4. 🚨 EXAMPLES OF CORRECT EXTRACTION:
+   - "I had 200 grams of black beans" → extract "200g black beans"
+   - "I ate 150 grams of chicken" → extract "150g chicken"
+   - "I had 1 cup of rice" → extract "1 cup rice"
+   - "I ate 2 slices of pizza" → extract "2 pizza"
+   - "I had a chicken sandwich and a juice" → extract "1 chicken sandwich" and "1 juice"
+   - "I ate 2 apples and a sandwich" → extract "2 apple" and "1 sandwich"
    - "I had 3 pieces of pizza" → extract "3 pizza"
+   - "I had a burger and fries" → extract "1 burger" and "1 fries"
 
-5. ALWAYS include quantities in the food names (e.g., "200g black beans", "2 bread", "1 omelette", "3 apple")
-6. If no specific quantity is mentioned, assume quantity of 1 (e.g., "1 sandwich", "1 rice")
+5. 🚨 WRONG EXAMPLES (DO NOT DO THIS):
+   - "200 grams of black beans" → "1 black beans" ❌ WRONG!
+   - "150g chicken" → "1 chicken" ❌ WRONG!
+   - "1 cup rice" → "1 rice" ❌ WRONG!
+
+6. If no specific quantity is mentioned, assume quantity of 1 (e.g., "1 sandwich", "1 juice")
 7. Convert words to numbers: "one" → "1", "two" → "2", "three" → "3", etc.
-8. Use CONSISTENT calorie values for similar foods:
-   - "omelette", "mini omelette", "egg omelette" → use same calorie value (~90-120 calories per omelette)
-   - "bread", "slice of bread", "bread slice" → use same calorie value (~80-100 calories per slice)
-   - "apple", "red apple", "green apple" → use same calorie value (~80-100 calories per apple)
-   - "rice", "white rice", "cooked rice" → use same calorie value (~200-250 calories per cup)
-   - "biryani", "chicken biryani", "vegetable biryani" → use same calorie value (~300-400 calories per serving)
-9. CRITICAL: Calculate nutrition values based on the ACTUAL quantities mentioned, not standard serving sizes
-10. IMPORTANT: Provide realistic fiber values based on the food type:
-    - Fruits and vegetables: 2-8g fiber per serving
-    - Whole grains and breads: 2-4g fiber per serving  
-    - Legumes and beans: 5-15g fiber per serving
-    - Nuts and seeds: 2-6g fiber per serving
-    - Processed foods: 0-2g fiber per serving
 
-11. CRITICAL: For complex dishes, break them down into their main ingredients:
-    - "masala dosa" → break into: "1 dosa", "100g potato masala", "50ml sambar", "30ml chutney"
-    - "chicken biryani" → break into: "200g basmati rice", "150g chicken", "10g biryani spices"
-    - "pizza" → break into: "2-3 pizza slices", "60g cheese", "80g toppings"
-    - "burger" → break into: "1 burger bun", "120g patty", "50g vegetables & sauce"
-    - "curry with rice" → break into: "200g curry", "150g rice"
-    - "sandwich" → break into: "2 bread slices", "100g filling", "30g cheese"
-    - "pasta" → break into: "150g pasta", "100g sauce", "40g cheese"
-    - "salad" → break into: "150g mixed greens", "100g protein", "30ml dressing"
+8. 🚨 NUTRITION CALCULATION FOR GRAM-BASED ITEMS:
+   - For "200g black beans": Calculate 2x the nutrition of 100g black beans
+   - For "150g chicken": Calculate 1.5x the nutrition of 100g chicken
+   - Black beans: ~120 calories per 100g, 8g protein, 22g carbs, 0.5g fat, 7g fiber
+   - Chicken: ~165 calories per 100g, 31g protein, 0g carbs, 3.6g fat, 0g fiber
+
+9. For complete dishes, use standard values:
+   - Chicken sandwich: ~450 calories, 25g protein, 35g carbs, 20g fat, 3g fiber
+   - Juice: ~120 calories, 1g protein, 30g carbs, 0g fat, 1g fiber
+   - Pizza: ~280 calories, 12g protein, 30g carbs, 12g fat, 2g fiber
+   - Burger: ~550 calories, 30g protein, 40g carbs, 25g fat, 3g fiber
 
 The JSON object must have this structure: 
-{ "transcription": "The full text of what you heard", "items": [ { "name": "quantity + food item", "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number>, "fiber": <number> } ], "total": { "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number>, "fiber": <number> } }`;
+{ "transcription": "The full text of what you heard", "items": [ { "name": "EXACT_QUANTITY + food item", "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number>, "fiber": <number> } ], "total": { "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number>, "fiber": <number> } }`;
           
           const result = await model.generateContent([
             prompt,
@@ -234,10 +237,14 @@ The JSON object must have this structure:
           ]);
           const response = await result.response;
           let text = response.text();
+          
+          console.log('VoiceCalorieScreen - Raw AI response:', text);
+          
           const jsonMatch = text.match(/\{[\s\S]*\}/);
           
           if (jsonMatch) {
             const jsonString = jsonMatch[0];
+            console.log('VoiceCalorieScreen - Extracted JSON:', jsonString);
             const data = JSON.parse(jsonString);
             // Check for error response
             if (data.error) {

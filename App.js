@@ -33,6 +33,7 @@ import MiniProfileScreen from './src/screens/MiniProfileScreen';
 import PersonalInfoScreen from './src/screens/PersonalInfoScreen';
 import PhotoCalorieScreen from './src/screens/PhotoCalorieScreen';
 import PostCalorieScreen from './src/screens/PostCalorieScreen';
+import PreferencesScreen from './src/screens/PreferencesScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
 import QuickLogScreen from './src/screens/QuickLogScreen';
@@ -159,6 +160,7 @@ export default function App() {
             <Stack.Screen name="ProgressScreen" component={ProgressScreen} />
             <Stack.Screen name="WorkoutSaveScreen" component={WorkoutSaveScreen} />
             <Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
+            <Stack.Screen name="Preferences" component={PreferencesScreen} />
             <Stack.Screen name="MiniProfile" component={MiniProfileScreen} />
           </Stack.Navigator>
         </NavigationContainer>
