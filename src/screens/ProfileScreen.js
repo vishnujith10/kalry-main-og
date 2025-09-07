@@ -198,12 +198,15 @@ const ProfileScreen = () => {
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('AppSettings')}
+          >
             <View style={styles.settingLeft}>
-              <Ionicons name="link-outline" size={20} color="#666" />
+              <Ionicons name="settings-outline" size={20} color="#666" />
               <View style={styles.settingText}>
-                <Text style={styles.settingTitle}>Connected Devices</Text>
-                <Text style={styles.settingSubtitle}>Sync with Apple Health, Google Fit</Text>
+                <Text style={styles.settingTitle}>App Settings</Text>
+                <Text style={styles.settingSubtitle}>Notifications, AI Insights, Privacy</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#999" />
@@ -211,10 +214,10 @@ const ProfileScreen = () => {
 
           <TouchableOpacity style={styles.settingItem}>
             <View style={styles.settingLeft}>
-              <Ionicons name="settings-outline" size={20} color="#666" />
+              <Ionicons name="link-outline" size={20} color="#666" />
               <View style={styles.settingText}>
-                <Text style={styles.settingTitle}>App Settings</Text>
-                <Text style={styles.settingSubtitle}>Notifications, AI Insights</Text>
+                <Text style={styles.settingTitle}>Connected Devices</Text>
+                <Text style={styles.settingSubtitle}>Sync with Apple Health, Google Fit</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#999" />

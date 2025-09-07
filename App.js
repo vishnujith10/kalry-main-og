@@ -13,6 +13,7 @@ import MainDashboardScreen from './src/homescreens/MainDashboardScreen';
 import ActivityLevelScreen from './src/screens/ActivityLevelScreen';
 import AddWeightScreen from './src/screens/AddWeightScreen';
 import AllExercisesScreen from './src/screens/AllExercisesScreen';
+import AppSettingsScreen from './src/screens/AppSettingsScreen';
 import AuthLoadingScreen from './src/screens/AuthLoadingScreen';
 import CardioPlayerScreen from './src/screens/CardioPlayerScreen';
 import CategoryWorkoutsScreen from './src/screens/CategoryWorkoutsScreen';
@@ -161,6 +162,7 @@ export default function App() {
             <Stack.Screen name="WorkoutSaveScreen" component={WorkoutSaveScreen} />
             <Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
             <Stack.Screen name="Preferences" component={PreferencesScreen} />
+            <Stack.Screen name="AppSettings" component={AppSettingsScreen} />
             <Stack.Screen name="MiniProfile" component={MiniProfileScreen} />
           </Stack.Navigator>
         </NavigationContainer>

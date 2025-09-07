@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { loadCardioSessions } from '../lib/cardioSessionApi';
 import { useNavigation } from '@react-navigation/native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Text, TouchableOpacity, View } from 'react-native';
+import { loadCardioSessions } from '../lib/cardioSessionApi';
 import supabase from '../lib/supabase';
 
 export default function SavedCardioSessionsScreen() {

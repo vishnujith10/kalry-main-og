@@ -5,6 +5,7 @@ import {
   Animated,
   Dimensions,
   Keyboard,
+  Modal,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -48,11 +49,16 @@ export default function StartWorkoutScreen({ navigation, route }) {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [gifErrors, setGifErrors] = useState({}); // Track GIF loading errors
   const [showMenuForExercise, setShowMenuForExercise] = useState(null); // Track which exercise menu is open
+  const [activeTimers, setActiveTimers] = useState({}); // Track active timers for each set
+  const [showTimerModal, setShowTimerModal] = useState(false); // Show timer modal
+  const [isWorkoutPaused, setIsWorkoutPaused] = useState(false); // Track if workout is paused
+  const [pausedTime, setPausedTime] = useState(0); // Track paused duration
   
   const timerStartedRef = useRef(false);
   const workoutTimeRef = useRef(0);
   const previousExercisesRef = useRef([]);
   const intentionallyClearingRef = useRef(false);
+  const setTimersRef = useRef({}); // Store timer intervals for each set
 
   // Get exercises from route params if available
   useEffect(() => {
@@ -60,7 +66,14 @@ export default function StartWorkoutScreen({ navigation, route }) {
       const routeExercises = route.params.exercises.map(ex => ({
         ...ex,
         id: generateUniqueId(),
-        sets: [{ id: generateUniqueId(), weight: '', reps: '', completed: false }]
+        sets: [{ 
+          id: generateUniqueId(), 
+          weight: '', 
+          reps: '', 
+          distance: '',
+          time: '00:00',
+          completed: false 
+        }]
       }));
       setExercises(routeExercises);
     }
@@ -68,6 +81,118 @@ export default function StartWorkoutScreen({ navigation, route }) {
 
   // Generate unique ID
   const generateUniqueId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+  // Determine exercise type based on name and category
+  const getExerciseType = (exercise) => {
+    const name = (exercise.workout || exercise.name || '').toLowerCase();
+    const category = (exercise.category || exercise.type || '').toLowerCase();
+    
+    // Cardio exercises that need KM and TIME
+    const cardioExercises = [
+      'running', 'jogging', 'elliptical', 'treadmill', 'cycling', 'bike', 'bicycle',
+      'walking', 'hiking', 'swimming', 'rowing', 'stair', 'climbing'
+    ];
+    
+    // Timer exercises that need timer functionality
+    const timerExercises = [
+      'battle ropes', 'rope', 'plank', 'wall sit', 'hold', 'isometric', 'static',
+      'meditation', 'breathing', 'stretch', 'yoga', 'balance'
+    ];
+    
+    // Check if it's a cardio exercise
+    if (cardioExercises.some(cardio => name.includes(cardio)) || category.includes('cardio')) {
+      return 'cardio';
+    }
+    
+    // Check if it's a timer exercise
+    if (timerExercises.some(timer => name.includes(timer)) || category.includes('timer')) {
+      return 'timer';
+    }
+    
+    // Default to strength
+    return 'strength';
+  };
+
+  // Format time in MM:SS format
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Parse time from MM:SS format
+  const parseTime = (timeString) => {
+    if (!timeString || timeString === '00:00') return 0;
+    const [mins, secs] = timeString.split(':').map(Number);
+    return (mins * 60) + secs;
+  };
+
+  // Start timer for a specific set
+  const startSetTimer = (exerciseId, setId) => {
+    const timerKey = `${exerciseId}-${setId}`;
+    
+    // Clear existing timer if any
+    if (setTimersRef.current[timerKey]) {
+      clearInterval(setTimersRef.current[timerKey]);
+    }
+    
+    // Start new timer
+    setTimersRef.current[timerKey] = setInterval(() => {
+      setActiveTimers(prev => ({
+        ...prev,
+        [timerKey]: (prev[timerKey] || 0) + 1
+      }));
+    }, 1000);
+    
+    setActiveTimers(prev => ({
+      ...prev,
+      [timerKey]: prev[timerKey] || 0
+    }));
+  };
+
+  // Stop timer for a specific set
+  const stopSetTimer = (exerciseId, setId) => {
+    const timerKey = `${exerciseId}-${setId}`;
+    
+    if (setTimersRef.current[timerKey]) {
+      clearInterval(setTimersRef.current[timerKey]);
+      delete setTimersRef.current[timerKey];
+    }
+  };
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(setTimersRef.current).forEach(clearInterval);
+    };
+  }, []);
+
+  // Handle workout pause
+  const pauseWorkout = () => {
+    setIsWorkoutPaused(true);
+    setIsRunning(false);
+    setShowTimerModal(false);
+  };
+
+  // Handle workout resume
+  const resumeWorkout = () => {
+    setIsWorkoutPaused(false);
+    setIsRunning(true);
+    setShowTimerModal(false);
+  };
+
+  // Get formatted start time
+  const getFormattedStartTime = () => {
+    const now = new Date();
+    return now.toLocaleDateString('en-US', { 
+      year: 'numeric',
+      month: 'short', 
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
 
   // Helper function to clean and decode GIF URL
   const getCleanGifUrl = (url) => {
@@ -126,12 +251,6 @@ export default function StartWorkoutScreen({ navigation, route }) {
     };
   }, []);
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const formatDate = () => {
     const today = new Date();
     const options = { 
@@ -165,10 +284,14 @@ export default function StartWorkoutScreen({ navigation, route }) {
 
   const addSet = (exerciseId) => {
     const exercise = exercises.find(ex => ex.id === exerciseId);
+    const exerciseType = getExerciseType(exercise);
+    
     const newSet = {
       id: generateUniqueId(),
       weight: '',
       reps: '',
+      distance: '', // For cardio exercises (KM)
+      time: '00:00', // For cardio and timer exercises
       completed: false,
     };
     
@@ -332,8 +455,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
   const { totalKcal, totalWeight, totalSets } = getTotalStats();
 
   return (
-    <TouchableWithoutFeedback onPress={() => setShowMenuForExercise(null)}>
-      <View style={styles.container}>
+    <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
       
       {/* Header */}
@@ -361,8 +483,14 @@ export default function StartWorkoutScreen({ navigation, route }) {
         <View style={styles.timerRow}>
           <View style={styles.timerIndicator}>
             <View style={styles.timerDot} />
-            <Text style={styles.timerText}>Started {formatStartTime()} ({formatTime(workoutTime)})</Text>
+            <Text style={styles.timerText}>Started {formatStartTime()}</Text>
           </View>
+          <TouchableOpacity 
+            style={styles.timerButton}
+            onPress={() => setShowTimerModal(true)}
+          >
+            <Text style={styles.timerButtonText}>{formatTime(workoutTime)}</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -390,13 +518,17 @@ export default function StartWorkoutScreen({ navigation, route }) {
       </View>
 
       {/* Exercises List */}
-      <ScrollView 
-        style={styles.exercisesList}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.exercisesContent}
-        keyboardShouldPersistTaps="handled"
-        onScrollBeginDrag={() => Keyboard.dismiss()}
-      >
+      <TouchableWithoutFeedback onPress={() => setShowMenuForExercise(null)}>
+        <ScrollView 
+          style={styles.exercisesList}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.exercisesContent}
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={() => Keyboard.dismiss()}
+          scrollEventThrottle={16}
+          bounces={true}
+          alwaysBounceVertical={false}
+        >
         {exercises.length === 0 ? (
           <View style={styles.emptyState}>
             <MaterialCommunityIcons 
@@ -406,12 +538,59 @@ export default function StartWorkoutScreen({ navigation, route }) {
             />
             <Text style={styles.emptyStateTitle}>No Exercises Added</Text>
             <Text style={styles.emptyStateSubtitle}>
-              Tap "Add Exercise" below to start building your workout
+              Tap &quot;Add Exercise&quot; below to start building your workout
             </Text>
+            
+            {/* Add Exercise Button for Empty State */}
+            <TouchableOpacity 
+              style={styles.addExerciseButtonInline}
+              onPress={() => {
+                navigation.navigate('AllExercisesScreen', {
+                  onExercisesSelected: (selectedExercises) => {
+                    setExercises(prev => [
+                      ...prev,
+                      ...selectedExercises.map(ex => ({
+                        ...ex,
+                        id: generateUniqueId(),
+                        sets: [{ 
+                          id: generateUniqueId(), 
+                          weight: '', 
+                          reps: '', 
+                          distance: '',
+                          time: '00:00',
+                          completed: false 
+                        }]
+                      }))
+                    ]);
+                  },
+                  onSelect: (selectedExercise) => {
+                    setExercises(prev => [
+                      ...prev,
+                      {
+                        ...selectedExercise,
+                        id: generateUniqueId(),
+                        sets: [{ 
+                          id: generateUniqueId(), 
+                          weight: '', 
+                          reps: '', 
+                          distance: '',
+                          time: '00:00',
+                          completed: false 
+                        }]
+                      }
+                    ]);
+                  }
+                });
+              }}
+            >
+              <Ionicons name="add" size={20} color={COLORS.white} />
+              <Text style={styles.addExerciseText}>Add Exercise</Text>
+            </TouchableOpacity>
           </View>
         ) : (
-          exercises.map((exercise) => (
-            <View key={exercise.id} style={styles.exerciseCard}>
+          <>
+            {exercises.map((exercise) => (
+              <View key={exercise.id} style={styles.exerciseCard}>
               <View style={styles.exerciseHeader}>
                 <View style={styles.exerciseIconContainer}>
                   <MaterialCommunityIcons 
@@ -485,47 +664,110 @@ export default function StartWorkoutScreen({ navigation, route }) {
               )}
 
               {/* Sets */}
-              {exercise.sets.map((set, index) => (
-                <View key={set.id} style={styles.setRow}>
-                  <Text style={styles.setLabel}>Set {index + 1}</Text>
-                  <View style={styles.setInputs}>
-                    <TextInput
-                      style={styles.setInput}
-                      value={set.weight}
-                      onChangeText={(text) => updateSet(exercise.id, set.id, 'weight', text)}
-                      placeholder="0"
-                      keyboardType="numeric"
-                    />
-                    <Text style={styles.setUnit}>kg</Text>
-                    <Text style={styles.setSeparator}>•</Text>
-                    <TextInput
-                      style={styles.setInput}
-                      value={set.reps}
-                      onChangeText={(text) => updateSet(exercise.id, set.id, 'reps', text)}
-                      placeholder="0"
-                      keyboardType="numeric"
-                    />
-                    <Text style={styles.setUnit}>reps</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.checkBox, set.completed && styles.checkBoxCompleted]}
-                    onPress={() => toggleSetCompletion(exercise.id, set.id)}
-                  >
-                    {set.completed && (
-                      <Ionicons name="checkmark" size={16} color={COLORS.white} />
-                    )}
-                  </TouchableOpacity>
-                  
-                  {editingExerciseId === exercise.id && (
+              {exercise.sets.map((set, index) => {
+                const exerciseType = getExerciseType(exercise);
+                const timerKey = `${exercise.id}-${set.id}`;
+                const currentTime = activeTimers[timerKey] || 0;
+                const displayTime = set.time === '00:00' && currentTime > 0 ? formatTime(currentTime) : set.time;
+                
+                return (
+                  <View key={set.id} style={styles.setRow}>
+                    <Text style={styles.setLabel}>Set {index + 1}</Text>
+                    <View style={styles.setInputs}>
+                      {exerciseType === 'cardio' ? (
+                        // Cardio: KM and TIME
+                        <>
+                          <TextInput
+                            style={styles.setInput}
+                            value={set.distance}
+                            onChangeText={(text) => updateSet(exercise.id, set.id, 'distance', text)}
+                            placeholder="0"
+                            keyboardType="numeric"
+                          />
+                          <Text style={styles.setUnit}>KM</Text>
+                          <Text style={styles.setSeparator}>•</Text>
+                          <TextInput
+                            style={styles.setInput}
+                            value={displayTime}
+                            onChangeText={(text) => updateSet(exercise.id, set.id, 'time', text)}
+                            placeholder="00:00"
+                            keyboardType="numeric"
+                          />
+                          <Text style={styles.setUnit}>mm:ss</Text>
+                        </>
+                      ) : exerciseType === 'timer' ? (
+                        // Timer: Timer icon and TIME
+                        <>
+                          <TouchableOpacity
+                            style={styles.timerIconButton}
+                            onPress={() => {
+                              if (setTimersRef.current[timerKey]) {
+                                stopSetTimer(exercise.id, set.id);
+                              } else {
+                                startSetTimer(exercise.id, set.id);
+                              }
+                            }}
+                          >
+                            <Ionicons 
+                              name={setTimersRef.current[timerKey] ? "pause" : "play"} 
+                              size={16} 
+                              color={COLORS.primary} 
+                            />
+                          </TouchableOpacity>
+                          <TextInput
+                            style={styles.setInput}
+                            value={displayTime}
+                            onChangeText={(text) => updateSet(exercise.id, set.id, 'time', text)}
+                            placeholder="00:00"
+                            keyboardType="numeric"
+                          />
+                        </>
+                      ) : (
+                        // Strength: KG and REPS
+                        <>
+                          <TextInput
+                            style={styles.setInput}
+                            value={set.weight}
+                            onChangeText={(text) => updateSet(exercise.id, set.id, 'weight', text)}
+                            placeholder="0"
+                            keyboardType="numeric"
+                          />
+                          <Text style={styles.setUnit}>kg</Text>
+                          <Text style={styles.setSeparator}>•</Text>
+                          <TextInput
+                            style={styles.setInput}
+                            value={set.reps}
+                            onChangeText={(text) => updateSet(exercise.id, set.id, 'reps', text)}
+                            placeholder="0"
+                            keyboardType="numeric"
+                          />
+                          <Text style={styles.setUnit}>reps</Text>
+                        </>
+                      )}
+                    </View>
                     <TouchableOpacity
-                      style={styles.deleteSetButton}
-                      onPress={() => deleteSet(exercise.id, set.id)}
+                      style={[styles.checkBox, set.completed && styles.checkBoxCompleted]}
+                      onPress={() => toggleSetCompletion(exercise.id, set.id)}
                     >
-                      <Ionicons name="trash-outline" size={16} color={COLORS.error} />
+                      {set.completed && (
+                        <Ionicons name="checkmark" size={16} color={COLORS.white} />
+                      )}
                     </TouchableOpacity>
-                  )}
-                </View>
-              ))}
+                    
+                    {editingExerciseId === exercise.id && (
+                      <TouchableOpacity
+                        style={styles.deleteSetButton}
+                        onPress={() => {
+                          stopSetTimer(exercise.id, set.id);
+                          deleteSet(exercise.id, set.id);
+                        }}
+                      >
+                        <Ionicons name="trash-outline" size={16} color={COLORS.error} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })}
 
               {/* Add Set Button */}
               <TouchableOpacity 
@@ -536,49 +778,112 @@ export default function StartWorkoutScreen({ navigation, route }) {
                 <Text style={styles.addSetText}>Add Set</Text>
               </TouchableOpacity>
             </View>
-          ))
-        )}
-      </ScrollView>
-
-      {/* Add Exercise Button */}
-      {keyboardHeight === 0 && (
-        <TouchableOpacity 
-          style={styles.addExerciseButton}
-          onPress={() => {
-            navigation.navigate('AllExercisesScreen', {
-              onExercisesSelected: (selectedExercises) => {
-                setExercises(prev => [
-                  ...prev,
-                  ...selectedExercises.map(ex => ({
-                    ...ex,
-                    id: generateUniqueId(),
-                    sets: [{ id: generateUniqueId(), weight: '', reps: '', completed: false }]
-                  }))
-                ]);
-              },
-              onSelect: (selectedExercise) => {
-                setExercises(prev => [
-                  ...prev,
-                  {
-                    ...selectedExercise,
-                    id: generateUniqueId(),
-                    sets: [{ id: generateUniqueId(), weight: '', reps: '', completed: false }]
+            ))}
+            
+            {/* Add Exercise Button after exercises */}
+            <TouchableOpacity 
+              style={styles.addExerciseButtonInline}
+              onPress={() => {
+                navigation.navigate('AllExercisesScreen', {
+                  onExercisesSelected: (selectedExercises) => {
+                    setExercises(prev => [
+                      ...prev,
+                      ...selectedExercises.map(ex => ({
+                        ...ex,
+                        id: generateUniqueId(),
+                        sets: [{ 
+                          id: generateUniqueId(), 
+                          weight: '', 
+                          reps: '', 
+                          distance: '',
+                          time: '00:00',
+                          completed: false 
+                        }]
+                      }))
+                    ]);
+                  },
+                  onSelect: (selectedExercise) => {
+                    setExercises(prev => [
+                      ...prev,
+                      {
+                        ...selectedExercise,
+                        id: generateUniqueId(),
+                        sets: [{ 
+                          id: generateUniqueId(), 
+                          weight: '', 
+                          reps: '', 
+                          distance: '',
+                          time: '00:00',
+                          completed: false 
+                        }]
+                      }
+                    ]);
                   }
-                ]);
-              }
-            });
-          }}
-        >
-          <Ionicons name="add" size={20} color={COLORS.white} />
-          <Text style={styles.addExerciseText}>Add Exercise</Text>
-        </TouchableOpacity>
-      )}
+                });
+              }}
+            >
+              <Ionicons name="add" size={20} color={COLORS.white} />
+              <Text style={styles.addExerciseText}>Add Exercise</Text>
+            </TouchableOpacity>
+          </>
+        )}
+        </ScrollView>
+      </TouchableWithoutFeedback>
+
 
       {saveError && (
         <Text style={styles.errorText}>{saveError}</Text>
       )}
+
+      {/* Timer Modal */}
+      <Modal
+        visible={showTimerModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowTimerModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowTimerModal(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={styles.timerModal}>
+            {/* Modal Handle */}
+            <View style={styles.modalHandle} />
+            
+            {/* Modal Title */}
+            <Text style={styles.modalTitle}>Duration</Text>
+            
+            {/* Duration Info */}
+            <View style={styles.modalContent}>
+              <View style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Duration</Text>
+                <Text style={styles.modalValue}>{formatTime(workoutTime)}</Text>
+              </View>
+              <View style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Start time</Text>
+                <Text style={styles.modalValue}>{getFormattedStartTime()}</Text>
+              </View>
+            </View>
+            
+            {/* Action Button */}
+            <TouchableOpacity 
+              style={styles.modalButton}
+              onPress={isWorkoutPaused ? resumeWorkout : pauseWorkout}
+            >
+              <Ionicons 
+                name={isWorkoutPaused ? "play" : "pause"} 
+                size={20} 
+                color={COLORS.white} 
+              />
+              <Text style={styles.modalButtonText}>
+                {isWorkoutPaused ? "Resume Workout Timer" : "Pause Workout Timer"}
+              </Text>
+            </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
       </View>
-    </TouchableWithoutFeedback>
   );
 }
 
@@ -677,6 +982,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   exercisesContent: {
+    flexGrow: 1,
     padding: 20,
     paddingBottom: 100,
   },
@@ -879,23 +1185,21 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 6,
   },
-  addExerciseButton: {
-    position: 'absolute',
-    bottom: 30,
-    left: 20,
-    right: 20,
+  addExerciseButtonInline: {
     backgroundColor: COLORS.primary,
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
+    paddingHorizontal: 82,
+    marginTop: 24,
+    marginHorizontal: 20,
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 6,
-    zIndex: 1000,
   },
   addExerciseText: {
     color: COLORS.white,
@@ -910,7 +1214,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   emptyState: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
@@ -928,5 +1231,95 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
+  },
+  timerIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    marginRight: 8,
+  },
+  timerButton: {
+    marginLeft: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: COLORS.primary,
+  },
+  timerButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.white,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  timerModal: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 12,
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: COLORS.border,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  modalContent: {
+    marginBottom: 24,
+  },
+  modalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalLabel: {
+    fontSize: 16,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  modalValue: {
+    fontSize: 16,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  modalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 8,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.white,
   },
 });
