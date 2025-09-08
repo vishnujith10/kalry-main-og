@@ -106,69 +106,62 @@ export default function AllExercisesScreen({ navigation, route }) {
     }, [])
   );
 
-  // Apply filters to exercises
-  useEffect(() => {
-    const filtered = exercises.filter(ex => {
-      // If no filters are applied, show all exercises
-      const hasNoFilters = !searchQuery && !exerciseTypeFilter && !exerciseMuscleFilter && !exerciseBodyPartFilter && !exerciseEquipmentFilter;
-      
-      if (hasNoFilters) {
-        return true; // Show all exercises when no filters
-      }
-      
-      // Debug logging
-      console.log('Filtering exercise:', ex.name, {
-        searchQuery,
-        exerciseTypeFilter,
-        exerciseMuscleFilter,
-        exerciseBodyPartFilter,
-        exerciseEquipmentFilter,
-        exType: ex.type,
-        exTargetMuscles: ex.target_muscles,
-        exSecondaryMuscles: ex.secondary_muscles,
-        exBodyParts: ex.body_parts,
-        exEquipments: ex.equipments,
-        exName: ex.name
-      });
-      
+  // Memoized filter function for better performance
+  const filterExercises = React.useCallback((exerciseList, filters) => {
+    const { search, type, muscle, bodyPart, equipment } = filters;
+    
+    // If no filters are applied, return all exercises
+    if (!search && !type && !muscle && !bodyPart && !equipment) {
+      return exerciseList;
+    }
+    
+    return exerciseList.filter(ex => {
       // Search filter
-      const matchesSearch = !searchQuery || 
-        ex.name?.toLowerCase().includes(searchQuery.toLowerCase());
+      if (search && !ex.name?.toLowerCase().includes(search.toLowerCase())) {
+        return false;
+      }
       
       // Type filter
-      const matchesType = !exerciseTypeFilter || 
-        ex.type?.toLowerCase().includes(exerciseTypeFilter.toLowerCase());
-      
-      // Muscle filter
-      const matchesMuscle = !exerciseMuscleFilter || 
-        ex.target_muscles?.toLowerCase().includes(exerciseMuscleFilter.toLowerCase()) ||
-        ex.secondary_muscles?.toLowerCase().includes(exerciseMuscleFilter.toLowerCase());
-      
-      // Body part filter
-      const matchesBodyPart = !exerciseBodyPartFilter || 
-        ex.body_parts?.toLowerCase().includes(exerciseBodyPartFilter.toLowerCase());
-      
-      // Equipment filter
-      const matchesEquipment = !exerciseEquipmentFilter || 
-        ex.equipments?.toLowerCase().includes(exerciseEquipmentFilter.toLowerCase());
-      
-      const shouldInclude = matchesSearch && matchesType && matchesMuscle && matchesBodyPart && matchesEquipment;
-      
-      if (!shouldInclude) {
-        console.log('Filtered out:', ex.name, {
-          matchesSearch,
-          matchesType,
-          matchesMuscle,
-          matchesBodyPart,
-          matchesEquipment
-        });
+      if (type && !ex.type?.toLowerCase().includes(type.toLowerCase())) {
+        return false;
       }
       
-      return shouldInclude;
+      // Muscle filter
+      if (muscle && 
+          !ex.target_muscles?.toLowerCase().includes(muscle.toLowerCase()) &&
+          !ex.secondary_muscles?.toLowerCase().includes(muscle.toLowerCase())) {
+        return false;
+      }
+      
+      // Body part filter
+      if (bodyPart && !ex.body_parts?.toLowerCase().includes(bodyPart.toLowerCase())) {
+        return false;
+      }
+      
+      // Equipment filter
+      if (equipment && !ex.equipments?.toLowerCase().includes(equipment.toLowerCase())) {
+        return false;
+      }
+      
+      return true;
     });
-    
-    setFilteredExercises(filtered);
-  }, [exercises, searchQuery, exerciseTypeFilter, exerciseMuscleFilter, exerciseBodyPartFilter, exerciseEquipmentFilter]);
+  }, []);
+
+  // Debounced filter effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const filtered = filterExercises(exercises, {
+        search: searchQuery,
+        type: exerciseTypeFilter,
+        muscle: exerciseMuscleFilter,
+        bodyPart: exerciseBodyPartFilter,
+        equipment: exerciseEquipmentFilter
+      });
+      setFilteredExercises(filtered);
+    }, 150); // 150ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [exercises, searchQuery, exerciseTypeFilter, exerciseMuscleFilter, exerciseBodyPartFilter, exerciseEquipmentFilter, filterExercises]);
 
   const toggleSelectExercise = (id) => {
     setSelectedExerciseIds(prev =>
@@ -195,8 +188,8 @@ export default function AllExercisesScreen({ navigation, route }) {
     setExerciseEquipmentFilter('');
   };
 
-  // Replace renderExerciseItem to use onSelect callback and go back
-  const renderExerciseItem = ({ item }) => (
+  // Memoized renderExerciseItem for better performance
+  const renderExerciseItem = React.useCallback(({ item }) => (
     <TouchableOpacity
       style={[
         styles.exerciseListItem,
@@ -210,9 +203,21 @@ export default function AllExercisesScreen({ navigation, route }) {
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        {item.image_url && (
-          <Image source={{ uri: item.image_url }} style={styles.exerciseImage} />
-        )}
+        <View style={styles.exerciseIconContainer}>
+          {item.gif_url ? (
+            <Image
+              source={{ uri: item.gif_url }}
+              style={styles.exerciseGifIcon}
+              resizeMode="cover"
+            />
+          ) : (
+            <Ionicons 
+              name="fitness" 
+              size={24} 
+              color="#7C3AED" 
+            />
+          )}
+        </View>
         <View style={styles.exerciseInfo}>
           <Text style={styles.exerciseName}>
             {item.name || 'Unnamed Exercise'}
@@ -237,7 +242,7 @@ export default function AllExercisesScreen({ navigation, route }) {
         )}
       </View>
     </TouchableOpacity>
-  );
+  ), [selectedExerciseIds, route.params, navigation]);
 
   return (
     <View style={styles.container}>
@@ -282,26 +287,34 @@ export default function AllExercisesScreen({ navigation, route }) {
         <View style={styles.compactFilterRow}>
           <TouchableOpacity style={styles.compactFilterBtn} onPress={() => setFilterModal({ visible: true, type: 'type' })}>
             <Ionicons name="options-outline" size={16} color="#7B61FF" style={{ marginRight: 6 }} />
-            <Text style={styles.compactFilterBtnText}>{exerciseTypeFilter ? `Type: ${exerciseTypeFilter}` : 'Type'}</Text>
+            <Text style={styles.compactFilterBtnText}>Type</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.compactFilterBtn} onPress={() => setFilterModal({ visible: true, type: 'bodyPart' })}>
             <Ionicons name="body-outline" size={16} color="#7B61FF" style={{ marginRight: 6 }} />
-            <Text style={styles.compactFilterBtnText}>{exerciseBodyPartFilter ? `Body: ${exerciseBodyPartFilter}` : 'Body Part'}</Text>
+            <Text style={styles.compactFilterBtnText}>Body Part</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.compactFilterBtn} onPress={() => setFilterModal({ visible: true, type: 'equipment' })}>
             <Ionicons name="barbell-outline" size={16} color="#7B61FF" style={{ marginRight: 6 }} />
-            <Text style={styles.compactFilterBtnText}>{exerciseEquipmentFilter ? `Equip: ${exerciseEquipmentFilter}` : 'Equipment'}</Text>
+            <Text style={styles.compactFilterBtnText}>Equipment</Text>
           </TouchableOpacity>
         </View>
 
         {/* Active Filters Display */}
-        {(exerciseTypeFilter || exerciseMuscleFilter || exerciseEquipmentFilter || searchQuery) && (
+        {(exerciseTypeFilter || exerciseMuscleFilter || exerciseBodyPartFilter || exerciseEquipmentFilter || searchQuery) && (
           <View style={styles.activeFiltersRow}>
             {exerciseTypeFilter && (
               <View style={styles.activeFilterChip}>
                 <Text style={styles.activeFilterText}>Type: {exerciseTypeFilter}</Text>
                 <TouchableOpacity onPress={() => setExerciseTypeFilter('')}>
-                  <Ionicons name="close" size={14} color="#7B61FF" />
+                  <Ionicons name="close" size={14} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            )}
+            {exerciseMuscleFilter && (
+              <View style={styles.activeFilterChip}>
+                <Text style={styles.activeFilterText}>Muscle: {exerciseMuscleFilter}</Text>
+                <TouchableOpacity onPress={() => setExerciseMuscleFilter('')}>
+                  <Ionicons name="close" size={14} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
             )}
@@ -309,7 +322,7 @@ export default function AllExercisesScreen({ navigation, route }) {
               <View style={styles.activeFilterChip}>
                 <Text style={styles.activeFilterText}>Body: {exerciseBodyPartFilter}</Text>
                 <TouchableOpacity onPress={() => setExerciseBodyPartFilter('')}>
-                  <Ionicons name="close" size={14} color="#7B61FF" />
+                  <Ionicons name="close" size={14} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
             )}
@@ -317,15 +330,15 @@ export default function AllExercisesScreen({ navigation, route }) {
               <View style={styles.activeFilterChip}>
                 <Text style={styles.activeFilterText}>Equip: {exerciseEquipmentFilter}</Text>
                 <TouchableOpacity onPress={() => setExerciseEquipmentFilter('')}>
-                  <Ionicons name="close" size={14} color="#7B61FF" />
+                  <Ionicons name="close" size={14} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
             )}
             {searchQuery && (
               <View style={styles.activeFilterChip}>
-                <Text style={styles.activeFilterText}>Search: "{searchQuery}"</Text>
+                <Text style={styles.activeFilterText}>Search: &quot;{searchQuery}&quot;</Text>
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close" size={14} color="#7B61FF" />
+                  <Ionicons name="close" size={14} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
             )}
@@ -354,6 +367,16 @@ export default function AllExercisesScreen({ navigation, route }) {
             renderItem={renderExerciseItem}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.exerciseList}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            updateCellsBatchingPeriod={50}
+            initialNumToRender={10}
+            windowSize={10}
+            getItemLayout={(data, index) => ({
+              length: 80, // Approximate height of each item
+              offset: 80 * index,
+              index,
+            })}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Ionicons name="fitness-outline" size={48} color="#9CA3AF" />
@@ -743,11 +766,20 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  exerciseImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
+  exerciseIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  exerciseGifIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   exerciseInfo: {
     flex: 1,
@@ -901,22 +933,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginLeft: 2,
     flexWrap: 'wrap',
-  },
-  activeFilterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EDE9FE',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginRight: 6,
-    marginBottom: 4,
-  },
-  activeFilterText: {
-    color: '#7B61FF',
-    fontSize: 13,
-    fontWeight: '500',
-    marginRight: 4,
   },
   input: {
     width: '100%',

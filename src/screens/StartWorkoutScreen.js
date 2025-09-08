@@ -4,6 +4,7 @@ import {
   Alert,
   Animated,
   Dimensions,
+  Image,
   Keyboard,
   Modal,
   ScrollView,
@@ -15,7 +16,6 @@ import {
   TouchableWithoutFeedback,
   View
 } from 'react-native';
-import Gif from 'react-native-gif'; // Import react-native-gif
 
 import supabase from '../lib/supabase';
 import { saveWorkout } from '../lib/workoutApi';
@@ -47,7 +47,6 @@ export default function StartWorkoutScreen({ navigation, route }) {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [editingExerciseId, setEditingExerciseId] = useState(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [gifErrors, setGifErrors] = useState({}); // Track GIF loading errors
   const [showMenuForExercise, setShowMenuForExercise] = useState(null); // Track which exercise menu is open
   const [activeTimers, setActiveTimers] = useState({}); // Track active timers for each set
   const [showTimerModal, setShowTimerModal] = useState(false); // Show timer modal
@@ -194,19 +193,6 @@ export default function StartWorkoutScreen({ navigation, route }) {
     });
   };
 
-  // Helper function to clean and decode GIF URL
-  const getCleanGifUrl = (url) => {
-    if (!url) return null;
-    try {
-      // Decode URL and clean it
-      let cleanUrl = decodeURIComponent(url);
-      // Remove any extra spaces and re-encode properly
-      cleanUrl = cleanUrl.replace(/\s+/g, '%20');
-      return cleanUrl;
-    } catch (error) {
-      return url;
-    }
-  };
 
   // Timer functionality
   useEffect(() => {
@@ -593,11 +579,19 @@ export default function StartWorkoutScreen({ navigation, route }) {
               <View key={exercise.id} style={styles.exerciseCard}>
               <View style={styles.exerciseHeader}>
                 <View style={styles.exerciseIconContainer}>
-                  <MaterialCommunityIcons 
-                    name="dumbbell" 
-                    size={24} 
-                    color={COLORS.primary} 
-                  />
+                  {exercise.gif_url ? (
+                    <Image
+                      source={{ uri: exercise.gif_url }}
+                      style={styles.exerciseGifIcon}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <MaterialCommunityIcons 
+                      name="dumbbell" 
+                      size={24} 
+                      color={COLORS.primary} 
+                    />
+                  )}
                 </View>
                 <View style={styles.exerciseInfo}>
                   <Text style={styles.exerciseName}>{exercise.workout || exercise.name || 'Unnamed Exercise'}</Text>
@@ -615,13 +609,13 @@ export default function StartWorkoutScreen({ navigation, route }) {
               {showMenuForExercise === exercise.id && (
                 <View style={styles.menuOverlay}>
                   <View style={styles.menuContainer}>
-                    <TouchableOpacity 
+                    {/* <TouchableOpacity 
                       style={styles.menuItem}
                       onPress={() => handleEditExercise(exercise.id)}
                     >
                       <Ionicons name="pencil" size={18} color={COLORS.primary} />
                       <Text style={styles.menuItemText}>Edit</Text>
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                     <TouchableOpacity 
                       style={styles.menuItem}
                       onPress={() => removeExercise(exercise.id)}
@@ -633,35 +627,6 @@ export default function StartWorkoutScreen({ navigation, route }) {
                 </View>
               )}
 
-              {/* Animated GIF Display using react-native-gif */}
-              {exercise.gif_url && !gifErrors[exercise.id] && (
-                <View style={styles.gifContainer}>
-                  <Gif
-                    source={{ uri: getCleanGifUrl(exercise.gif_url) }}
-                    style={styles.exerciseGif}
-                    resizeMode="contain"
-                    onError={(error) => {
-                      setGifErrors(prev => ({ ...prev, [exercise.id]: true }));
-                    }}
-                    onLoad={() => {
-                      // GIF loaded successfully
-                    }}
-                  />
-                </View>
-              )}
-
-              {/* Fallback for failed GIFs */}
-              {exercise.gif_url && gifErrors[exercise.id] && (
-                <View style={styles.gifPlaceholder}>
-                  <MaterialCommunityIcons 
-                    name="image-broken-variant" 
-                    size={48} 
-                    color={COLORS.textLight} 
-                  />
-                  <Text style={styles.gifPlaceholderText}>Exercise Animation</Text>
-                  <Text style={styles.gifPlaceholderSubtext}>Failed to load</Text>
-                </View>
-              )}
 
               {/* Sets */}
               {exercise.sets.map((set, index) => {
@@ -1005,13 +970,19 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   exerciseIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: COLORS.bg,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  exerciseGifIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   exerciseInfo: {
     flex: 1,
@@ -1077,43 +1048,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   
-  // GIF Container and Styles
-  gifContainer: {
-    alignItems: 'center',
-    marginBottom: 16,
-    backgroundColor: COLORS.bg,
-    borderRadius: 12,
-    padding: 8,
-    overflow: 'hidden',
-  },
-  exerciseGif: {
-    width: 280,
-    height: 180,
-    borderRadius: 8,
-    backgroundColor: COLORS.white,
-  },
-  
-  // GIF Placeholder Styles
-  gifPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    backgroundColor: COLORS.bg,
-    borderRadius: 12,
-    padding: 20,
-    height: 180,
-  },
-  gifPlaceholderText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginTop: 8,
-  },
-  gifPlaceholderSubtext: {
-    fontSize: 12,
-    color: COLORS.textLight,
-    marginTop: 4,
-  },
   
   setRow: {
     flexDirection: 'row',
@@ -1243,17 +1177,12 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
     marginRight: 8,
   },
-  timerButton: {
-    marginLeft: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: COLORS.primary,
-  },
+
   timerButtonText: {
-    fontSize: 16,
+    marginLeft: 10,
+    fontSize: 20,
     fontWeight: '600',
-    color: COLORS.white,
+    color: COLORS.primary,
   },
   modalOverlay: {
     flex: 1,
