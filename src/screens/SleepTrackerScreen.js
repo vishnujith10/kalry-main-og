@@ -4,13 +4,13 @@ import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useContext, useEffect, useState } from "react";
 import {
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { OnboardingContext } from "../context/OnboardingContext";
@@ -109,7 +109,7 @@ const SleepTrackerScreen = () => {
   }, [bedtimeReminder, wakeReminder]);
 
   const [realUserId, setRealUserId] = useState(null);
-
+  
   useEffect(() => {
     supabase.auth
       .getUser()
@@ -183,13 +183,13 @@ const SleepTrackerScreen = () => {
 
       setSleepLogs(validData);
       setLastSleep(validData?.[0] || null);
-
+      
       // Prepare week data
       const week = getWeekDates();
       const weekMap = {};
       validData.forEach((log) => {
         const logDate = getDateOnly(log.date);
-        weekMap[logDate] = log;
+        weekMap[logDate] = log; 
       });
       setWeekData(
         week.map((d) => weekMap[d.toISOString().slice(0, 10)] || null)
@@ -294,7 +294,7 @@ const SleepTrackerScreen = () => {
       Alert.alert("Missing info", "Please select both start and end time.");
       return;
     }
-
+    
     // Calculate duration as string
     const [sh, sm] = startTime.split(":").map(Number);
     const [eh, em] = endTime.split(":").map(Number);
@@ -305,23 +305,23 @@ const SleepTrackerScreen = () => {
     const duration = `${hours.toString().padStart(2, "0")}:${minutes
       .toString()
       .padStart(2, "0")}:00`;
-
+    
     // Fixed logic for date assignment
     let logDate = new Date();
-
+    
     // Only adjust date if sleep clearly crosses midnight
     if (sh > eh || (sh === eh && sm > em)) {
       const now = new Date();
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
-
+      
       if (currentHour < eh || (currentHour === eh && currentMinute < em)) {
         logDate.setDate(logDate.getDate() - 1);
       }
     }
-
+    
     const dateStr = logDate.toISOString().slice(0, 10);
-
+    
     // Check for existing log for this date
     const existingLog = sleepLogs.find(
       (l) => getDateOnly(l.date) === dateStr && l.user_id === realUserId
@@ -338,36 +338,36 @@ const SleepTrackerScreen = () => {
         ({ error } = await supabase
           .from("sleep_logs")
           .update({
-            start_time: startTime,
-            end_time: endTime,
-            duration,
-            quality,
-            mood,
+          start_time: startTime,
+          end_time: endTime,
+          duration,
+          quality,
+          mood,
           })
           .eq("id", editingLogId));
       } else {
         // Insert new log
         ({ error } = await supabase.from("sleep_logs").insert([
           {
-            user_id: realUserId,
-            date: dateStr,
-            start_time: startTime,
-            end_time: endTime,
-            duration,
-            quality,
-            mood,
+          user_id: realUserId,
+          date: dateStr,
+          start_time: startTime,
+          end_time: endTime,
+          duration,
+          quality,
+          mood,
             sleep_goal: sleepGoal, // Include the current sleep goal
           },
         ]));
       }
-
+      
       if (error) throw error;
-
+      
       Alert.alert(
         "Success",
         editMode ? "Sleep log updated!" : "Sleep log added!"
       );
-
+      
       // Clear form and close modal
       setStartTime("");
       setEndTime("");
@@ -376,7 +376,7 @@ const SleepTrackerScreen = () => {
       setEditMode(false);
       setEditingLogId(null);
       setShowLogModal(false);
-
+      
       // *IMPORTANT*: Refresh the data immediately after saving
       await fetchSleepLogs();
       
@@ -391,8 +391,8 @@ const SleepTrackerScreen = () => {
   }
 
   async function handlePickPhoto() {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    const result = await ImagePicker.launchImageLibraryAsync({ 
+      mediaTypes: ImagePicker.MediaTypeOptions.Images, 
       quality: 0.7,
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -407,10 +407,10 @@ const SleepTrackerScreen = () => {
       const { data, error } = await supabase.storage
         .from("sleep-photos")
         .upload(fileName, {
-          uri: photo.uri,
+        uri: photo.uri,
           type: "image/jpeg",
-          name: fileName,
-        });
+        name: fileName,
+      });
       if (!error && data?.path) {
         const publicUrl = supabase.storage
           .from("sleep-photos")
@@ -587,7 +587,7 @@ const SleepTrackerScreen = () => {
     let totalMinutes = 0;
     recentValidLogs.forEach((log) => {
       const mins = parseIntervalToMinutes(log.duration);
-      totalMinutes += mins;
+        totalMinutes += mins;
       console.log("Adding minutes:", mins, "Total so far:", totalMinutes);
     });
 
@@ -673,7 +673,7 @@ const SleepTrackerScreen = () => {
   // *FIXED*: Get latest log's bedtime and wake time
   let displayBedtime = "--:--";
   let displayWakeTime = "--:--";
-
+  
   if (todayLog) {
     displayBedtime = todayLog.start_time
       ? formatTime12h(todayLog.start_time)
@@ -701,7 +701,7 @@ const SleepTrackerScreen = () => {
   // Map weekData by date string for lookup
   const weekLogMap = {};
   sleepLogs.forEach((log) => {
-    weekLogMap[getDateOnly(log.date)] = log;
+    weekLogMap[getDateOnly(log.date)] = log; 
   });
 
   // Debug logging for weekly chart
@@ -810,12 +810,12 @@ const SleepTrackerScreen = () => {
             style={{
               flex: 1,
               backgroundColor: "#fff",
-              borderRadius: 16,
+          borderRadius: 16,
               padding: 16,
               marginRight: 8,
               shadowColor: "#000",
-              shadowOpacity: 0.05,
-              shadowRadius: 8,
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
             }}
           >
             <Text style={{ color: "#6B7280", marginBottom: 6 }}>
@@ -826,7 +826,7 @@ const SleepTrackerScreen = () => {
             >
               {todayDuration}
             </Text>
-          </View>
+              </View>
           <View
             style={{
               flex: 1,
@@ -882,27 +882,27 @@ const SleepTrackerScreen = () => {
             console.log("Ring calculation - consistency:", validConsistencyPercent, "offset:", off, "circumference:", c);
             return (
               <Svg width={size} height={size}>
-                <Circle
+              <Circle
                   cx={size / 2}
                   cy={size / 2}
                   r={r}
-                  stroke="#E5E7EB"
+                stroke="#E5E7EB"
                   strokeWidth={stroke}
-                  fill="none"
-                />
-                <Circle
+                fill="none"
+              />
+              <Circle
                   cx={size / 2}
                   cy={size / 2}
                   r={r}
                   stroke="#7C3AED"
                   strokeWidth={stroke}
-                  strokeLinecap="round"
+                strokeLinecap="round"
                   fill="none"
                   strokeDasharray={`${c} ${c}`}
                   strokeDashoffset={off}
                   transform={`rotate(-90 ${size / 2} ${size / 2})`}
-                />
-              </Svg>
+              />
+            </Svg>
             );
           })()}
         </View>
@@ -985,13 +985,13 @@ const SleepTrackerScreen = () => {
                         }}
                       ></View>
                     )}
-                  </View>
+          </View>
                   <Text
                     style={{ color: "#6B7280", fontSize: 12, marginTop: 6 }}
                   >
                     {d}
                   </Text>
-                </View>
+          </View>
               );
             })}
           </View>
@@ -1027,7 +1027,7 @@ const SleepTrackerScreen = () => {
             Sleep Log
           </Text>
           <View style={{ flexDirection: "row" }}>
-            <TouchableOpacity
+          <TouchableOpacity
               onPress={() => setShowAllLogs(!showAllLogs)}
               style={{
                 backgroundColor: "#F3F4F6",
@@ -1040,8 +1040,8 @@ const SleepTrackerScreen = () => {
               <Text style={{ color: "#111827", fontWeight: "700" }}>
                 {showAllLogs ? "Show recent" : "View all"}
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+          </TouchableOpacity>
+          <TouchableOpacity
               onPress={fetchSleepLogs}
               style={{
                 backgroundColor: "#34D399",
@@ -1056,7 +1056,7 @@ const SleepTrackerScreen = () => {
               <Text style={{ color: "#fff", fontWeight: "700" }}>
                 Sync Data
               </Text>
-            </TouchableOpacity>
+          </TouchableOpacity>
           </View>
         </View>
 
@@ -1320,7 +1320,7 @@ const SleepTrackerScreen = () => {
             shadowRadius: 12,
             shadowOffset: { width: 0, height: 4 },
             elevation: 6,
-            borderWidth: 1,
+          borderWidth: 1,
             borderColor: "rgba(255, 255, 255, 0.2)",
           }}
         >
@@ -1346,23 +1346,23 @@ const SleepTrackerScreen = () => {
                 }}
               >
                 <Text style={{ fontSize: 16 }}>💤</Text>
-              </View>
-              <View>
+            </View>
+            <View>
                 <Text
                   style={{
                     fontSize: 18,
                     fontWeight: "800",
                     color: "#0F172A",
-                    letterSpacing: -0.5,
+                letterSpacing: -0.5,
                   }}
                 >
-                  Sleep Goal
-                </Text>
+                Sleep Goal
+              </Text>
                 <Text style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>
-                  {todayPercent}% of {sleepGoal} hours
-                </Text>
-              </View>
+                {todayPercent}% of {sleepGoal} hours
+              </Text>
             </View>
+          </View>
           </View>
 
           {/* Reminder Cards */}
@@ -1407,14 +1407,14 @@ const SleepTrackerScreen = () => {
                       fontSize: 15,
                       fontWeight: "600",
                       color: "#1E293B",
-                      marginBottom: 2,
+                    marginBottom: 2,
                     }}
                   >
                     Bedtime Reminder
                   </Text>
                   <Text
                     style={{
-                      fontSize: 12,
+                    fontSize: 12, 
                       color: "#64748B",
                     }}
                   >
@@ -1428,7 +1428,7 @@ const SleepTrackerScreen = () => {
                   paddingVertical: 6,
                   borderRadius: 12,
                   backgroundColor: "#F0F9FF",
-                  borderWidth: 1,
+                borderWidth: 1,
                   borderColor: "#E0F2FE",
                 }}
               >
@@ -1481,17 +1481,17 @@ const SleepTrackerScreen = () => {
                 <View>
                   <Text
                     style={{
-                      fontSize: 16,
+                    fontSize: 16, 
                       fontWeight: "600",
                       color: "#1E293B",
-                      marginBottom: 2,
+                    marginBottom: 2,
                     }}
                   >
                     Wake-up Alarm
                   </Text>
                   <Text
                     style={{
-                      fontSize: 12,
+                    fontSize: 12, 
                       color: "#64748B",
                     }}
                   >
@@ -1501,17 +1501,17 @@ const SleepTrackerScreen = () => {
               </View>
               <View
                 style={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 16,
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 16,
                   backgroundColor: "#FEF3C7",
-                  borderWidth: 1,
+                borderWidth: 1,
                   borderColor: "#FDE68A",
                 }}
               >
                 <Text
                   style={{
-                    fontSize: 15,
+                  fontSize: 15, 
                     fontWeight: "700",
                     color: "#92400E",
                   }}
@@ -1544,11 +1544,11 @@ const SleepTrackerScreen = () => {
           }
           const tipIdx = hash % SLEEP_TIPS.length;
           const tip = SLEEP_TIPS[tipIdx];
-          return (
-            <View
-              style={{
+              return (
+                <View 
+                  style={{ 
                 backgroundColor: "#fff",
-                borderRadius: 16,
+                    borderRadius: 16, 
                 padding: 16,
                 marginBottom: 16,
                 shadowColor: "#000",
@@ -1559,18 +1559,18 @@ const SleepTrackerScreen = () => {
             >
               <Text style={{ marginRight: 10 }}>💡</Text>
               <Text style={{ color: "#374151", flex: 1 }}>{tip}</Text>
-            </View>
-          );
+                </View>
+              );
         })()}
 
         {/* Log Sleep Button */}
-        <TouchableOpacity
-          style={{
+        <TouchableOpacity 
+          style={{ 
             backgroundColor: "#4F46E5",
-            borderRadius: 16,
-            paddingVertical: 16,
+            borderRadius: 16, 
+            paddingVertical: 16, 
             alignItems: "center",
-          }}
+          }} 
           onPress={() => {
             const existingLog = sleepLogs.find(
               (l) =>
@@ -1638,13 +1638,13 @@ const SleepTrackerScreen = () => {
                   justifyContent: "space-between",
                 }}
               >
-                <TouchableOpacity
-                  onPress={() => setShowAlreadyLoggedModal(false)}
-                  style={{
-                    flex: 1,
+                <TouchableOpacity 
+                  onPress={() => setShowAlreadyLoggedModal(false)} 
+                  style={{ 
+                    flex: 1, 
                     backgroundColor: "#E5E7EB",
-                    borderRadius: 12,
-                    padding: 14,
+                    borderRadius: 12, 
+                    padding: 14, 
                     alignItems: "center",
                     marginRight: 8,
                   }}
@@ -1659,7 +1659,7 @@ const SleepTrackerScreen = () => {
                     Cancel
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
+                <TouchableOpacity 
                   onPress={() => {
                     const log = sleepLogs.find(
                       (l) =>
@@ -1676,12 +1676,12 @@ const SleepTrackerScreen = () => {
                       setShowLogModal(true);
                     }
                     setShowAlreadyLoggedModal(false);
-                  }}
-                  style={{
-                    flex: 1,
+                  }} 
+                  style={{ 
+                    flex: 1, 
                     backgroundColor: "#4F46E5",
-                    borderRadius: 12,
-                    padding: 14,
+                    borderRadius: 12, 
+                    padding: 14, 
                     alignItems: "center",
                     marginLeft: 8,
                   }}
@@ -1720,17 +1720,17 @@ const SleepTrackerScreen = () => {
               >
                 {editMode ? "Edit Your Sleep" : "Log Your Sleep"}
               </Text>
-
+              
               {/* Start Time Picker */}
-              <TouchableOpacity
-                onPress={() => setShowFromPicker(true)}
-                style={{
-                  marginBottom: 12,
+              <TouchableOpacity 
+                onPress={() => setShowFromPicker(true)} 
+                style={{ 
+                  marginBottom: 12, 
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "space-between",
                   backgroundColor: "#F3F4F6",
-                  borderRadius: 12,
+                  borderRadius: 12, 
                   padding: 14,
                 }}
               >
@@ -1741,17 +1741,17 @@ const SleepTrackerScreen = () => {
                   {startTime || "--:--"}
                 </Text>
               </TouchableOpacity>
-
+              
               {/* End Time Picker */}
-              <TouchableOpacity
-                onPress={() => setShowToPicker(true)}
-                style={{
-                  marginBottom: 12,
+              <TouchableOpacity 
+                onPress={() => setShowToPicker(true)} 
+                style={{ 
+                  marginBottom: 12, 
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "space-between",
                   backgroundColor: "#F3F4F6",
-                  borderRadius: 12,
+                  borderRadius: 12, 
                   padding: 14,
                 }}
               >
@@ -1762,7 +1762,7 @@ const SleepTrackerScreen = () => {
                   {endTime || "--:--"}
                 </Text>
               </TouchableOpacity>
-
+              
               {/* Quality Picker */}
               <View style={{ marginBottom: 12 }}>
                 <Text
@@ -1772,14 +1772,14 @@ const SleepTrackerScreen = () => {
                 </Text>
                 <View style={{ flexDirection: "row" }}>
                   {SLEEP_QUALITIES.map((q) => (
-                    <TouchableOpacity
-                      key={q}
-                      onPress={() => setQuality(q)}
-                      style={{
+                    <TouchableOpacity 
+                      key={q} 
+                      onPress={() => setQuality(q)} 
+                      style={{ 
                         backgroundColor: quality === q ? "#6366F1" : "#F3F4F6",
-                        borderRadius: 8,
-                        paddingVertical: 8,
-                        paddingHorizontal: 14,
+                        borderRadius: 8, 
+                        paddingVertical: 8, 
+                        paddingHorizontal: 14, 
                         marginRight: 8,
                       }}
                     >
@@ -1795,7 +1795,7 @@ const SleepTrackerScreen = () => {
                   ))}
                 </View>
               </View>
-
+              
               {/* Mood Picker */}
               <View style={{ marginBottom: 18 }}>
                 <Text
@@ -1805,14 +1805,14 @@ const SleepTrackerScreen = () => {
                 </Text>
                 <View style={{ flexDirection: "row" }}>
                   {MOODS.map((m) => (
-                    <TouchableOpacity
-                      key={m}
-                      onPress={() => setMood(m)}
-                      style={{
+                    <TouchableOpacity 
+                      key={m} 
+                      onPress={() => setMood(m)} 
+                      style={{ 
                         backgroundColor: mood === m ? "#A78BFA" : "#F3F4F6",
-                        borderRadius: 8,
-                        paddingVertical: 8,
-                        paddingHorizontal: 14,
+                        borderRadius: 8, 
+                        paddingVertical: 8, 
+                        paddingHorizontal: 14, 
                         marginRight: 8,
                       }}
                     >
@@ -1828,14 +1828,14 @@ const SleepTrackerScreen = () => {
                   ))}
                 </View>
               </View>
-
+              
               {/* Log Sleep Button */}
               <TouchableOpacity
-                style={{
+                style={{ 
                   backgroundColor:
                     !startTime || !endTime ? "#CBD5E1" : "#3B82F6",
-                  borderRadius: 14,
-                  paddingVertical: 16,
+                  borderRadius: 14, 
+                  paddingVertical: 16, 
                   alignItems: "center",
                   marginBottom: 8,
                 }}
@@ -1848,13 +1848,13 @@ const SleepTrackerScreen = () => {
                   {editMode ? "Update Sleep" : "Log Sleep"}
                 </Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => {
-                  setShowLogModal(false);
-                  setEditMode(false);
-                  setEditingLogId(null);
-                }}
+              
+              <TouchableOpacity 
+                onPress={() => { 
+                  setShowLogModal(false); 
+                  setEditMode(false); 
+                  setEditingLogId(null); 
+                }} 
                 style={{ alignItems: "center", marginTop: 2 }}
               >
                 <Text style={{ color: "#888", fontSize: 16 }}>Cancel</Text>

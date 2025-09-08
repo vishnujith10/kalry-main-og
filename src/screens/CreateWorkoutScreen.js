@@ -1,7 +1,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, FlatList, Modal, ScrollView, StatusBar, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Dimensions, FlatList, Modal, ScrollView, StatusBar, StyleSheet, Switch, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import supabase from '../lib/supabase';
 
 const { width, height } = Dimensions.get('window');
@@ -98,6 +98,10 @@ export default function CardioSessionBuilder({ navigation }) {
   const [editingExerciseIndex, setEditingExerciseIndex] = useState(null);
   const [editValues, setEditValues] = useState({});
   
+  // Three dots menu state
+  const [showMenuIndex, setShowMenuIndex] = useState(null);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  
   // Workout player states
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [currentRound, setCurrentRound] = useState(1);
@@ -150,15 +154,15 @@ export default function CardioSessionBuilder({ navigation }) {
         if (allError) {
           console.error('Error fetching all exercises:', allError);
           Alert.alert('Error', `Failed to fetch exercises: ${allError.message}`);
-          return;
-        }
+        return;
+      }
         
         console.log(`✅ Successfully fetched exercises from table: ${tableName}`);
         console.log('Number of exercises:', allData.length);
         console.log('First exercise sample:', allData[0]);
         console.log('Exercise fields available:', Object.keys(allData[0]));
         setDbExercises(allData);
-      } else {
+    } else {
         console.log('⚠️ No exercises found in any table');
         setDbExercises([]);
       }
@@ -384,6 +388,26 @@ export default function CardioSessionBuilder({ navigation }) {
     }));
   };
 
+  // Three dots menu functions
+  const toggleMenu = (index, event) => {
+    if (showMenuIndex === index) {
+      setShowMenuIndex(null);
+    } else {
+      setShowMenuIndex(index);
+      // Set a default position for now
+      setMenuPosition({ x: 200, y: 100 });
+    }
+  };
+
+  const handleMenuAction = (action, index) => {
+    setShowMenuIndex(null); // Close menu
+    if (action === 'edit') {
+      startEditingExercise(index);
+    } else if (action === 'remove') {
+      removeExercise(index);
+    }
+  };
+
   // Start workout
   const startWorkout = () => {
     if (!sessionType) {
@@ -393,8 +417,8 @@ export default function CardioSessionBuilder({ navigation }) {
     
     if (exercises.length === 0) {
       Alert.alert('Error', 'Add at least one exercise to start the workout');
-      return;
-    }
+          return;
+        }
     
     // Navigate to WorkoutStartScreen with workout data
     navigation.navigate('WorkoutStart', {
@@ -445,6 +469,7 @@ export default function CardioSessionBuilder({ navigation }) {
       // Exercise complete, start rest or move to next
       if (currentRound < totalRounds) {
         setIsResting(true);
+        
         setTimeRemaining(currentExercise.rest || 15);
       } else if (currentExerciseIndex < exercises.length - 1) {
         setIsResting(true);
@@ -560,7 +585,7 @@ export default function CardioSessionBuilder({ navigation }) {
                 intensity > 66 && styles.intensityButtonTextActive
               ]}>High</Text>
                 </TouchableOpacity>
-              </View>
+                      </View>
         </View>
 
         {/* Exercises List */}
@@ -569,21 +594,62 @@ export default function CardioSessionBuilder({ navigation }) {
             <Text style={styles.cardTitle}>Exercises ({exercises.length})</Text>
             <TouchableOpacity style={styles.addButton} onPress={() => setAddModalVisible(true)}>
               <Text style={styles.addButtonText}>+ Add</Text>
-            </TouchableOpacity>
+                    </TouchableOpacity>
           </View>
           
           {exercises.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateIcon}>💪</Text>
               <Text style={styles.emptyStateText}>No exercises added yet</Text>
               <Text style={styles.emptyStateSubtext}>Tap &quot;Add&quot; to get started</Text>
             </View>
           ) : (
-            <FlatList
-              data={exercises}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item, index }) => (
+            <TouchableWithoutFeedback onPress={() => setShowMenuIndex(null)}>
+              <FlatList
+                data={exercises}
+                keyExtractor={(item, index) => index.toString()}
+                removeClippedSubviews={false}
+                renderItem={({ item, index }) => (
                 <View style={styles.exerciseCard}>
+                  {/* Three dots menu positioned absolutely */}
+                  {editingExerciseIndex !== index && (
+                    <View style={styles.menuContainer}>
+                <TouchableOpacity
+                        style={styles.threeDotsButton}
+                        onPress={() => toggleMenu(index)}
+                      >
+                        <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+                      
+                      <Modal
+                        visible={showMenuIndex === index}
+                        transparent={true}
+                        animationType="none"
+                        onRequestClose={() => setShowMenuIndex(null)}
+                      >
+                        <TouchableWithoutFeedback onPress={() => setShowMenuIndex(null)}>
+                          <View style={styles.menuModalOverlay}>
+                            <View style={styles.menuDropdown}>
+                              <TouchableOpacity
+                                style={styles.menuItem}
+                                onPress={() => handleMenuAction('edit', index)}
+                              >
+                                <Ionicons name="pencil" size={16} color={COLORS.primary} />
+                                <Text style={styles.menuItemText}>Edit</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={[styles.menuItem, { borderBottomWidth: 0 }]}
+                                onPress={() => handleMenuAction('remove', index)}
+                              >
+                                <Ionicons name="trash" size={16} color={COLORS.error} />
+                                <Text style={[styles.menuItemText, { color: COLORS.error }]}>Remove</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        </TouchableWithoutFeedback>
+                      </Modal>
+                    </View>
+                  )}
+
                   <View style={styles.exerciseInfo}>
                     <Text style={styles.exerciseIcon}>{item.icon}</Text>
                     <View style={styles.exerciseDetails}>
@@ -634,8 +700,9 @@ export default function CardioSessionBuilder({ navigation }) {
                       )}
       </View>
         </View>
-                  <View style={styles.exerciseActions}>
-                    {editingExerciseIndex === index ? (
+                  
+                  {editingExerciseIndex === index && (
+                    <View style={styles.exerciseActions}>
                       <View style={styles.editActions}>
           <TouchableOpacity
                           style={styles.saveButton}
@@ -650,26 +717,15 @@ export default function CardioSessionBuilder({ navigation }) {
                           <Ionicons name="close" size={16} color={COLORS.error} />
                   </TouchableOpacity>
               </View>
-                    ) : (
-                      <View style={styles.exerciseActionsVertical}>
-          <TouchableOpacity
-                          style={styles.editButton}
-                          onPress={() => startEditingExercise(index)}
-                        >
-                          <Ionicons name="pencil" size={16} color={COLORS.primary} />
-          </TouchableOpacity>
-                        <TouchableOpacity onPress={() => removeExercise(index)}>
-                          <Text style={styles.removeButton}>×</Text>
-                  </TouchableOpacity>
-              </View>
-                    )}
-                  </View>
+                    </View>
+                  )}
                 </View>
               )}
               scrollEnabled={false}
             />
-          )}
-        </View>
+            </TouchableWithoutFeedback>
+                )}
+              </View>
 
         {/* Session Settings */}
         <View style={styles.card}>
@@ -733,7 +789,7 @@ export default function CardioSessionBuilder({ navigation }) {
           <TouchableOpacity style={styles.startButton} onPress={startWorkout}>
             <Text style={styles.startButtonText}>Start Workout</Text>
           </TouchableOpacity>
-        </View>
+              </View>
       </ScrollView>
 
       {/* Add Exercise Modal */}
@@ -1240,6 +1296,7 @@ const styles = StyleSheet.create({
   },
   
   exerciseCard: {
+    position: 'relative',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1250,6 +1307,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#e2e8f0',
+    overflow: 'visible',
   },
   
   exerciseInfo: {
@@ -1310,6 +1368,57 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#f1f5f9',
   },
+
+  // Three dots menu styles
+  menuContainer: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 1000,
+  },
+  
+  threeDotsButton: {
+    padding: 4,
+  },
+  
+  menuDropdown: {
+    backgroundColor: COLORS.white,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    minWidth: 140,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  
+  menuItemText: {
+    fontSize: 14,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+
+  menuModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 550,
+    paddingRight: 20,
+  },
+
   
   editActions: {
     flexDirection: 'row',

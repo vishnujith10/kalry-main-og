@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -10,14 +11,14 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import supabase from '../lib/supabase';
 
 const PreferencesScreen = () => {
   const navigation = useNavigation();
   
   // State for units
   const [weightUnit, setWeightUnit] = useState('kg');
-  const [distanceUnit, setDistanceUnit] = useState('km');
-  const [caloriesUnit, setCaloriesUnit] = useState('kcal');
+  const [heightUnit, setHeightUnit] = useState('cm');
   
   // State for meal reminders
   const [breakfastReminder, setBreakfastReminder] = useState(true);
@@ -29,17 +30,212 @@ const PreferencesScreen = () => {
   
   // State for theme
   const [appTheme, setAppTheme] = useState('Light');
-  const [accentColor, setAccentColor] = useState('blue');
   
   // State for sleep reminders
   const [sleepReminder, setSleepReminder] = useState(false);
   
-  const accentColors = [
-    { key: 'blue', color: '#007AFF', name: 'Blue' },
-    { key: 'pink', color: '#FF2D92', name: 'Pink' },
-    { key: 'purple', color: '#7B61FF', name: 'Purple' },
-    { key: 'green', color: '#34C759', name: 'Green' },
-  ];
+  useEffect(() => {
+    fetchUserPreferences();
+  }, []);
+
+  // Conversion functions
+  const convertWeight = (value, fromUnit, toUnit) => {
+    if (fromUnit === toUnit) return value;
+    if (fromUnit === 'kg' && toUnit === 'lbs') return (value * 2.20462).toFixed(1);
+    if (fromUnit === 'lbs' && toUnit === 'kg') return (value / 2.20462).toFixed(1);
+    return value;
+  };
+
+  const convertHeight = (value, fromUnit, toUnit) => {
+    if (fromUnit === toUnit) return value;
+    if (fromUnit === 'cm' && toUnit === 'ft') return (value / 30.48).toFixed(1);
+    if (fromUnit === 'ft' && toUnit === 'cm') return (value * 30.48).toFixed(1);
+    return value;
+  };
+
+  // No need for AsyncStorage - units are now saved in database during signup
+
+  const fetchUserPreferences = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('user_profile')
+        .select('weight_unit, height_unit')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user preferences:', error);
+        return;
+      }
+
+      if (data) {
+        // Use database values with fallback defaults
+        setWeightUnit(data.weight_unit || 'kg');
+        setHeightUnit(data.height_unit || 'cm');
+      } else {
+        // No database data, use defaults
+        setWeightUnit('kg');
+        setHeightUnit('cm');
+      }
+    } catch (error) {
+      console.error('Error fetching user preferences:', error);
+    }
+  };
+
+  const saveUnitPreference = async (unitType, value) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const updateData = {};
+      updateData[unitType] = value;
+
+      const { error } = await supabase
+        .from('user_profile')
+        .update(updateData)
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error saving unit preference:', error);
+        Alert.alert('Error', 'Failed to save preference. Please try again.');
+        return;
+      }
+
+      console.log(`${unitType} preference saved successfully`);
+    } catch (error) {
+      console.error('Error saving unit preference:', error);
+      Alert.alert('Error', 'Failed to save preference. Please try again.');
+    }
+  };
+
+  const handleWeightUnitChange = async (unit) => {
+    const oldUnit = weightUnit;
+    console.log(`Weight unit changing from ${oldUnit} to ${unit}`);
+    setWeightUnit(unit);
+    saveUnitPreference('weight_unit', unit);
+    
+    // Convert weight values in database
+    await convertUserWeightValues(oldUnit, unit);
+  };
+
+  const handleHeightUnitChange = async (unit) => {
+    const oldUnit = heightUnit;
+    console.log(`Height unit changing from ${oldUnit} to ${unit}`);
+    setHeightUnit(unit);
+    saveUnitPreference('height_unit', unit);
+    
+    // Convert height values in database
+    await convertUserHeightValues(oldUnit, unit);
+  };
+
+  const convertUserWeightValues = async (fromUnit, toUnit) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get current user profile
+      const { data: profile } = await supabase
+        .from('user_profile')
+        .select('weight, target_weight')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        const updates = {};
+        
+        // Convert current weight
+        if (profile.weight) {
+          const convertedWeight = convertWeight(Number(profile.weight), fromUnit, toUnit);
+          console.log(`Converting weight: ${profile.weight} ${fromUnit} → ${convertedWeight} ${toUnit}`);
+          updates.weight = convertedWeight;
+        }
+        
+        // Convert target weight
+        if (profile.target_weight) {
+          const convertedTargetWeight = convertWeight(Number(profile.target_weight), fromUnit, toUnit);
+          console.log(`Converting target weight: ${profile.target_weight} ${fromUnit} → ${convertedTargetWeight} ${toUnit}`);
+          updates.target_weight = convertedTargetWeight;
+        }
+
+        // Update database with converted values
+        if (Object.keys(updates).length > 0) {
+          await supabase
+            .from('user_profile')
+            .update(updates)
+            .eq('id', user.id);
+          
+          console.log('Weight values converted successfully');
+        }
+
+        // Also convert weight logs
+        await convertWeightLogs(fromUnit, toUnit);
+      }
+    } catch (error) {
+      console.error('Error converting weight values:', error);
+    }
+  };
+
+  const convertUserHeightValues = async (fromUnit, toUnit) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get current user profile
+      const { data: profile } = await supabase
+        .from('user_profile')
+        .select('height')
+        .eq('id', user.id)
+        .single();
+
+      if (profile && profile.height) {
+        // Convert height
+        const convertedHeight = convertHeight(Number(profile.height), fromUnit, toUnit);
+        console.log(`Converting height: ${profile.height} ${fromUnit} → ${convertedHeight} ${toUnit}`);
+        
+        // Update database with converted value
+        await supabase
+          .from('user_profile')
+          .update({ height: convertedHeight })
+          .eq('id', user.id);
+        
+        console.log('Height value converted successfully');
+      }
+    } catch (error) {
+      console.error('Error converting height values:', error);
+    }
+  };
+
+  const convertWeightLogs = async (fromUnit, toUnit) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get all weight logs for the user
+      const { data: logs } = await supabase
+        .from('weight_logs')
+        .select('id, weight')
+        .eq('user_id', user.id);
+
+      if (logs && logs.length > 0) {
+        // Convert each weight log
+        for (const log of logs) {
+          if (log.weight) {
+            const convertedWeight = convertWeight(Number(log.weight), fromUnit, toUnit);
+            await supabase
+              .from('weight_logs')
+              .update({ weight: convertedWeight })
+              .eq('id', log.id);
+          }
+        }
+        console.log('Weight logs converted successfully');
+      }
+    } catch (error) {
+      console.error('Error converting weight logs:', error);
+    }
+  };
   
   return (
     <View style={styles.container}>
@@ -69,56 +265,38 @@ const PreferencesScreen = () => {
             <View style={styles.unitSelector}>
               <TouchableOpacity
                 style={[styles.unitButton, weightUnit === 'kg' && styles.unitButtonActive]}
-                onPress={() => setWeightUnit('kg')}
+                onPress={() => handleWeightUnitChange('kg')}
               >
                 <Text style={[styles.unitButtonText, weightUnit === 'kg' && styles.unitButtonTextActive]}>kg</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.unitButton, weightUnit === 'lb' && styles.unitButtonActive]}
-                onPress={() => setWeightUnit('lb')}
+                style={[styles.unitButton, weightUnit === 'lbs' && styles.unitButtonActive]}
+                onPress={() => handleWeightUnitChange('lbs')}
               >
-                <Text style={[styles.unitButtonText, weightUnit === 'lb' && styles.unitButtonTextActive]}>lb</Text>
+                <Text style={[styles.unitButtonText, weightUnit === 'lbs' && styles.unitButtonTextActive]}>lbs</Text>
               </TouchableOpacity>
             </View>
           </View>
           
-          {/* Distance Units */}
+          {/* Height Units */}
           <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Distance Units</Text>
+            <Text style={styles.settingLabel}>Height Units</Text>
             <View style={styles.unitSelector}>
               <TouchableOpacity
-                style={[styles.unitButton, distanceUnit === 'km' && styles.unitButtonActive]}
-                onPress={() => setDistanceUnit('km')}
+                style={[styles.unitButton, heightUnit === 'cm' && styles.unitButtonActive]}
+                onPress={() => handleHeightUnitChange('cm')}
               >
-                <Text style={[styles.unitButtonText, distanceUnit === 'km' && styles.unitButtonTextActive]}>km</Text>
+                <Text style={[styles.unitButtonText, heightUnit === 'cm' && styles.unitButtonTextActive]}>cm</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.unitButton, distanceUnit === 'miles' && styles.unitButtonActive]}
-                onPress={() => setDistanceUnit('miles')}
+                style={[styles.unitButton, heightUnit === 'ft' && styles.unitButtonActive]}
+                onPress={() => handleHeightUnitChange('ft')}
               >
-                <Text style={[styles.unitButtonText, distanceUnit === 'miles' && styles.unitButtonTextActive]}>miles</Text>
+                <Text style={[styles.unitButtonText, heightUnit === 'ft' && styles.unitButtonTextActive]}>ft</Text>
               </TouchableOpacity>
             </View>
           </View>
           
-          {/* Calories Display */}
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Calories Display</Text>
-            <View style={styles.unitSelector}>
-              <TouchableOpacity
-                style={[styles.unitButton, caloriesUnit === 'kcal' && styles.unitButtonActive]}
-                onPress={() => setCaloriesUnit('kcal')}
-              >
-                <Text style={[styles.unitButtonText, caloriesUnit === 'kcal' && styles.unitButtonTextActive]}>kcal</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.unitButton, caloriesUnit === 'kJ' && styles.unitButtonActive]}
-                onPress={() => setCaloriesUnit('kJ')}
-              >
-                <Text style={[styles.unitButtonText, caloriesUnit === 'kJ' && styles.unitButtonTextActive]}>kJ</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
         </View>
 
         {/* Meal Reminders Section */}
@@ -202,45 +380,10 @@ const PreferencesScreen = () => {
               >
                 <Text style={[styles.themeButtonText, appTheme === 'Dark' && styles.themeButtonTextActive]}>Dark</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.themeButton, appTheme === 'Auto' && styles.themeButtonActive]}
-                onPress={() => setAppTheme('Auto')}
-              >
-                <Text style={[styles.themeButtonText, appTheme === 'Auto' && styles.themeButtonTextActive]}>Auto</Text>
-              </TouchableOpacity>
             </View>
           </View>
           
-          {/* Accent Color */}
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Accent Color</Text>
-            <View style={styles.colorSelector}>
-              {accentColors.map((color) => (
-                <TouchableOpacity
-                  key={color.key}
-                  style={[
-                    styles.colorButton,
-                    { backgroundColor: color.color },
-                    accentColor === color.key && styles.colorButtonActive
-                  ]}
-                  onPress={() => setAccentColor(color.key)}
-                >
-                  {accentColor === color.key && (
-                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
           
-          {/* Theme Preview */}
-          <View style={styles.previewSection}>
-            <Text style={styles.previewLabel}>Theme Preview</Text>
-            <View style={styles.previewContainer}>
-              <View style={[styles.previewBlock, { backgroundColor: accentColors.find(c => c.key === accentColor)?.color || '#007AFF' }]} />
-              <View style={[styles.previewBlock, { backgroundColor: '#E5E5EA' }]} />
-            </View>
-          </View>
         </View>
 
         {/* Sleep Reminders Section */}
@@ -332,7 +475,7 @@ const styles = StyleSheet.create({
   unitSelector: {
     flexDirection: 'row',
     backgroundColor: '#F5F5F5',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 4,
   },
   unitButton: {
@@ -400,40 +543,6 @@ const styles = StyleSheet.create({
   },
   themeButtonTextActive: {
     color: '#FFFFFF',
-  },
-  colorSelector: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  colorButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  colorButtonActive: {
-    borderColor: '#7B61FF',
-  },
-  previewSection: {
-    marginTop: 8,
-  },
-  previewLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#666',
-    marginBottom: 8,
-  },
-  previewContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  previewBlock: {
-    flex: 1,
-    height: 40,
-    borderRadius: 8,
   },
 });
 

@@ -29,8 +29,15 @@ export default function WorkoutStartScreen({ route, navigation }) {
   const [isResting, setIsResting] = useState(false);
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
   
-  // Timer ref
+  // Actual workout tracking
+  const [workoutStartTime, setWorkoutStartTime] = useState(null);
+  const [actualWorkoutTime, setActualWorkoutTime] = useState(0);
+  const [totalExercisesCompleted, setTotalExercisesCompleted] = useState(0);
+  const [totalRoundsCompleted, setTotalRoundsCompleted] = useState(0);
+  
+  // Timer refs
   const timerRef = useRef(null);
+  const workoutTimerRef = useRef(null);
   
   // Animation for timer
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -41,8 +48,24 @@ export default function WorkoutStartScreen({ route, navigation }) {
       const firstExercise = exercises[0];
       setTimeRemaining(parseInt(firstExercise.duration) || 45);
       setIsPlaying(true); // Start timer automatically
+      setWorkoutStartTime(Date.now()); // Start tracking actual workout time
     }
   }, []);
+
+  // Track actual workout time
+  useEffect(() => {
+    if (workoutStartTime && !workoutCompleted) {
+      workoutTimerRef.current = setInterval(() => {
+        setActualWorkoutTime(Math.floor((Date.now() - workoutStartTime) / 1000));
+      }, 1000);
+    }
+    
+    return () => {
+      if (workoutTimerRef.current) {
+        clearInterval(workoutTimerRef.current);
+      }
+    };
+  }, [workoutStartTime, workoutCompleted]);
 
   // Timer logic
   useEffect(() => {
@@ -103,6 +126,7 @@ export default function WorkoutStartScreen({ route, navigation }) {
       if (nextExerciseIndex < exercises.length) {
         // Move to next exercise in current round
         setCurrentExerciseIndex(nextExerciseIndex);
+        setTotalExercisesCompleted(prev => prev + 1);
         setIsResting(false);
         const nextExercise = exercises[nextExerciseIndex];
         setTimeRemaining(parseInt(nextExercise.duration) || 45);
@@ -128,6 +152,7 @@ export default function WorkoutStartScreen({ route, navigation }) {
           if (firstExerciseIndex < exercises.length) {
             setCurrentExerciseIndex(firstExerciseIndex);
             setCurrentRound(currentRound + 1);
+            setTotalRoundsCompleted(prev => prev + 1);
             setIsResting(false);
             const firstExercise = exercises[firstExerciseIndex];
             setTimeRemaining(parseInt(firstExercise.duration) || 45);
@@ -152,6 +177,7 @@ export default function WorkoutStartScreen({ route, navigation }) {
 
   const completeWorkout = () => {
     setIsPlaying(false);
+    setTotalExercisesCompleted(prev => prev + 1); // Track final exercise completion
     setWorkoutCompleted(true);
   };
 
@@ -225,25 +251,45 @@ export default function WorkoutStartScreen({ route, navigation }) {
     return null;
   };
 
-  // Calculate workout stats
-  const totalDurationMinutes = Math.floor(exercises.reduce((total, ex) => {
+  // Helper functions for formatting actual workout data
+
+  const formatActualTime = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${remainingSeconds}s`;
+    }
+    return `${minutes}m ${remainingSeconds}s`;
+  };
+
+  // Calculate actual workout stats
+  const actualDurationMinutes = Math.floor(actualWorkoutTime / 60);
+  const actualDurationSeconds = actualWorkoutTime % 60;
+  
+  // Calculate planned workout duration for calorie estimation
+  const plannedWorkoutDuration = exercises.reduce((total, ex) => {
     const exerciseTime = (parseInt(ex.duration) || 45) * (ex.rounds || 1);
     const restTime = (parseInt(ex.rest) || 15) * Math.max(0, (ex.rounds || 1) - 1);
     return total + exerciseTime + restTime;
-  }, 0) / 60);
+  }, 0);
 
-  const totalDurationSeconds = Math.floor(exercises.reduce((total, ex) => {
-    const exerciseTime = (parseInt(ex.duration) || 45) * (ex.rounds || 1);
-    const restTime = (parseInt(ex.rest) || 15) * Math.max(0, (ex.rounds || 1) - 1);
-    return total + exerciseTime + restTime;
-  }, 0) % 60);
+  // Calculate calories based on planned workout duration (shows expected calories even if exercises are skipped)
+  // This gives users a realistic estimate of what they would have burned if they completed the full workout
+  const actualCalories = Math.round((plannedWorkoutDuration / 60) * 8 * (intensity / 50));
+  
+  // Calculate workout score based on actual performance
+  const calculateWorkoutScore = () => {
+    const maxRounds = Math.max(...exercises.map(ex => ex.rounds || 1));
+    const completionRate = (totalRoundsCompleted / maxRounds) * 100;
+    const timeEfficiency = Math.min(100, (actualWorkoutTime / (actualWorkoutTime + 300)) * 100); // Bonus for efficiency
+    const intensityBonus = Math.min(20, intensity - 30); // Bonus for higher intensity
+    
+    return Math.min(100, Math.round(completionRate * 0.6 + timeEfficiency * 0.3 + intensityBonus));
+  };
 
-  const estimatedCalories = Math.round(exercises.reduce((total, ex) => {
-    const exerciseTime = (parseInt(ex.duration) || 45) * (ex.rounds || 1);
-    const intensityMultiplier = intensity / 50;
-    return total + (exerciseTime / 60) * 8 * intensityMultiplier;
-  }, 0));
-
+  const workoutScore = calculateWorkoutScore();
   const maxRounds = Math.max(...exercises.map(ex => ex.rounds || 1));
 
   if (workoutCompleted) {
@@ -259,110 +305,94 @@ export default function WorkoutStartScreen({ route, navigation }) {
         {/* Header Section */}
         <View style={styles.completedHeader}>
           <Text style={styles.completedTitle}>Workout Completed!</Text>
-                     <Text style={styles.workoutType}>
-             {sessionType || 'HIIT'} • {maxRounds} Rounds
-           </Text>
-                     <Text style={styles.completedDate}>
-             {new Date().toLocaleDateString('en-US', { 
-               weekday: 'short', 
-               month: 'short', 
-               day: 'numeric', 
-               year: 'numeric' 
-             })} • {new Date().toLocaleTimeString('en-US', { 
-               hour: 'numeric', 
-               minute: '2-digit',
-               hour12: true 
-             })}
-           </Text>
+          <Text style={styles.workoutType}>
+            {sessionType || 'HIIT'} • {totalRoundsCompleted} of {maxRounds} Rounds
+          </Text>
+          <Text style={styles.completedDate}>
+            {new Date().toLocaleDateString('en-US', { 
+              weekday: 'short', 
+              month: 'short', 
+              day: 'numeric', 
+              year: 'numeric' 
+            })} • {new Date().toLocaleTimeString('en-US', { 
+              hour: 'numeric', 
+              minute: '2-digit',
+              hour12: true 
+            })}
+          </Text>
         </View>
 
         {/* Workout Statistics */}
         <View style={styles.statsContainer}>
-                     <View style={styles.statRow}>
-             <View style={styles.statItem}>
-               <View style={styles.statIconContainer}>
-                 <Text style={styles.clockIcon}>🕐</Text>
-               </View>
-               <Text style={styles.statLabel}>Duration</Text>
-               <Text style={styles.statValue}>{totalDurationMinutes}m {totalDurationSeconds}s</Text>
-             </View>
-             <View style={styles.statItem}>
-               <View style={styles.statIconContainer}>
-                 <Text style={styles.fireIcon}>🔥</Text>
-               </View>
-               <Text style={styles.statLabel}>Calories Burned</Text>
-               <Text style={styles.statValue}>~{estimatedCalories} kcal</Text>
-             </View>
-           </View>
-           
-           <View style={styles.statRow}>
-             <View style={styles.statItem}>
-               <View style={styles.statIconContainer}>
-                 <Text style={styles.lightningIcon}>⚡</Text>
-               </View>
-               <Text style={styles.statLabel}>Avg. Intensity</Text>
-               <Text style={styles.statValue}>{intensity >= 75 ? 'High' : intensity >= 50 ? 'Medium' : 'Low'}</Text>
-             </View>
-             <View style={styles.statItem}>
-               <View style={styles.statIconContainer}>
-                 <Text style={styles.heartIcon}>❤️</Text>
-               </View>
-               <Text style={styles.statLabel}>Heart Rate</Text>
-               <Text style={styles.statValue}>128 / 165 <Text style={styles.bpmText}>bpm</Text></Text>
-             </View>
-           </View>
+          <View style={styles.statRow}>
+            <View style={styles.statItem}>
+              <View style={styles.statIconContainer}>
+                <Text style={styles.clockIcon}>🕐</Text>
+              </View>
+              <Text style={styles.statLabel}>Duration</Text>
+              <Text style={styles.statValue}>{formatActualTime(actualWorkoutTime)}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <View style={styles.statIconContainer}>
+                <Text style={styles.fireIcon}>🔥</Text>
+              </View>
+              <Text style={styles.statLabel}>Calories Burned</Text>
+              <Text style={styles.statValue}>{actualCalories} kcal</Text>
+            </View>
+          </View>
+          
+          <View style={styles.statRow}>
+            <View style={styles.statItem}>
+              <View style={styles.statIconContainer}>
+                <Text style={styles.lightningIcon}>⚡</Text>
+              </View>
+              <Text style={styles.statLabel}>Avg. Intensity</Text>
+              <Text style={styles.statValue}>{intensity >= 75 ? 'High' : intensity >= 50 ? 'Medium' : 'Low'}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <View style={styles.statIconContainer}>
+                <Text style={styles.exerciseIcon}>💪</Text>
+              </View>
+              <Text style={styles.statLabel}>Exercises</Text>
+              <Text style={styles.statValue}>{totalExercisesCompleted} completed</Text>
+            </View>
+          </View>
         </View>
 
         {/* Workout Score */}
         <View style={styles.scoreSection}>
           <View style={styles.scoreHeader}>
             <Text style={styles.scoreLabel}>Workout Score</Text>
-            <Text style={styles.scoreValue}>75/100</Text>
+            <Text style={styles.scoreValue}>{workoutScore}/100</Text>
           </View>
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: '75%' }]} />
+            <View style={[styles.progressFill, { width: `${workoutScore}%` }]} />
           </View>
         </View>
 
-        {/* Energy Spent Chart */}
+        {/* Workout Summary */}
         <View style={styles.energySection}>
-          <Text style={styles.sectionTitle}>Energy Spent</Text>
-          <View style={styles.energyChartContainer}>
-            <View style={styles.energyChart}>
-              <View style={styles.energySegment}>
-                <View style={[styles.energyBar, { height: 20, backgroundColor: '#fbbf24' }]} />
-                <Text style={styles.energyPercentage}>P 15%</Text>
-              </View>
-              <View style={styles.energySegment}>
-                <View style={[styles.energyBar, { height: 35, backgroundColor: '#7c3aed' }]} />
-                <Text style={styles.energyPercentage}>F 25%</Text>
-              </View>
-              <View style={styles.energySegment}>
-                <View style={[styles.energyBar, { height: 80, backgroundColor: '#1f2937' }]} />
-                <Text style={styles.energyPercentage}>C 60%</Text>
-              </View>
+          <Text style={styles.sectionTitle}>Workout Summary</Text>
+          <View style={styles.summaryContainer}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Total Time</Text>
+              <Text style={styles.summaryValue}>{formatActualTime(actualWorkoutTime)}</Text>
             </View>
-            <View style={styles.energyCircle}>
-              <View style={styles.circleChart}>
-                <View style={styles.circleSegmentYellow} />
-                <View style={styles.circleSegmentPurple} />
-                <View style={styles.circleSegmentDark} />
-              </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Rounds Completed</Text>
+              <Text style={styles.summaryValue}>{totalRoundsCompleted} / {maxRounds}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Exercises Done</Text>
+              <Text style={styles.summaryValue}>{totalExercisesCompleted}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Calories Burned</Text>
+              <Text style={styles.summaryValue}>{actualCalories} kcal</Text>
             </View>
           </View>
         </View>
 
-        {/* Timeline Recap */}
-        <View style={styles.timelineSection}>
-          <Text style={styles.sectionTitle}>Timeline Recap</Text>
-          <View style={styles.timelineChart}>
-            <View style={[styles.timelineBar, styles.timelineBarGray]} />
-            <View style={[styles.timelineBar, styles.timelineBarPurple]} />
-            <View style={[styles.timelineBar, styles.timelineBarGray]} />
-            <View style={[styles.timelineBar, styles.timelineBarPurple]} />
-            <View style={[styles.timelineBar, styles.timelineBarGray]} />
-          </View>
-        </View>
 
         {/* How did you feel */}
         <View style={styles.feelingsSection}>
@@ -797,104 +827,39 @@ const styles = StyleSheet.create({
   energySection: {
     marginBottom: 25,
   },
+  summaryContainer: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  summaryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightGray,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: COLORS.gray,
+    fontWeight: '500',
+  },
+  summaryValue: {
+    fontSize: 14,
+    color: COLORS.dark,
+    fontWeight: '600',
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.dark,
     marginBottom: 15,
-  },
-  energyChartContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  energyChart: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    flex: 1,
-    height: 120,
-    paddingHorizontal: 20,
-  },
-  energySegment: {
-    alignItems: 'center',
-    flex: 1,
-    marginHorizontal: 10,
-  },
-  energyBar: {
-    width: 25,
-    borderRadius: 4,
-    marginBottom: 8,
-  },
-  energyPercentage: {
-    fontSize: 10,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-    transform: [{ rotate: '-45deg' }],
-  },
-  energyCircle: {
-    width: 80,
-    height: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 20,
-  },
-  circleChart: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#e5e7eb',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  circleSegmentYellow: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 35,
-    height: 35,
-    backgroundColor: '#fbbf24',
-    borderTopRightRadius: 35,
-  },
-  circleSegmentPurple: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 35,
-    height: 70,
-    backgroundColor: '#7c3aed',
-    borderTopLeftRadius: 35,
-    borderBottomLeftRadius: 35,
-  },
-  circleSegmentDark: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 35,
-    height: 35,
-    backgroundColor: '#1f2937',
-    borderBottomRightRadius: 35,
-  },
-  timelineSection: {
-    marginBottom: 25,
-  },
-  timelineChart: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    height: 60,
-    paddingHorizontal: 10,
-  },
-  timelineBar: {
-    flex: 1,
-    marginHorizontal: 2,
-    borderRadius: 4,
-  },
-  timelineBarGray: {
-    height: 20,
-    backgroundColor: '#d1d5db',
-  },
-  timelineBarPurple: {
-    height: 50,
-    backgroundColor: COLORS.primary,
   },
   feelingsSection: {
     marginBottom: 25,

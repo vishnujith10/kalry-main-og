@@ -3,14 +3,14 @@ import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import { makeRedirectUri } from 'expo-auth-session';
 import React, { useContext, useEffect, useState } from 'react';
 import {
-  Alert,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { OnboardingContext } from '../context/OnboardingContext';
 import supabase from '../lib/supabase';
@@ -110,6 +110,9 @@ const LoginScreen = ({ navigation }) => {
           prefered_workout: onboardingData.prefered_workout,
           total_days_per_week: Number(onboardingData.total_days_per_week),
           prefered_time: onboardingData.prefered_time,
+          // Add unit preferences from onboarding
+          weight_unit: onboardingData.isMetric ? 'kg' : 'lbs',
+          height_unit: onboardingData.isMetric ? 'cm' : 'ft',
         };
         
         console.log('Attempting to insert profile for user:', user.id);
@@ -240,7 +243,7 @@ const LoginScreen = ({ navigation }) => {
               <Text style={styles.socialButtonText}>CONNECT WITH GOOGLE</Text>
             </TouchableOpacity>
             <View style={styles.signupContainer}>
-              <Text style={styles.signupText}>Don't have an account? </Text>
+              <Text style={styles.signupText}>Don&apos;t have an account? </Text>
               <TouchableOpacity onPress={() => navigation.navigate('MiniProfile')}>
                 <Text style={styles.signupLink}>Sign Up</Text>
               </TouchableOpacity>

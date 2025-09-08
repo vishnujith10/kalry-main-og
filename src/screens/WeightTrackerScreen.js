@@ -49,13 +49,15 @@ const WeightTrackerScreen = ({ navigation }) => {
     fetchLogs();
   }, [userId, refreshing]);
 
-  // Fetch user profile (for current weight)
+  // No need for AsyncStorage - units are now saved in database during signup
+
+  // Fetch user profile (for current weight and units)
   const fetchUserProfile = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user?.id) {
       const { data: profile } = await supabase
         .from('user_profile')
-        .select('weight, target_weight')
+        .select('weight, target_weight, weight_unit')
         .eq('id', session.user.id)
         .single();
       if (profile) {
@@ -63,6 +65,7 @@ const WeightTrackerScreen = ({ navigation }) => {
           ...prev,
           weight: profile.weight || prev.weight,
           target_weight: profile.target_weight || prev.target_weight,
+          selectedWeightUnit: profile.weight_unit || prev.selectedWeightUnit || 'kg',
         }));
       }
     }
@@ -141,7 +144,7 @@ const WeightTrackerScreen = ({ navigation }) => {
   const renderHeader = () => (
     <>
       <Text style={styles.header}>Track Your Weight</Text>
-      <Text style={styles.subheader}>See how far you've come, at your pace.</Text>
+      <Text style={styles.subheader}>See how far you&apos;ve come, at your pace.</Text>
       {/* Current Weight Card */}
       <View style={styles.currentCard}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
@@ -168,7 +171,7 @@ const WeightTrackerScreen = ({ navigation }) => {
           <View style={[styles.progressBarFill, { width: `${progress * 100}%` }]} />
         </View>
         <Text style={styles.toGoText}>{toGo} {weightUnit} to go</Text>
-        {showProgressMsg && <Text style={styles.goalProgressText}>You're making great progress!</Text>}
+        {showProgressMsg && <Text style={styles.goalProgressText}>You&apos;re making great progress!</Text>}
       </View>
       <Text style={styles.historyHeader}>History</Text>
     </>

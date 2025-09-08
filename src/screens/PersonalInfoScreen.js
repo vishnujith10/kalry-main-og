@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import supabase from '../lib/supabase';
 
@@ -38,11 +38,20 @@ const PersonalInfoScreen = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [editingField, setEditingField] = useState(null);
   const [editValues, setEditValues] = useState({});
+  const [weightUnit, setWeightUnit] = useState('kg');
+  const [heightUnit, setHeightUnit] = useState('cm');
 
   useEffect(() => {
     fetchTodayData();
     fetchUserProfile();
   }, []);
+
+  // Refresh profile when screen comes into focus (e.g., after unit conversion)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchUserProfile();
+    }, [])
+  );
 
   const fetchTodayData = async () => {
     try {
@@ -108,6 +117,8 @@ const PersonalInfoScreen = () => {
     }
   };
 
+  // No need for AsyncStorage - units are now saved in database during signup
+
   const fetchUserProfile = async () => {
     try {
       console.log('Fetching user profile...');
@@ -127,6 +138,10 @@ const PersonalInfoScreen = () => {
           console.error('Error fetching user profile:', error);
         } else {
           setUserProfile(profile);
+          
+          // Set units from database with fallback defaults
+          setWeightUnit(profile?.weight_unit || 'kg');
+          setHeightUnit(profile?.height_unit || 'cm');
         }
       } else {
         console.log('No authenticated user found');
@@ -289,11 +304,11 @@ const PersonalInfoScreen = () => {
         <View style={styles.settingsSection}>
                      {renderEditableField('age', 'Age', userProfile?.age, '', 'person-outline')}
 
-               {renderEditableField('weight', 'Weight', userProfile?.weight, ' kg', 'fitness-outline')}
+               {renderEditableField('weight', 'Weight', userProfile?.weight, ` ${weightUnit}`, 'fitness-outline')}
 
-                         {renderEditableField('target_weight', 'Goal Weight', userProfile?.target_weight, ' kg', 'trending-up-outline')}
+                         {renderEditableField('target_weight', 'Goal Weight', userProfile?.target_weight, ` ${weightUnit}`, 'trending-up-outline')}
 
-                       {renderEditableField('height', 'Height', userProfile?.height, ' cm', 'resize-outline')}
+                       {renderEditableField('height', 'Height', userProfile?.height, ` ${heightUnit}`, 'resize-outline')}
 
                                                                        {renderEditableField('date_of_birth', 'Date of Birth', userProfile?.date_of_birth, '', 'calendar-outline')}
 

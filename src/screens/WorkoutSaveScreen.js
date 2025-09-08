@@ -28,7 +28,7 @@ const COLORS = {
 
 export default function SavedCardioSessionsScreen() {
   const [cardioSessions, setCardioSessions] = useState([]);
-  const [exerciseSessions, setExerciseSessions] = useState([]);
+  const [routineSessions, setRoutineSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('cardio');
   const navigation = useNavigation();
@@ -65,7 +65,7 @@ export default function SavedCardioSessionsScreen() {
       },
     ];
     
-    const dummyExerciseSessions = [
+    const dummyRoutineSessions = [
       {
         id: '4',
         name: 'Upper Body Strength',
@@ -91,7 +91,7 @@ export default function SavedCardioSessionsScreen() {
     
     // Set dummy data immediately
     setCardioSessions(dummyCardioSessions);
-    setExerciseSessions(dummyExerciseSessions);
+    setRoutineSessions(dummyRoutineSessions);
     
     // Simulate loading delay
     setTimeout(() => {
@@ -107,8 +107,8 @@ export default function SavedCardioSessionsScreen() {
         if (type === 'cardio') {
           navigation.navigate('CardioPlayerScreen', { session });
         } else {
-          // TODO: Navigate to exercise player
-          console.log('Exercise session:', session);
+          // TODO: Navigate to routine player
+          console.log('Routine session:', session);
         }
       }}
     >
@@ -148,8 +148,8 @@ export default function SavedCardioSessionsScreen() {
             if (type === 'cardio') {
               navigation.navigate('CardioPlayerScreen', { session });
             } else {
-              // TODO: Navigate to exercise player
-              console.log('Play exercise session:', session);
+              // TODO: Navigate to routine player
+              console.log('Play routine session:', session);
             }
           }}
         >
@@ -188,13 +188,13 @@ export default function SavedCardioSessionsScreen() {
           if (type === 'cardio') {
             navigation.navigate('CreateWorkoutScreen');
           } else {
-            // TODO: Navigate to exercise creation
-            console.log('Create exercise session');
+            // TODO: Navigate to routine creation
+            console.log('Create routine session');
           }
         }}
       >
         <Ionicons name="add" size={16} color={COLORS.surface} />
-        <Text style={styles.createButtonText}>Create {type === 'cardio' ? 'Cardio' : 'Exercise'} Session</Text>
+        <Text style={styles.createButtonText}>Create {type === 'cardio' ? 'Cardio' : 'Routine'} Session</Text>
       </TouchableOpacity>
     </View>
   );
@@ -213,7 +213,7 @@ export default function SavedCardioSessionsScreen() {
   console.log('Rendering SavedCardioSessionsScreen:', { 
     loading, 
     cardioSessions: cardioSessions.length, 
-    exerciseSessions: exerciseSessions.length,
+    routineSessions: routineSessions.length,
     activeTab 
   });
 
@@ -253,19 +253,19 @@ export default function SavedCardioSessionsScreen() {
         </TouchableOpacity>
         
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'exercises' && styles.activeTab]}
-          onPress={() => setActiveTab('exercises')}
+          style={[styles.tab, activeTab === 'routines' && styles.activeTab]}
+          onPress={() => setActiveTab('routines')}
         >
           <Ionicons 
             name="barbell" 
             size={20} 
-            color={activeTab === 'exercises' ? COLORS.surface : COLORS.textSecondary} 
+            color={activeTab === 'routines' ? COLORS.surface : COLORS.textSecondary} 
           />
           <Text style={[
             styles.tabText,
-            activeTab === 'exercises' && styles.activeTabText
+            activeTab === 'routines' && styles.activeTabText
           ]}>
-            Exercises
+            Routines
           </Text>
         </TouchableOpacity>
       </View>
@@ -280,10 +280,10 @@ export default function SavedCardioSessionsScreen() {
               renderEmptyState('cardio')
             )
           ) : (
-            exerciseSessions.length > 0 ? (
-              exerciseSessions.map(session => renderSessionCard(session, 'exercises'))
+            routineSessions.length > 0 ? (
+              routineSessions.map(session => renderSessionCard(session, 'routines'))
             ) : (
-              renderEmptyState('exercises')
+              renderEmptyState('routines')
             )
           )}
         </View>

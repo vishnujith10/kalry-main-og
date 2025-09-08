@@ -2,15 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Switch,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import supabase from '../lib/supabase';
 
 const COLORS = {
   primary: '#7C3AED',
@@ -66,6 +68,41 @@ const AppSettingsScreen = () => {
   const handleClearHistory = () => {
     // TODO: Implement clear history functionality
     console.log('Clearing history...');
+  };
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase.auth.signOut();
+              if (error) {
+                Alert.alert('Error', 'Failed to logout. Please try again.');
+                console.error('Logout error:', error);
+              } else {
+                // Navigate to login screen
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Login' }],
+                });
+              }
+            } catch (error) {
+              Alert.alert('Error', 'An unexpected error occurred.');
+              console.error('Logout error:', error);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const renderSection = (title, children) => (
@@ -232,6 +269,11 @@ const AppSettingsScreen = () => {
                 <Text style={styles.subsectionTitle}>Language</Text>
                 {renderPillGroup(['English', 'Español'], language, setLanguage)}
               </View>
+              
+              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={20} color={COLORS.error} />
+                <Text style={styles.logoutButtonText}>Logout</Text>
+              </TouchableOpacity>
             </View>
           ))}
 
@@ -394,6 +436,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: COLORS.error,
+  },
+  logoutButton: {
+    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.error,
+    marginVertical: 8,
+  },
+  logoutButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.error,
+    marginLeft: 8,
   },
   footer: {
     alignItems: 'center',
