@@ -1,7 +1,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, FlatList, Modal, ScrollView, StatusBar, StyleSheet, Switch, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, Animated, Dimensions, FlatList, Image, Modal, ScrollView, StatusBar, StyleSheet, Switch, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import supabase from '../lib/supabase';
 
 const { width, height } = Dimensions.get('window');
@@ -75,6 +75,7 @@ export default function CardioSessionBuilder({ navigation }) {
   const [totalRounds, setTotalRounds] = useState(3);
   const [restBetweenRounds, setRestBetweenRounds] = useState(60);
   const [soundAlerts, setSoundAlerts] = useState(true);
+  const [soundOption, setSoundOption] = useState('ding');
   const [autoRepeat, setAutoRepeat] = useState(true);
   const [notes, setNotes] = useState('');
   
@@ -511,6 +512,103 @@ export default function CardioSessionBuilder({ navigation }) {
     );
   };
 
+  // Save and continue
+  const saveAndContinue = async () => {
+    if (!sessionType) {
+      Alert.alert('Error', 'Please select a session type');
+      return;
+    }
+    
+    if (exercises.length === 0) {
+      Alert.alert('Error', 'Please add at least one exercise');
+      return;
+    }
+
+    try {
+      // Get current user
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      
+      if (!userId) {
+        Alert.alert('Error', 'User not logged in');
+        return;
+      }
+
+      // Calculate estimated time and calories
+      const estimatedTime = exercises.reduce((total, ex) => {
+        const exerciseTime = (parseInt(ex.duration) || 45) * (ex.rounds || 1);
+        const restTime = (parseInt(ex.rest) || 15) * Math.max(0, (ex.rounds || 1) - 1);
+        return total + exerciseTime + restTime;
+      }, 0);
+
+      const estimatedCalories = Math.round((estimatedTime / 60) * 8 * (intensity / 50));
+
+      // Create session name
+      const sessionName = sessionType || 'Cardio Session';
+
+      // Insert into saved_cardio_sessions table
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('saved_cardio_sessions')
+        .insert({
+          user_id: userId,
+          name: sessionName,
+          total_rounds: Math.max(...exercises.map(ex => ex.rounds || 1)),
+          rest_between_rounds: restBetweenRounds || 15,
+          sound_alerts: soundAlerts,
+          sound_option: soundOption,
+          auto_repeat: autoRepeat,
+          notes: '',
+          estimated_time: estimatedTime,
+          estimated_calories: estimatedCalories
+        })
+        .select()
+        .single();
+
+      if (sessionError) {
+        console.error('Session save error:', sessionError);
+        Alert.alert('Error', 'Failed to save session');
+      return;
+    }
+
+      // Insert exercises into saved_cardio_exercises table
+      for (let i = 0; i < exercises.length; i++) {
+        const exercise = exercises[i];
+        const { error: exerciseError } = await supabase
+          .from('saved_cardio_exercises')
+          .insert({
+            session_id: sessionData.id,
+            exercise_name: exercise.name || exercise.workout,
+            duration: parseInt(exercise.duration) || 45,
+            rest: parseInt(exercise.rest) || 15,
+            rounds: parseInt(exercise.rounds) || 1,
+            order_index: i + 1,
+            image_url: exercise.gif_url || null
+          });
+
+        if (exerciseError) {
+          console.error('Exercise save error:', exerciseError);
+          Alert.alert('Error', 'Failed to save exercise');
+          return;
+        }
+      }
+
+      Alert.alert(
+        'Success',
+        'Cardio session saved successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('WorkoutSaveScreen')
+          }
+        ]
+      );
+
+    } catch (error) {
+      console.error('Save error:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" />
@@ -629,7 +727,7 @@ export default function CardioSessionBuilder({ navigation }) {
                         <TouchableWithoutFeedback onPress={() => setShowMenuIndex(null)}>
                           <View style={styles.menuModalOverlay}>
                             <View style={styles.menuDropdown}>
-                              <TouchableOpacity
+                <TouchableOpacity
                                 style={styles.menuItem}
                                 onPress={() => handleMenuAction('edit', index)}
                               >
@@ -642,8 +740,8 @@ export default function CardioSessionBuilder({ navigation }) {
                               >
                                 <Ionicons name="trash" size={16} color={COLORS.error} />
                                 <Text style={[styles.menuItemText, { color: COLORS.error }]}>Remove</Text>
-                              </TouchableOpacity>
-                            </View>
+                </TouchableOpacity>
+              </View>
                           </View>
                         </TouchableWithoutFeedback>
                       </Modal>
@@ -651,7 +749,15 @@ export default function CardioSessionBuilder({ navigation }) {
                   )}
 
                   <View style={styles.exerciseInfo}>
-                    <Text style={styles.exerciseIcon}>{item.icon}</Text>
+                    {item.gif_url ? (
+                      <Image
+                        source={{ uri: item.gif_url }}
+                        style={styles.exerciseGif}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Text style={styles.exerciseIcon}>{item.icon}</Text>
+                    )}
                     <View style={styles.exerciseDetails}>
                       <Text style={styles.exerciseName}>{item.name}</Text>
                       {editingExerciseIndex === index ? (
@@ -705,7 +811,7 @@ export default function CardioSessionBuilder({ navigation }) {
                     <View style={styles.exerciseActions}>
                       <View style={styles.editActions}>
           <TouchableOpacity
-                          style={styles.saveButton}
+                          style={styles.editSaveButton}
                           onPress={() => saveExerciseEdit(index)}
                         >
                           <Ionicons name="checkmark" size={16} color={COLORS.white} />
@@ -782,14 +888,22 @@ export default function CardioSessionBuilder({ navigation }) {
         </View>
 
         {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.clearButton} onPress={clearAll}>
+        <View style={styles.actionButtonsContainer}>
+          {/* Clear All Button - Top Center */}
+          <TouchableOpacity style={styles.clearButtonTop} onPress={clearAll}>
             <Text style={styles.clearButtonText}>Clear All</Text>
             </TouchableOpacity>
-          <TouchableOpacity style={styles.startButton} onPress={startWorkout}>
-            <Text style={styles.startButtonText}>Start Workout</Text>
+          
+          {/* Bottom Row - Save and Start Buttons */}
+          <View style={styles.bottomButtonsRow}>
+            <TouchableOpacity style={styles.saveButtonBottom} onPress={saveAndContinue}>
+              <Text style={styles.saveButtonText}>Save &{'\n'}Continue</Text>
           </TouchableOpacity>
+            <TouchableOpacity style={styles.startButtonBottom} onPress={startWorkout}>
+              <Text style={styles.startButtonText}>Start{'\n'}Workout</Text>
+                  </TouchableOpacity>
               </View>
+        </View>
       </ScrollView>
 
       {/* Add Exercise Modal */}
@@ -828,7 +942,15 @@ export default function CardioSessionBuilder({ navigation }) {
                         style={styles.exerciseOption}
                         onPress={() => setSelectedExercise(item)}
                       >
-                        <Text style={styles.exerciseOptionIcon}>💪</Text>
+                        {item.gif_url ? (
+                          <Image
+                            source={{ uri: item.gif_url }}
+                            style={styles.exerciseOptionGif}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <Text style={styles.exerciseOptionIcon}>💪</Text>
+                        )}
                         <View style={styles.exerciseOptionInfo}>
                           <Text style={styles.exerciseOptionName}>{item.name}</Text>
                           <View style={styles.exerciseOptionTags}>
@@ -937,9 +1059,17 @@ export default function CardioSessionBuilder({ navigation }) {
 
             {exercises.length > 0 && (
               <View style={styles.playerContent}>
-                <Text style={styles.currentExerciseIcon}>
-                  {exercises[currentExerciseIndex]?.icon}
-                </Text>
+                {exercises[currentExerciseIndex]?.gif_url ? (
+                  <Image
+                    source={{ uri: exercises[currentExerciseIndex].gif_url }}
+                    style={styles.currentExerciseGif}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text style={styles.currentExerciseIcon}>
+                    {exercises[currentExerciseIndex]?.icon}
+                  </Text>
+                )}
                 <Text style={styles.currentExerciseName}>
                   {exercises[currentExerciseIndex]?.name}
                 </Text>
@@ -1321,6 +1451,13 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   
+  exerciseGif: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 16,
+  },
+  
   exerciseDetails: {
     flex: 1,
   },
@@ -1426,7 +1563,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   
-  saveButton: {
+  editSaveButton: {
     padding: 8,
     borderRadius: 8,
     backgroundColor: COLORS.success,
@@ -1567,20 +1704,25 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
+  actionButtonsContainer: {
     marginBottom: 30,
   },
   
-  clearButton: {
-    flex: 1,
+  bottomButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  
+  clearButtonTop: {
     backgroundColor: 'transparent',
     borderWidth: 2,
     borderColor: '#ef4444',
     borderRadius: 16,
     paddingVertical: 16,
+    paddingHorizontal: 24,
     alignItems: 'center',
+    width: '100%',
   },
   
   clearButtonText: {
@@ -1589,11 +1731,34 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   
-  startButton: {
-    flex: 2,
+  saveButtonBottom: {
+    flex: 1,
+    backgroundColor: '#10b981',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  
+  startButtonBottom: {
+    flex: 1,
     backgroundColor: '#7c3aed',
     borderRadius: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     alignItems: 'center',
     shadowColor: '#7c3aed',
     shadowOffset: { width: 0, height: 4 },
@@ -1604,8 +1769,10 @@ const styles = StyleSheet.create({
   
   startButtonText: {
     color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   
   // Modal Styles
@@ -1672,6 +1839,13 @@ const styles = StyleSheet.create({
   
   exerciseOptionIcon: {
     fontSize: 32,
+    marginRight: 16,
+  },
+  
+  exerciseOptionGif: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     marginRight: 16,
   },
   
@@ -1826,6 +2000,20 @@ const styles = StyleSheet.create({
   },
   
 
+  
+  currentExerciseIcon: {
+    fontSize: 48,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  
+  currentExerciseGif: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
   
   currentExerciseName: {
     fontSize: 28,

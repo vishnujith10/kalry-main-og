@@ -1,16 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
+import supabase from '../lib/supabase';
 
 const COLORS = {
   primary: '#7C3AED',
@@ -37,66 +39,83 @@ export default function SavedCardioSessionsScreen() {
     fetchSessions();
   }, []);
 
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchSessions();
+    }, [])
+  );
+
   const fetchSessions = async () => {
     setLoading(true);
     
-    // Add dummy data for testing
-    const dummyCardioSessions = [
-      {
-        id: '1',
-        name: 'Morning Cardio Blast',
-        total_rounds: 5,
-        estimated_time: 1800, // 30 minutes
-        estimated_calories: 250,
-      },
-      {
-        id: '2',
-        name: 'HIIT Workout',
-        total_rounds: 8,
-        estimated_time: 2400, // 40 minutes
-        estimated_calories: 400,
-      },
-      {
-        id: '3',
-        name: 'Quick Cardio',
-        total_rounds: 3,
-        estimated_time: 900, // 15 minutes
-        estimated_calories: 150,
-      },
-    ];
-    
-    const dummyRoutineSessions = [
-      {
-        id: '4',
-        name: 'Upper Body Strength',
-        total_rounds: 4,
-        estimated_time: 2700, // 45 minutes
-        estimated_calories: 300,
-      },
-      {
-        id: '5',
-        name: 'Full Body Workout',
-        total_rounds: 6,
-        estimated_time: 3600, // 60 minutes
-        estimated_calories: 450,
-      },
-      {
-        id: '6',
-        name: 'Core & Abs',
-        total_rounds: 5,
-        estimated_time: 1800, // 30 minutes
-        estimated_calories: 200,
-      },
-    ];
-    
-    // Set dummy data immediately
-    setCardioSessions(dummyCardioSessions);
-    setRoutineSessions(dummyRoutineSessions);
-    
-    // Simulate loading delay
-    setTimeout(() => {
+    try {
+      // Get current user
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      
+      if (!userId) {
+        console.log('No user session found');
+        setLoading(false);
+        return;
+      }
+
+      // Fetch saved cardio sessions with exercise names
+      const { data: cardioData, error: cardioError } = await supabase
+        .from('saved_cardio_sessions')
+        .select(`
+          id,
+          name,
+          total_rounds,
+          estimated_time,
+          estimated_calories,
+          created_at,
+          saved_cardio_exercises (
+            exercise_name,
+            order_index,
+            image_url
+          )
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (cardioError) {
+        console.error('Error fetching cardio sessions:', cardioError);
+      } else {
+        setCardioSessions(cardioData || []);
+      }
+
+      // Fetch saved routine sessions (from routines table)
+      const { data: routineData, error: routineError } = await supabase
+        .from('routines')
+        .select(`
+          id,
+          name,
+          description,
+          created_at
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (routineError) {
+        console.error('Error fetching routine sessions:', routineError);
+      } else {
+        // Transform routine data to match expected format
+        const transformedRoutines = (routineData || []).map(routine => ({
+          id: routine.id,
+          name: routine.name,
+          total_rounds: 0, // Routines don't have rounds concept
+          estimated_time: 0, // Will need to calculate from exercises
+          estimated_calories: 0, // Will need to calculate from exercises
+        }));
+        setRoutineSessions(transformedRoutines);
+      }
+
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   const renderSessionCard = (session, type) => (
@@ -114,14 +133,37 @@ export default function SavedCardioSessionsScreen() {
     >
       <View style={styles.sessionHeader}>
         <View style={styles.sessionIcon}>
-          <Ionicons 
-            name={type === 'cardio' ? 'heart' : 'barbell'} 
-            size={24} 
-            color={COLORS.primary} 
-          />
+          {session.saved_cardio_exercises && session.saved_cardio_exercises.length > 0 && session.saved_cardio_exercises[0].image_url ? (
+            <Image
+              source={{ uri: session.saved_cardio_exercises[0].image_url }}
+              style={styles.sessionGif}
+              resizeMode="cover"
+            />
+          ) : (
+            <Ionicons 
+              name="fitness" 
+              size={24} 
+              color={COLORS.primary} 
+            />
+          )}
         </View>
         <View style={styles.sessionInfo}>
-          <Text style={styles.sessionName}>{session.name}</Text>
+          <Text style={styles.sessionName}>
+            {session.saved_cardio_exercises && session.saved_cardio_exercises.length > 0
+              ? (() => {
+                  const exerciseNames = session.saved_cardio_exercises
+                    .sort((a, b) => a.order_index - b.order_index)
+                    .map(ex => ex.exercise_name);
+                  
+                  if (exerciseNames.length <= 2) {
+                    return exerciseNames.join(', ');
+                  } else {
+                    return `${exerciseNames.slice(0, 2).join(', ')} +${exerciseNames.length - 2} more`;
+                  }
+                })()
+              : session.name
+            }
+          </Text>
           <View style={styles.sessionDetails}>
             <View style={styles.detailItem}>
               <Ionicons name="repeat" size={14} color={COLORS.textMuted} />
@@ -383,6 +425,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+  },
+  sessionGif: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   sessionInfo: {
     flex: 1,

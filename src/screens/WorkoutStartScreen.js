@@ -136,6 +136,9 @@ export default function WorkoutStartScreen({ route, navigation }) {
         const maxRounds = Math.max(...exercises.map(ex => ex.rounds || 1));
         
         if (currentRound < maxRounds) {
+          // Complete current round and start next round
+          setTotalRoundsCompleted(prev => prev + 1); // Increment when completing a round
+          
           // Start next round, find first exercise that has more rounds
           let firstExerciseIndex = 0;
           while (firstExerciseIndex < exercises.length) {
@@ -152,7 +155,6 @@ export default function WorkoutStartScreen({ route, navigation }) {
           if (firstExerciseIndex < exercises.length) {
             setCurrentExerciseIndex(firstExerciseIndex);
             setCurrentRound(currentRound + 1);
-            setTotalRoundsCompleted(prev => prev + 1);
             setIsResting(false);
             const firstExercise = exercises[firstExerciseIndex];
             setTimeRemaining(parseInt(firstExercise.duration) || 45);
@@ -163,6 +165,7 @@ export default function WorkoutStartScreen({ route, navigation }) {
           }
         } else {
           // All rounds completed
+          setTotalRoundsCompleted(prev => prev + 1); // Increment when completing final round
           completeWorkout();
         }
       }
@@ -201,9 +204,6 @@ export default function WorkoutStartScreen({ route, navigation }) {
     );
   };
 
-  const handleWorkoutComplete = () => {
-    navigation.navigate('Create');
-  };
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -433,11 +433,8 @@ export default function WorkoutStartScreen({ route, navigation }) {
 
         {/* Bottom Action Buttons */}
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.saveButton} onPress={handleWorkoutComplete}>
-            <Text style={styles.saveButtonText}>Save & Continue</Text>
-          </TouchableOpacity>
           <TouchableOpacity style={styles.planNextButton} onPress={() => navigation.navigate('Create')}>
-            <Text style={styles.planNextButtonText}>Plan Next →</Text>
+            <Text style={styles.planNextButtonText}>Done</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -936,19 +933,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 15,
     marginBottom: 20,
-  },
-  saveButton: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '600',
   },
   planNextButton: {
     flex: 1,
