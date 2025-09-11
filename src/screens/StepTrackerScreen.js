@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Modal, TextInput, Button, Platform } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
-import { getDailyGoal, setDailyGoal } from '../utils/goalStorage';
+import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { Button, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import supabase from '../lib/supabase';
+import { getDailyGoal, setDailyGoal } from '../utils/goalStorage';
 import useTodaySteps from '../utils/useTodaySteps';
 
 // Remove MOCK_STEPS, use real steps

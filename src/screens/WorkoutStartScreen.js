@@ -19,7 +19,7 @@ const COLORS = {
 };
 
 export default function WorkoutStartScreen({ route, navigation }) {
-  const { exercises, sessionType, intensity, restBetweenRounds } = route.params;
+  const { exercises, sessionType, intensity, restBetweenRounds, sessionData } = route.params;
   
   // State management
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
@@ -268,23 +268,30 @@ export default function WorkoutStartScreen({ route, navigation }) {
   const actualDurationMinutes = Math.floor(actualWorkoutTime / 60);
   const actualDurationSeconds = actualWorkoutTime % 60;
   
-  // Calculate planned workout duration for calorie estimation
-  const plannedWorkoutDuration = exercises.reduce((total, ex) => {
+  // Use session data from database if available, otherwise calculate
+  const plannedWorkoutDuration = sessionData?.estimated_time || exercises.reduce((total, ex) => {
     const exerciseTime = (parseInt(ex.duration) || 45) * (ex.rounds || 1);
     const restTime = (parseInt(ex.rest) || 15) * Math.max(0, (ex.rounds || 1) - 1);
     return total + exerciseTime + restTime;
   }, 0);
 
-  // Calculate calories based on planned workout duration (shows expected calories even if exercises are skipped)
-  // This gives users a realistic estimate of what they would have burned if they completed the full workout
-  const actualCalories = Math.round((plannedWorkoutDuration / 60) * 8 * (intensity / 50));
+  // Use session calories from database if available, otherwise calculate
+  const actualCalories = sessionData?.estimated_calories || (() => {
+    const safeIntensity = intensity && !isNaN(intensity) ? intensity : 50;
+    return Math.round((plannedWorkoutDuration / 60) * 8 * (safeIntensity / 50));
+  })();
+  
+  console.log('DEBUG - Session Data:', sessionData);
+  console.log('DEBUG - Planned Duration:', plannedWorkoutDuration, 'Actual Calories:', actualCalories);
+  console.log('DEBUG - Is NaN actualCalories?', isNaN(actualCalories));
   
   // Calculate workout score based on actual performance
   const calculateWorkoutScore = () => {
     const maxRounds = Math.max(...exercises.map(ex => ex.rounds || 1));
     const completionRate = (totalRoundsCompleted / maxRounds) * 100;
     const timeEfficiency = Math.min(100, (actualWorkoutTime / (actualWorkoutTime + 300)) * 100); // Bonus for efficiency
-    const intensityBonus = Math.min(20, intensity - 30); // Bonus for higher intensity
+    const safeIntensity = intensity && !isNaN(intensity) ? intensity : 50;
+    const intensityBonus = Math.min(20, safeIntensity - 30); // Bonus for higher intensity
     
     return Math.min(100, Math.round(completionRate * 0.6 + timeEfficiency * 0.3 + intensityBonus));
   };
@@ -330,7 +337,7 @@ export default function WorkoutStartScreen({ route, navigation }) {
                 <Text style={styles.clockIcon}>🕐</Text>
               </View>
               <Text style={styles.statLabel}>Duration</Text>
-              <Text style={styles.statValue}>{formatActualTime(actualWorkoutTime)}</Text>
+              <Text style={styles.statValue}>{formatActualTime(plannedWorkoutDuration)}</Text>
             </View>
             <View style={styles.statItem}>
               <View style={styles.statIconContainer}>
@@ -376,7 +383,7 @@ export default function WorkoutStartScreen({ route, navigation }) {
           <View style={styles.summaryContainer}>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Total Time</Text>
-              <Text style={styles.summaryValue}>{formatActualTime(actualWorkoutTime)}</Text>
+              <Text style={styles.summaryValue}>{formatActualTime(plannedWorkoutDuration)}</Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Rounds Completed</Text>

@@ -28,16 +28,23 @@ const COLORS = {
   warning: '#F59E0B',
 };
 
-export default function SavedCardioSessionsScreen() {
+export default function SavedCardioSessionsScreen({ route }) {
   const [cardioSessions, setCardioSessions] = useState([]);
   const [routineSessions, setRoutineSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('cardio');
+  const [activeTab, setActiveTab] = useState(route?.params?.activeTab || 'cardio');
   const navigation = useNavigation();
 
   useEffect(() => {
     fetchSessions();
   }, []);
+
+  // Handle route parameter changes
+  useEffect(() => {
+    if (route?.params?.activeTab) {
+      setActiveTab(route.params.activeTab);
+    }
+  }, [route?.params?.activeTab]);
 
   // Refresh data when screen comes into focus
   useFocusEffect(
@@ -67,11 +74,14 @@ export default function SavedCardioSessionsScreen() {
           id,
           name,
           total_rounds,
+          rest_between_rounds,
           estimated_time,
           estimated_calories,
           created_at,
           saved_cardio_exercises (
             exercise_name,
+            duration,
+            rest,
             order_index,
             image_url
           )
@@ -82,32 +92,74 @@ export default function SavedCardioSessionsScreen() {
       if (cardioError) {
         console.error('Error fetching cardio sessions:', cardioError);
       } else {
-        setCardioSessions(cardioData || []);
+        // Filter out sessions with no exercises
+        const filteredCardioData = (cardioData || []).filter(session => 
+          session.saved_cardio_exercises && 
+          session.saved_cardio_exercises.length > 0 &&
+          session.saved_cardio_exercises.some(ex => ex.exercise_name)
+        );
+        setCardioSessions(filteredCardioData);
       }
 
-      // Fetch saved routine sessions (from routines table)
+      // Fetch saved routine sessions (from workouts table with 'Saved Routine' notes)
       const { data: routineData, error: routineError } = await supabase
-        .from('routines')
+        .from('workouts')
         .select(`
           id,
-          name,
-          description,
-          created_at
+          date,
+          duration,
+          total_kcal,
+          created_at,
+          saved_routine_exercises (
+            id,
+            exercise_id,
+            exercise_name,
+            duration,
+            image_url,
+            order,
+            total_sets,
+            total_reps,
+            total_weight,
+            exercise (
+              name,
+              gif_url
+            )
+          )
         `)
         .eq('user_id', userId)
+        .eq('notes', 'Saved Routine')
         .order('created_at', { ascending: false });
 
       if (routineError) {
         console.error('Error fetching routine sessions:', routineError);
       } else {
         // Transform routine data to match expected format
-        const transformedRoutines = (routineData || []).map(routine => ({
-          id: routine.id,
-          name: routine.name,
-          total_rounds: 0, // Routines don't have rounds concept
-          estimated_time: 0, // Will need to calculate from exercises
-          estimated_calories: 0, // Will need to calculate from exercises
-        }));
+        const transformedRoutines = (routineData || [])
+          .filter(routine => {
+            // Only show routines that have exercises
+            const exerciseCount = routine.saved_routine_exercises?.length || 0;
+            return exerciseCount > 0;
+          })
+          .map(routine => {
+            const exerciseCount = routine.saved_routine_exercises?.length || 0;
+            const exerciseNames = routine.saved_routine_exercises?.map(ex => ex.exercise_name || ex.exercise?.name).filter(Boolean) || [];
+            
+            return {
+              id: routine.id,
+              name: exerciseNames.length > 0 
+                ? (exerciseNames.length <= 2 
+                    ? exerciseNames.join(', ')
+                    : `${exerciseNames.slice(0, 2).join(', ')} +${exerciseNames.length - 2} more`)
+                : `Routine (${exerciseCount} exercises)`,
+              total_rounds: 0, // Routines don't have rounds concept
+              estimated_time: routine.duration || 0,
+              estimated_calories: routine.total_kcal || 0,
+              saved_routine_exercises: routine.saved_routine_exercises || [],
+              date: routine.date,
+              created_at: routine.created_at,
+              exercise_count: exerciseCount
+            };
+          });
         setRoutineSessions(transformedRoutines);
       }
 
@@ -133,46 +185,94 @@ export default function SavedCardioSessionsScreen() {
     >
       <View style={styles.sessionHeader}>
         <View style={styles.sessionIcon}>
-          {session.saved_cardio_exercises && session.saved_cardio_exercises.length > 0 && session.saved_cardio_exercises[0].image_url ? (
-            <Image
-              source={{ uri: session.saved_cardio_exercises[0].image_url }}
-              style={styles.sessionGif}
-              resizeMode="cover"
-            />
+          {type === 'cardio' ? (
+            session.saved_cardio_exercises && session.saved_cardio_exercises.length > 0 && session.saved_cardio_exercises[0].image_url ? (
+              <Image
+                source={{ uri: session.saved_cardio_exercises[0].image_url }}
+                style={styles.sessionGif}
+                resizeMode="cover"
+              />
+            ) : (
+              <Ionicons 
+                name="fitness" 
+                size={24} 
+                color={COLORS.primary} 
+              />
+            )
           ) : (
-            <Ionicons 
-              name="fitness" 
-              size={24} 
-              color={COLORS.primary} 
-            />
+            session.saved_routine_exercises && session.saved_routine_exercises.length > 0 && (session.saved_routine_exercises[0].image_url || session.saved_routine_exercises[0].exercise?.gif_url) ? (
+              <Image
+                source={{ uri: session.saved_routine_exercises[0].image_url || session.saved_routine_exercises[0].exercise.gif_url }}
+                style={styles.sessionGif}
+                resizeMode="cover"
+              />
+            ) : (
+              <Ionicons 
+                name="barbell" 
+                size={24} 
+                color={COLORS.primary} 
+              />
+            )
           )}
         </View>
         <View style={styles.sessionInfo}>
           <Text style={styles.sessionName}>
-            {session.saved_cardio_exercises && session.saved_cardio_exercises.length > 0
-              ? (() => {
-                  const exerciseNames = session.saved_cardio_exercises
-                    .sort((a, b) => a.order_index - b.order_index)
-                    .map(ex => ex.exercise_name);
-                  
-                  if (exerciseNames.length <= 2) {
-                    return exerciseNames.join(', ');
-                  } else {
-                    return `${exerciseNames.slice(0, 2).join(', ')} +${exerciseNames.length - 2} more`;
-                  }
-                })()
-              : session.name
-            }
+            {type === 'cardio' ? (
+              session.saved_cardio_exercises && session.saved_cardio_exercises.length > 0
+                ? (() => {
+                    const exerciseNames = session.saved_cardio_exercises
+                      .sort((a, b) => a.order_index - b.order_index)
+                      .map(ex => ex.exercise_name)
+                      .filter(name => name); // Filter out null/undefined names
+                    
+                    if (exerciseNames.length === 0) {
+                      return 'Empty Session';
+                    } else if (exerciseNames.length <= 2) {
+                      return exerciseNames.join(', ');
+                    } else {
+                      return `${exerciseNames.slice(0, 2).join(', ')} +${exerciseNames.length - 2} more`;
+                    }
+                  })()
+                : 'Empty Session'
+            ) : (
+              session.name
+            )}
           </Text>
           <View style={styles.sessionDetails}>
             <View style={styles.detailItem}>
-              <Ionicons name="repeat" size={14} color={COLORS.textMuted} />
-              <Text style={styles.detailText}>{session.total_rounds} rounds</Text>
+              <Ionicons name={type === 'cardio' ? "repeat" : "barbell"} size={14} color={COLORS.textMuted} />
+              <Text style={styles.detailText}>
+                {type === 'cardio' 
+                  ? `${session.total_rounds} rounds`
+                  : `${session.exercise_count || session.saved_routine_exercises?.length || 0} exercises`
+                }
+              </Text>
             </View>
             <View style={styles.detailItem}>
               <Ionicons name="time" size={14} color={COLORS.textMuted} />
-              <Text style={styles.detailText}>{Math.round((session.estimated_time || 0) / 60)} min</Text>
+              <Text style={styles.detailText}>
+                {(() => {
+                  const duration = session.estimated_time || 0;
+                  if (duration < 60) {
+                    return `${duration} sec`;
+                  } else {
+                    const minutes = Math.round(duration / 60);
+                    return `${minutes} min`;
+                  }
+                })()}
+              </Text>
             </View>
+            {type === 'cardio' && session.saved_cardio_exercises && session.saved_cardio_exercises.length > 0 && session.saved_cardio_exercises[0].rest && (
+              <View style={styles.detailItem}>
+                <Ionicons name="pause" size={14} color={COLORS.textMuted} />
+                <Text style={styles.detailText}>
+                  {(() => {
+                    const restTime = session.saved_cardio_exercises[0].rest || 0;
+                    return `${restTime} sec rest`;
+                  })()}
+                </Text>
+              </View>
+            )}
             {session.estimated_calories && (
               <View style={styles.detailItem}>
                 <Ionicons name="flame" size={14} color={COLORS.textMuted} />
@@ -188,7 +288,29 @@ export default function SavedCardioSessionsScreen() {
           style={styles.playButton}
           onPress={() => {
             if (type === 'cardio') {
-              navigation.navigate('CardioPlayerScreen', { session });
+              // Transform session data to match StartWorkoutScreen expectations
+              const transformedExercises = session.saved_cardio_exercises?.map(exercise => ({
+                id: exercise.id || Date.now().toString(36) + Math.random().toString(36).substr(2),
+                name: exercise.exercise_name,
+                workout: exercise.exercise_name, // StartWorkoutScreen also checks exercise.workout
+                duration: exercise.duration,
+                rest: exercise.rest,
+                rounds: exercise.rounds || 1,
+                gif_url: exercise.image_url, // StartWorkoutScreen expects gif_url
+                sets: [] // StartWorkoutScreen will add sets as needed
+              })) || [];
+              
+              navigation.navigate('WorkoutStart', {
+                exercises: transformedExercises,
+                sessionType: 'Cardio',
+                intensity: 'Medium', // Default intensity
+                restBetweenRounds: session.rest_between_rounds || 0,
+                sessionData: {
+                  estimated_time: session.estimated_time,
+                  estimated_calories: session.estimated_calories,
+                  name: session.name
+                }
+              });
             } else {
               // TODO: Navigate to routine player
               console.log('Play routine session:', session);
@@ -197,17 +319,6 @@ export default function SavedCardioSessionsScreen() {
         >
           <Ionicons name="play" size={16} color={COLORS.surface} />
           <Text style={styles.playButtonText}>Play</Text>
-        </TouchableOpacity>
-        
-          <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            // TODO: Add to current workout
-            console.log('Add session to workout:', session);
-          }}
-        >
-          <Ionicons name="add" size={16} color={COLORS.primary} />
-          <Text style={styles.addButtonText}>Add</Text>
         </TouchableOpacity>
       </View>
           </TouchableOpacity>
@@ -252,12 +363,6 @@ export default function SavedCardioSessionsScreen() {
     );
   }
 
-  console.log('Rendering SavedCardioSessionsScreen:', { 
-    loading, 
-    cardioSessions: cardioSessions.length, 
-    routineSessions: routineSessions.length,
-    activeTab 
-  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -472,24 +577,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: COLORS.surface,
-    marginLeft: 6,
-  },
-  addButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-  },
-  addButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.primary,
     marginLeft: 6,
   },
   emptyState: {

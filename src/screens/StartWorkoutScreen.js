@@ -257,14 +257,43 @@ export default function StartWorkoutScreen({ navigation, route }) {
   };
 
   const getTotalStats = () => {
-    const totalKcal = exercises.reduce((sum, ex) => sum + (ex.kcal || 0), 0);
+    // Calculate calories based on exercise type and duration
+    const totalKcal = exercises.reduce((sum, ex) => {
+      const exerciseType = getExerciseType(ex);
+      // Use actual exercise duration if available, otherwise fall back to calculated duration
+      const duration = ex.duration || Math.round(workoutTime / exercises.length) || 0; // Duration in seconds
+      const durationMinutes = duration / 60;
+      
+      console.log('Exercise:', ex.name, 'Duration:', duration, 'DurationMinutes:', durationMinutes, 'Type:', exerciseType);
+      
+      // Basic calorie calculation based on exercise type
+      let caloriesPerMinute = 0;
+      if (exerciseType === 'cardio') {
+        caloriesPerMinute = 8; // Average for cardio exercises
+      } else if (exerciseType === 'strength') {
+        caloriesPerMinute = 5; // Average for strength exercises
+      } else if (exerciseType === 'timer') {
+        caloriesPerMinute = 3; // Average for timer/static exercises
+      } else {
+        caloriesPerMinute = 4; // Default
+      }
+      
+      const exerciseCalories = Math.round(durationMinutes * caloriesPerMinute);
+      console.log('Exercise calories:', exerciseCalories, 'CaloriesPerMinute:', caloriesPerMinute);
+      return sum + exerciseCalories;
+    }, 0);
+    
     const totalWeight = exercises.reduce((sum, ex) => {
-      if (ex.type === 'Strength') {
+      if (getExerciseType(ex) === 'strength') {
         return sum + ex.sets.reduce((setSum, set) => setSum + ((set.weight || 0) * (set.reps || 0)), 0);
       }
       return sum;
     }, 0);
     const totalSets = exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
+    
+    console.log('Total Kcal:', totalKcal, 'Total Weight:', totalWeight, 'Total Sets:', totalSets);
+    console.log('Is NaN totalKcal?', isNaN(totalKcal));
+    
     return { totalKcal, totalWeight, totalSets };
   };
 
@@ -368,6 +397,35 @@ export default function StartWorkoutScreen({ navigation, route }) {
   };
 
   async function handleFinishWorkout() {
+    // Validation: Check if there are any exercises
+    if (exercises.length === 0) {
+      Alert.alert(
+        'No Exercises Added',
+        'Please add at least one exercise before finishing the workout.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Validation: Check if all exercises have at least one set with some data
+    const hasIncompleteExercises = exercises.some(exercise => {
+      if (exercise.sets.length === 0) return true;
+      
+      // Check if all sets are empty (no weight, reps, distance, or time filled)
+      return exercise.sets.every(set => 
+        !set.weight && !set.reps && !set.distance && (!set.time || set.time === '00:00')
+      );
+    });
+
+    if (hasIncompleteExercises) {
+      Alert.alert(
+        'Incomplete Exercise Details',
+        'Please fill in at least one set with weight, reps, distance, or time for each exercise before finishing the workout.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     setSavingWorkout(true);
     setSaveError(null);
     try {
@@ -377,6 +435,13 @@ export default function StartWorkoutScreen({ navigation, route }) {
       
       const preparedExercises = exercises.map(exercise => ({
         ...exercise,
+        // Use original exercise ID if available, otherwise null
+        id: typeof exercise.id === 'string' && exercise.id.length > 10 ? null : exercise.id,
+        // Calculate exercise duration (total workout time divided by number of exercises)
+        duration: Math.round(workoutTime / exercises.length) || 0,
+        // Ensure we have exercise name and image URL
+        name: exercise.name || exercise.workout || 'Unknown Exercise',
+        gif_url: exercise.gif_url || exercise.image_url || null,
         sets: exercise.sets.map(set => ({
           ...set,
           reps: set.reps ? parseInt(set.reps) || 0 : null,
@@ -389,9 +454,9 @@ export default function StartWorkoutScreen({ navigation, route }) {
         date: new Date().toISOString().slice(0,10),
         duration: workoutTime,
         totalKcal: getTotalStats().totalKcal,
-        notes: '',
+        notes: 'Saved Routine',
         exercises: preparedExercises,
-        isRoutine: false,
+        isRoutine: true,
       });
       
       Alert.alert(
@@ -399,8 +464,8 @@ export default function StartWorkoutScreen({ navigation, route }) {
         `Great job! Your workout has been saved.\nDuration: ${formatTime(workoutTime)}\nCalories: ${getTotalStats().totalKcal} kcal`,
         [
           { 
-            text: 'View Recent Workouts', 
-            onPress: () => navigation.navigate('Workouts')
+            text: 'View Saved Workouts', 
+            onPress: () => navigation.navigate('WorkoutSaveScreen', { activeTab: 'routines' })
           },
         ]
       );
@@ -442,7 +507,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
       
       {/* Header */}
       <View style={styles.header}>
@@ -505,10 +570,10 @@ export default function StartWorkoutScreen({ navigation, route }) {
 
       {/* Exercises List */}
       <TouchableWithoutFeedback onPress={() => setShowMenuForExercise(null)}>
-        <ScrollView 
-          style={styles.exercisesList}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.exercisesContent}
+      <ScrollView 
+        style={styles.exercisesList}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.exercisesContent}
           keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={() => Keyboard.dismiss()}
           scrollEventThrottle={16}
@@ -575,10 +640,10 @@ export default function StartWorkoutScreen({ navigation, route }) {
           </View>
         ) : (
           <>
-            {exercises.map((exercise) => (
-              <View key={exercise.id} style={styles.exerciseCard}>
-              <View style={styles.exerciseHeader}>
-                <View style={styles.exerciseIconContainer}>
+        {exercises.map((exercise) => (
+          <View key={exercise.id} style={styles.exerciseCard}>
+            <View style={styles.exerciseHeader}>
+              <View style={styles.exerciseIconContainer}>
                   {exercise.gif_url ? (
                     <Image
                       source={{ uri: exercise.gif_url }}
@@ -586,24 +651,24 @@ export default function StartWorkoutScreen({ navigation, route }) {
                       resizeMode="cover"
                     />
                   ) : (
-                    <MaterialCommunityIcons 
-                      name="dumbbell" 
-                      size={24} 
-                      color={COLORS.primary} 
-                    />
+                <MaterialCommunityIcons 
+                  name="dumbbell" 
+                  size={24} 
+                  color={COLORS.primary} 
+                />
                   )}
-                </View>
-                <View style={styles.exerciseInfo}>
+              </View>
+              <View style={styles.exerciseInfo}>
                   <Text style={styles.exerciseName}>{exercise.workout || exercise.name || 'Unnamed Exercise'}</Text>
                   <Text style={styles.exerciseMuscle}>{exercise.muscle || exercise.body_part || 'Exercise'}</Text>
-                </View>
-                <TouchableOpacity 
+              </View>
+              <TouchableOpacity 
                   style={styles.moreButton}
                   onPress={() => setShowMenuForExercise(showMenuForExercise === exercise.id ? null : exercise.id)}
-                >
+              >
                   <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
-                </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
+            </View>
 
               {/* Three-dots menu */}
               {showMenuForExercise === exercise.id && (
@@ -628,7 +693,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
               )}
 
 
-              {/* Sets */}
+            {/* Sets */}
               {exercise.sets.map((set, index) => {
                 const exerciseType = getExerciseType(exercise);
                 const timerKey = `${exercise.id}-${set.id}`;
@@ -636,9 +701,9 @@ export default function StartWorkoutScreen({ navigation, route }) {
                 const displayTime = set.time === '00:00' && currentTime > 0 ? formatTime(currentTime) : set.time;
                 
                 return (
-                  <View key={set.id} style={styles.setRow}>
-                    <Text style={styles.setLabel}>Set {index + 1}</Text>
-                    <View style={styles.setInputs}>
+              <View key={set.id} style={styles.setRow}>
+                <Text style={styles.setLabel}>Set {index + 1}</Text>
+                <View style={styles.setInputs}>
                       {exerciseType === 'cardio' ? (
                         // Cardio: KM and TIME
                         <>
@@ -690,34 +755,34 @@ export default function StartWorkoutScreen({ navigation, route }) {
                       ) : (
                         // Strength: KG and REPS
                         <>
-                          <TextInput
-                            style={styles.setInput}
-                            value={set.weight}
-                            onChangeText={(text) => updateSet(exercise.id, set.id, 'weight', text)}
-                            placeholder="0"
-                            keyboardType="numeric"
-                          />
-                          <Text style={styles.setUnit}>kg</Text>
-                          <Text style={styles.setSeparator}>•</Text>
-                          <TextInput
-                            style={styles.setInput}
-                            value={set.reps}
-                            onChangeText={(text) => updateSet(exercise.id, set.id, 'reps', text)}
-                            placeholder="0"
-                            keyboardType="numeric"
-                          />
-                          <Text style={styles.setUnit}>reps</Text>
+                  <TextInput
+                    style={styles.setInput}
+                    value={set.weight}
+                    onChangeText={(text) => updateSet(exercise.id, set.id, 'weight', text)}
+                    placeholder="0"
+                    keyboardType="numeric"
+                  />
+                  <Text style={styles.setUnit}>kg</Text>
+                  <Text style={styles.setSeparator}>•</Text>
+                  <TextInput
+                    style={styles.setInput}
+                    value={set.reps}
+                    onChangeText={(text) => updateSet(exercise.id, set.id, 'reps', text)}
+                    placeholder="0"
+                    keyboardType="numeric"
+                  />
+                  <Text style={styles.setUnit}>reps</Text>
                         </>
                       )}
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.checkBox, set.completed && styles.checkBoxCompleted]}
-                      onPress={() => toggleSetCompletion(exercise.id, set.id)}
-                    >
-                      {set.completed && (
-                        <Ionicons name="checkmark" size={16} color={COLORS.white} />
-                      )}
-                    </TouchableOpacity>
+                </View>
+                <TouchableOpacity
+                  style={[styles.checkBox, set.completed && styles.checkBoxCompleted]}
+                  onPress={() => toggleSetCompletion(exercise.id, set.id)}
+                >
+                  {set.completed && (
+                    <Ionicons name="checkmark" size={16} color={COLORS.white} />
+                  )}
+                </TouchableOpacity>
                     
                     {editingExerciseId === exercise.id && (
                       <TouchableOpacity
@@ -730,32 +795,32 @@ export default function StartWorkoutScreen({ navigation, route }) {
                         <Ionicons name="trash-outline" size={16} color={COLORS.error} />
                       </TouchableOpacity>
                     )}
-                  </View>
+              </View>
                 );
               })}
 
-              {/* Add Set Button */}
-              <TouchableOpacity 
-                style={styles.addSetButton}
-                onPress={() => addSet(exercise.id)}
-              >
-                <Ionicons name="add" size={16} color={COLORS.primary} />
-                <Text style={styles.addSetText}>Add Set</Text>
-              </TouchableOpacity>
-            </View>
-            ))}
-            
-            {/* Add Exercise Button after exercises */}
+            {/* Add Set Button */}
             <TouchableOpacity 
+              style={styles.addSetButton}
+              onPress={() => addSet(exercise.id)}
+            >
+              <Ionicons name="add" size={16} color={COLORS.primary} />
+              <Text style={styles.addSetText}>Add Set</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+
+            {/* Add Exercise Button after exercises */}
+      <TouchableOpacity 
               style={styles.addExerciseButtonInline}
-              onPress={() => {
-                navigation.navigate('AllExercisesScreen', {
-                  onExercisesSelected: (selectedExercises) => {
-                    setExercises(prev => [
-                      ...prev,
-                      ...selectedExercises.map(ex => ({
-                        ...ex,
-                        id: generateUniqueId(),
+        onPress={() => {
+          navigation.navigate('AllExercisesScreen', {
+            onExercisesSelected: (selectedExercises) => {
+              setExercises(prev => [
+                ...prev,
+                ...selectedExercises.map(ex => ({
+                  ...ex,
+                  id: generateUniqueId(),
                         sets: [{ 
                           id: generateUniqueId(), 
                           weight: '', 
@@ -764,8 +829,8 @@ export default function StartWorkoutScreen({ navigation, route }) {
                           time: '00:00',
                           completed: false 
                         }]
-                      }))
-                    ]);
+                }))
+              ]);
                   },
                   onSelect: (selectedExercise) => {
                     setExercises(prev => [
@@ -783,13 +848,13 @@ export default function StartWorkoutScreen({ navigation, route }) {
                         }]
                       }
                     ]);
-                  }
-                });
-              }}
-            >
-              <Ionicons name="add" size={20} color={COLORS.white} />
-              <Text style={styles.addExerciseText}>Add Exercise</Text>
-            </TouchableOpacity>
+            }
+          });
+        }}
+      >
+        <Ionicons name="add" size={20} color={COLORS.white} />
+        <Text style={styles.addExerciseText}>Add Exercise</Text>
+      </TouchableOpacity>
           </>
         )}
         </ScrollView>
@@ -848,7 +913,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-      </View>
+    </View>
   );
 }
 
