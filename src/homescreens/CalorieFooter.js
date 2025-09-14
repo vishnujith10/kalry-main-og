@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef, useState } from 'react';
@@ -332,7 +332,7 @@ const VoiceLoggingModal = ({ visible, onClose, onLog, mealType }) => {
     setIsLoading(true);
     try {
       const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-      const audioData = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      const audioData = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
       const prompt = `Analyze the food items in this audio. Your response MUST be a single valid JSON object and nothing else. Do not include markdown formatting like \`\`\`json.
 
 🚨 CRITICAL QUANTITY PRESERVATION RULES 🚨

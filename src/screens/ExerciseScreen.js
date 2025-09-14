@@ -200,344 +200,173 @@ export default function ExerciseScreen() {
   );
 }
 
+
 const styles = StyleSheet.create({
-  topHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderColor: '#eee',
-    backgroundColor: '#F3F0FF',
+  container: {
+    flex: 1,
+    backgroundColor: BG,
   },
-  backButton: {
-    marginRight: 12,
+  header: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
   headerTitle: {
-    flex: 1,
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#7B61FF',
-    textAlign: 'center',
+    color: '#1F2937',
+    marginBottom: 8,
   },
-  summaryRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    marginHorizontal: 18, 
-    marginBottom: 18 
-  },
-  summaryCard: { 
-    flex: 1, 
-    backgroundColor: CARD, 
-    borderRadius: 18, 
-    padding: 18, 
-    marginHorizontal: 4, 
-    alignItems: 'center', 
-    shadowColor: '#181A20', 
-    shadowOffset: { width: 0, height: 6 }, 
-    shadowOpacity: 0.10, 
-    shadowRadius: 12, 
-    elevation: 5 
-  },
-  summaryValue: { 
-    fontFamily: 'Lexend-SemiBold', 
-    fontSize: 22, 
-    color: '#181A20' 
-  },
-  summaryUnit: { 
-    fontFamily: 'Lexend-Regular', 
-    fontSize: 14, 
-    color: '#888' 
-  },
-  summaryLabel: { 
-    fontFamily: 'Manrope-Regular', 
-    fontSize: 14, 
-    color: '#888', 
-    marginTop: 2 
-  },
-  startCard: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: CARD, 
-    borderRadius: 18, 
-    padding: 18, 
-    marginHorizontal: 18, 
-    marginBottom: 18, 
-    shadowColor: '#181A20', 
-    shadowOffset: { width: 0, height: 6 }, 
-    shadowOpacity: 0.10, 
-    shadowRadius: 12, 
-    elevation: 5 
-  },
-  startTitle: { 
-    fontFamily: 'Lexend-SemiBold', 
-    fontSize: 16, 
-    color: '#181A20' 
-  },
-  startSub: { 
-    fontFamily: 'Manrope-Regular', 
-    fontSize: 13, 
-    color: '#888' 
-  },
-  
-  // Explore Exercises Card Styles
-  exploreCard: {
-    backgroundColor: CARD,
-    borderRadius: 18,
-    padding: 20,
-    marginHorizontal: 18,
-    marginBottom: 18,
-    shadowColor: '#181A20',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.10,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  exploreHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  bookIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#F3F0FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  exploreTitle: {
-    fontFamily: 'Lexend-SemiBold',
-    fontSize: 20,
-    color: '#181A20',
-    marginBottom: 2,
-  },
-  exploreSubtitle: {
-    fontFamily: 'Manrope-Regular',
-    fontSize: 14,
-    color: '#A084E8',
-  },
-  browseButton: {
-    backgroundColor: '#7B61FF',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  browseButtonText: {
-    fontFamily: 'Lexend-SemiBold',
+  headerSubtitle: {
     fontSize: 16,
-    color: '#fff',
+    color: GRAY,
   },
-
-  // Calendar Card Styles
-  calendarCard: {
-    backgroundColor: CARD,
-    borderRadius: 18,
-    padding: 20,
-    marginHorizontal: 18,
-    marginBottom: 18,
-    shadowColor: '#181A20',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.10,
-    shadowRadius: 12,
-    elevation: 5,
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
-  calendarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+  summarySection: {
+    marginBottom: 30,
   },
-  calendarMonth: {
-    fontFamily: 'Lexend-SemiBold',
-    fontSize: 20,
-    color: '#181A20',
-  },
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3F2',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  streakEmoji: {
-    fontSize: 14,
-    marginRight: 4,
-  },
-  streakText: {
-    fontFamily: 'Lexend-SemiBold',
-    fontSize: 13,
-    color: '#181A20',
-  },
-  calendarGrid: {
-    marginBottom: 16,
-  },
-  weekDaysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  weekDayText: {
-    fontFamily: 'Manrope-Regular',
-    fontSize: 12,
-    color: '#9CA3AF',
-    width: 40,
-    textAlign: 'center',
-  },
-  datesRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  dateCell: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 20,
-  },
-  activeDateCell: {
-    backgroundColor: '#7B61FF',
-  },
-  dateText: {
-    fontFamily: 'Lexend-SemiBold',
-    fontSize: 14,
-    color: '#181A20',
-  },
-  activeDateText: {
-    color: '#fff',
-  },
-  activeDateDots: {
-    position: 'absolute',
-    bottom: 6,
-    flexDirection: 'row',
-    gap: 2,
-  },
-  weekProgressSection: {
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  weekProgressText: {
-    fontFamily: 'Lexend-SemiBold',
-    fontSize: 14,
-    color: '#181A20',
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 3,
-  },
-  progressFill: {
-    height: '100%',
-    width: '57%', // 4/7 = 57%
-    backgroundColor: '#7B61FF',
-    borderRadius: 3,
-  },
-
-  // Cardio Sessions Card Styles
-  cardioCard: {
-    backgroundColor: CARD,
-    borderRadius: 18,
-    padding: 20,
-    marginHorizontal: 18,
-    marginBottom: 18,
-    shadowColor: '#181A20',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.10,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  cardioHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  cardioIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#F3F0FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardioTitle: {
-    fontFamily: 'Lexend-SemiBold',
+  sectionTitle: {
     fontSize: 18,
-    color: '#181A20',
-    marginBottom: 2,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 15,
   },
-  cardioSubtitle: {
-    fontFamily: 'Manrope-Regular',
+  summaryGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  summaryCard: {
+    backgroundColor: CARD,
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  summaryIcon: {
+    marginBottom: 10,
+  },
+  summaryValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  summaryLabel: {
     fontSize: 14,
-    color: '#A084E8',
+    color: GRAY,
+    textAlign: 'center',
   },
-  startCardioButton: {
-    backgroundColor: '#7B61FF',
+  recentSection: {
+    marginBottom: 30,
+  },
+  recentItem: {
+    backgroundColor: CARD,
     borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
+    padding: 16,
     marginBottom: 12,
-  },
-  startCardioButtonText: {
-    fontFamily: 'Lexend-SemiBold',
-    fontSize: 16,
-    color: '#fff',
-  },
-  createNewButton: {
-    backgroundColor: '#F3F0FF',
-    borderRadius: 12,
-    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  createNewButtonText: {
-    fontFamily: 'Lexend-SemiBold',
+  recentColor: {
+    width: 4,
+    height: 40,
+    borderRadius: 2,
+    marginRight: 12,
+  },
+  recentContent: {
+    flex: 1,
+  },
+  recentTitle: {
     fontSize: 16,
-    color: '#7B61FF',
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
   },
-
-  recentHeader: { 
-    fontFamily: 'Lexend-SemiBold', 
-    fontSize: 18, 
-    color: '#181A20', 
-    marginLeft: 18, 
-    marginBottom: 10 
+  recentTime: {
+    fontSize: 14,
+    color: GRAY,
   },
-  recentCard: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: CARD, 
-    borderRadius: 16, 
-    marginHorizontal: 18, 
-    marginBottom: 12, 
-    padding: 16, 
-    shadowColor: '#181A20', 
-    shadowOffset: { width: 0, height: 6 }, 
-    shadowOpacity: 0.10, 
-    shadowRadius: 12, 
-    elevation: 5 
+  quickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 30,
   },
-  recentDotWrap: { 
-    width: 18, 
-    alignItems: 'center', 
-    marginRight: 8 
+  actionButton: {
+    backgroundColor: CARD,
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  recentDot: { 
-    width: 10, 
-    height: 10, 
-    borderRadius: 5 
+  actionIcon: {
+    marginBottom: 8,
   },
-  recentTitle: { 
-    fontFamily: 'Lexend-SemiBold', 
-    fontSize: 15, 
-    color: '#181A20' 
+  actionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    textAlign: 'center',
   },
-  recentTime: { 
-    fontFamily: 'Manrope-Regular', 
-    fontSize: 13, 
-    color: '#888' 
+  statsSection: {
+    backgroundColor: CARD,
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 15,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  statsLabel: {
+    fontSize: 16,
+    color: '#374151',
+  },
+  statsValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  lastStatsRow: {
+    borderBottomWidth: 0,
   },
 });
 

@@ -132,6 +132,8 @@ const HydrationTrackerScreen = () => {
 
       setUserId(user.id);
       console.log('HydrationTracker - User ID set:', user.id);
+      // Clean up any existing duplicates first
+      await cleanupDuplicateRecords(user.id, getCurrentDate());
       await loadTodayData(user.id);
       await loadWeeklyData(user.id);
       // Initialize intake values for today if not already set
@@ -183,12 +185,14 @@ const HydrationTrackerScreen = () => {
       console.log('HydrationTracker - Loading today data for user:', userId);
       console.log('HydrationTracker - Today date:', today);
       
-      // Check if record exists for today
+      // Check if record exists for today - get the most recent one if multiple exist
       const { data, error } = await supabase
         .from('daily_water_intake')
         .select('*')
         .eq('user_id', userId)
         .eq('date', today)
+        .order('updated_at', { ascending: false })
+        .limit(1)
         .single();
 
       console.log('HydrationTracker - Today data:', data);
@@ -232,6 +236,9 @@ const HydrationTrackerScreen = () => {
     try {
       const today = getCurrentDate();
       
+      // First, clean up any existing duplicate records for today
+      await cleanupDuplicateRecords(userId, today);
+      
       const { data, error } = await supabase
         .from('daily_water_intake')
         .insert({
@@ -253,6 +260,37 @@ const HydrationTrackerScreen = () => {
     } catch (error) {
       console.error('Error creating today record:', error);
       Alert.alert('Error', 'Failed to create today\'s record');
+    }
+  };
+
+  const cleanupDuplicateRecords = async (userId, date) => {
+    try {
+      // Get all records for this user and date
+      const { data: records, error } = await supabase
+        .from('daily_water_intake')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('date', date)
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (records && records.length > 1) {
+        // Keep the most recent record, delete the rest
+        const recordsToDelete = records.slice(1);
+        const idsToDelete = recordsToDelete.map(record => record.id);
+        
+        const { error: deleteError } = await supabase
+          .from('daily_water_intake')
+          .delete()
+          .in('id', idsToDelete);
+
+        if (deleteError) throw deleteError;
+        
+        console.log(`Cleaned up ${recordsToDelete.length} duplicate records for ${date}`);
+      }
+    } catch (error) {
+      console.error('Error cleaning up duplicate records:', error);
     }
   };
 

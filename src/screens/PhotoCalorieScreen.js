@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import supabase from '../lib/supabase';
@@ -106,7 +106,7 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
     setIsLoading(true);
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-        const imageBase64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+        const imageBase64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
         
         const prompt = `
           First, determine if this image contains actual food items that can be eaten. 
@@ -192,7 +192,7 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
       
       try {
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-        const imageBase64 = await FileSystem.readAsStringAsync(photoUri, { encoding: FileSystem.EncodingType.Base64 });
+        const imageBase64 = await FileSystem.readAsStringAsync(photoUri, { encoding: 'base64' });
         
         const prompt = `
           Analyze this image for the specific food item: "${editedFoodName.trim()}"
@@ -434,7 +434,7 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
     
     try {
       const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-      const imageBase64 = await FileSystem.readAsStringAsync(photoUri, { encoding: FileSystem.EncodingType.Base64 });
+      const imageBase64 = await FileSystem.readAsStringAsync(photoUri, { encoding: 'base64' });
       
       const prompt = `
         You are a nutrition expert. Analyze this food image and provide accurate nutrition information for: "${newFoodName.trim()}"
