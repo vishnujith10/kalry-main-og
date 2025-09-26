@@ -775,7 +775,7 @@ export default function CardioSessionBuilder({ navigation }) {
                           </View>
                           <View style={styles.editFieldRow}>
                             <Text style={styles.editFieldLabel}>Rest:</Text>
-                  <TextInput
+              <TextInput
                               style={styles.editFieldInput}
                               value={editValues.rest}
                               onChangeText={(value) => updateEditValue('rest', value)}

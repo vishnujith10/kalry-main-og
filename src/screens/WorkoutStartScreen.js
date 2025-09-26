@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import supabase from '../lib/supabase';
 
 const COLORS = {
   primary: '#7c3aed',
@@ -440,7 +441,7 @@ export default function WorkoutStartScreen({ route, navigation }) {
 
         {/* Bottom Action Buttons */}
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.planNextButton} onPress={() => navigation.navigate('Create')}>
+          <TouchableOpacity style={styles.planNextButton} onPress={saveCardioDetails}>
             <Text style={styles.planNextButtonText}>Done</Text>
           </TouchableOpacity>
         </View>
@@ -450,6 +451,75 @@ export default function WorkoutStartScreen({ route, navigation }) {
 
   const handleAddTime = () => {
     setTimeRemaining(time => time + 20);
+  };
+
+  const saveCardioDetails = async () => {
+    try {
+      // Get current user
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      
+      if (!userId) {
+        Alert.alert('Error', 'User not logged in');
+        return;
+      }
+
+      // Create a session record first
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('saved_cardio_sessions')
+        .insert({
+          user_id: userId,
+          name: sessionType || 'Cardio Workout',
+          total_rounds: Math.max(...exercises.map(ex => ex.rounds || 1)),
+          rest_between_rounds: restBetweenRounds || 15,
+          sound_alerts: true,
+          sound_option: 'ding',
+          auto_repeat: false,
+          notes: 'Completed Workout',
+          estimated_time: actualWorkoutTime,
+          estimated_calories: Math.round((actualWorkoutTime / 60) * 8 * (intensity / 50))
+        })
+        .select()
+        .single();
+
+      if (sessionError) {
+        console.error('Session save error:', sessionError);
+        Alert.alert('Error', 'Failed to save workout session');
+        return;
+      }
+
+      // Save each exercise to cardio_details
+      for (let i = 0; i < exercises.length; i++) {
+        const exercise = exercises[i];
+        const { error: exerciseError } = await supabase
+          .from('cardio_details')
+          .insert({
+            session_id: sessionData.id,
+            exercise_id: exercise.id || null,
+            exercise_name: exercise.name || exercise.workout || `Exercise ${i + 1}`,
+            duration: parseInt(exercise.duration) || 45,
+            rest: parseInt(exercise.rest) || 15,
+            rounds: parseInt(exercise.rounds) || 1,
+            order_index: i + 1,
+            image_url: exercise.gif_url || exercise.image_url || null
+          });
+
+        if (exerciseError) {
+          console.error('Exercise save error:', exerciseError);
+          Alert.alert('Error', 'Failed to save exercise details');
+          return;
+        }
+      }
+
+      Alert.alert(
+        'Success',
+        'Workout details saved successfully!',
+        [{ text: 'OK', onPress: () => navigation.navigate('Create') }]
+      );
+    } catch (error) {
+      console.error('Save error:', error);
+      Alert.alert('Error', 'An unexpected error occurred while saving');
+    }
   };
 
   return (

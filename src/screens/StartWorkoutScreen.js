@@ -1,5 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -21,6 +21,47 @@ import supabase from '../lib/supabase';
 import { saveWorkout } from '../lib/workoutApi';
 
 const { width, height } = Dimensions.get('window');
+
+// Generate unique ID
+const generateUniqueId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+// Format time in MM:SS format
+const formatTime = (seconds) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
+// Determine exercise type based on name and category
+const getExerciseType = (exercise) => {
+  const name = (exercise.workout || exercise.name || '').toLowerCase();
+  const category = (exercise.category || exercise.type || '').toLowerCase();
+  
+  // Cardio exercises that need KM and TIME
+  const cardioExercises = [
+    'running', 'jogging', 'elliptical', 'treadmill', 'cycling', 'bike', 'bicycle',
+    'walking', 'hiking', 'swimming', 'rowing', 'stair', 'climbing'
+  ];
+  
+  // Timer exercises that need timer functionality
+  const timerExercises = [
+    'battle ropes', 'rope', 'plank', 'wall sit', 'hold', 'isometric', 'static',
+    'meditation', 'breathing', 'stretch', 'yoga', 'balance'
+  ];
+  
+  // Check if it's a cardio exercise
+  if (cardioExercises.some(cardio => name.includes(cardio)) || category.includes('cardio')) {
+    return 'cardio';
+  }
+  
+  // Check if it's a timer exercise
+  if (timerExercises.some(timer => name.includes(timer)) || category.includes('timer')) {
+    return 'timer';
+  }
+  
+  // Default to strength
+  return 'strength';
+};
 
 const COLORS = {
   primary: '#6366F1',
@@ -78,46 +119,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
     }
   }, [route.params]);
 
-  // Generate unique ID
-  const generateUniqueId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
-  // Determine exercise type based on name and category
-  const getExerciseType = (exercise) => {
-    const name = (exercise.workout || exercise.name || '').toLowerCase();
-    const category = (exercise.category || exercise.type || '').toLowerCase();
-    
-    // Cardio exercises that need KM and TIME
-    const cardioExercises = [
-      'running', 'jogging', 'elliptical', 'treadmill', 'cycling', 'bike', 'bicycle',
-      'walking', 'hiking', 'swimming', 'rowing', 'stair', 'climbing'
-    ];
-    
-    // Timer exercises that need timer functionality
-    const timerExercises = [
-      'battle ropes', 'rope', 'plank', 'wall sit', 'hold', 'isometric', 'static',
-      'meditation', 'breathing', 'stretch', 'yoga', 'balance'
-    ];
-    
-    // Check if it's a cardio exercise
-    if (cardioExercises.some(cardio => name.includes(cardio)) || category.includes('cardio')) {
-      return 'cardio';
-    }
-    
-    // Check if it's a timer exercise
-    if (timerExercises.some(timer => name.includes(timer)) || category.includes('timer')) {
-      return 'timer';
-    }
-    
-    // Default to strength
-    return 'strength';
-  };
-
-  // Format time in MM:SS format
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
 
   // Parse time from MM:SS format
   const parseTime = (timeString) => {
@@ -256,15 +258,13 @@ export default function StartWorkoutScreen({ navigation, route }) {
     });
   };
 
-  const getTotalStats = () => {
+  const getTotalStats = useMemo(() => {
     // Calculate calories based on exercise type and duration
     const totalKcal = exercises.reduce((sum, ex) => {
       const exerciseType = getExerciseType(ex);
       // Use actual exercise duration if available, otherwise fall back to calculated duration
       const duration = ex.duration || Math.round(workoutTime / exercises.length) || 0; // Duration in seconds
       const durationMinutes = duration / 60;
-      
-      console.log('Exercise:', ex.name, 'Duration:', duration, 'DurationMinutes:', durationMinutes, 'Type:', exerciseType);
       
       // Basic calorie calculation based on exercise type
       let caloriesPerMinute = 0;
@@ -279,7 +279,6 @@ export default function StartWorkoutScreen({ navigation, route }) {
       }
       
       const exerciseCalories = Math.round(durationMinutes * caloriesPerMinute);
-      console.log('Exercise calories:', exerciseCalories, 'CaloriesPerMinute:', caloriesPerMinute);
       return sum + exerciseCalories;
     }, 0);
     
@@ -291,11 +290,8 @@ export default function StartWorkoutScreen({ navigation, route }) {
     }, 0);
     const totalSets = exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
     
-    console.log('Total Kcal:', totalKcal, 'Total Weight:', totalWeight, 'Total Sets:', totalSets);
-    console.log('Is NaN totalKcal?', isNaN(totalKcal));
-    
     return { totalKcal, totalWeight, totalSets };
-  };
+  }, [exercises, workoutTime]);
 
   const addSet = (exerciseId) => {
     const exercise = exercises.find(ex => ex.id === exerciseId);
@@ -453,7 +449,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
         userId,
         date: new Date().toISOString().slice(0,10),
         duration: workoutTime,
-        totalKcal: getTotalStats().totalKcal,
+        totalKcal: getTotalStats.totalKcal,
         notes: 'Saved Routine',
         exercises: preparedExercises,
         isRoutine: true,
@@ -461,7 +457,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
       
       Alert.alert(
         'Workout Completed!',
-        `Great job! Your workout has been saved.\nDuration: ${formatTime(workoutTime)}\nCalories: ${getTotalStats().totalKcal} kcal`,
+        `Great job! Your workout has been saved.\nDuration: ${formatTime(workoutTime)}\nCalories: ${getTotalStats.totalKcal} kcal`,
         [
           { 
             text: 'View Saved Workouts', 
@@ -503,7 +499,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
     );
   };
 
-  const { totalKcal, totalWeight, totalSets } = getTotalStats();
+  const { totalKcal, totalWeight, totalSets } = getTotalStats;
 
   return (
     <View style={styles.container}>

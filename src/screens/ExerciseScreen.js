@@ -33,7 +33,7 @@ export default function ExerciseScreen() {
   const navigation = useNavigation();
 
   useEffect(() => {
-    fetch('http://192.168.1.7:3000/api/exercise')
+    fetch('http://192.168.1.9:3000/api/exercise')
       .then(async res => {
         if (!res.ok) {
           // Try to get error details from the response body
@@ -164,11 +164,11 @@ export default function ExerciseScreen() {
             </View>
           </View>
           
-          <TouchableOpacity style={styles.startCardioButton} onPress={() => navigation.navigate('CardioWorkouts')}>
+          <TouchableOpacity style={styles.startCardioButton} onPress={() => navigation.navigate('WorkoutSaveScreen')}>
             <Text style={styles.startCardioButtonText}>Start Cardio</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.createNewButton} onPress={() => navigation.navigate('CreateCardio')}>
+          <TouchableOpacity style={styles.createNewButton} onPress={() => navigation.navigate('Create')}>
             <Text style={styles.createNewButtonText}>Create New</Text>
           </TouchableOpacity>
         </View>

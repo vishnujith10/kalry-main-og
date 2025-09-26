@@ -531,13 +531,13 @@ const MainDashboardScreen = () => {
     React.useCallback(() => {
       const fetchHydration = async () => {
         setHydrationLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
-        const userId = session?.user?.id;
-        const today = new Date().toISOString().slice(0, 10);
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    const today = new Date().toISOString().slice(0, 10);
         const { data, error } = await supabase
-          .from('daily_water_intake')
+      .from('daily_water_intake')
           .select('*')
-          .eq('user_id', userId)
+      .eq('user_id', userId)
           .eq('date', today)
           .single();
         if (data) {

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://192.168.1.7:3000/api'; // Updated to correct local IP
+const API_BASE_URL = 'http://192.168.1.9:3000/api'; // Updated to correct local IP
 
 // Food Logs API
 export const createFoodLog = async (foodLog) => {
@@ -63,7 +63,7 @@ export const analyzeFood = async (text) => {
 // Profile API
 export const upsertProfile = async (profileData) => {
   try {
-    const response = await axios.post('http://192.168.1.4:3000/profile', profileData);
+    const response = await axios.post('http://192.168.1.9:3000/profile', profileData);
     return response.data;
   } catch (error) {
     console.error('Error upserting profile:', error);
