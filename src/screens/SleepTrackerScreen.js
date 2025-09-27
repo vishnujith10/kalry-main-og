@@ -1,16 +1,15 @@
-import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useContext, useEffect, useState } from "react";
 import {
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { OnboardingContext } from "../context/OnboardingContext";
@@ -1906,44 +1905,6 @@ const SleepTrackerScreen = () => {
         )}
       </ScrollView>
 
-      {/* Footer bar */}
-      <View
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: "#fff",
-          paddingTop: 10,
-          paddingBottom: 20,
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          shadowColor: "#000",
-          shadowOpacity: 0.08,
-          shadowRadius: 10,
-        }}
-      >
-        <View style={{ flexDirection: "row", justifyContent: "space-around" }}>
-          <View style={{ alignItems: "center" }}>
-            <Ionicons name="home-outline" size={20} color="#6B7280" />
-            <Text style={{ color: "#6B7280", marginTop: 4 }}>Home</Text>
-          </View>
-          <View style={{ alignItems: "center" }}>
-            <Ionicons name="fitness-outline" size={20} color="#6B7280" />
-            <Text style={{ color: "#6B7280", marginTop: 4 }}>Workouts</Text>
-          </View>
-          <View style={{ alignItems: "center" }}>
-            <Ionicons name="moon" size={20} color="#4F46E5" />
-            <Text style={{ color: "#4F46E5", marginTop: 4, fontWeight: "700" }}>
-              Sleep
-            </Text>
-          </View>
-          <View style={{ alignItems: "center" }}>
-            <Ionicons name="person-outline" size={20} color="#6B7280" />
-            <Text style={{ color: "#6B7280", marginTop: 4 }}>Profile</Text>
-          </View>
-        </View>
-      </View>
     </View>
   );
 };

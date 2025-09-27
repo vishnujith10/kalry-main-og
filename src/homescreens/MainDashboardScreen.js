@@ -102,7 +102,7 @@ const FooterBar = ({ navigation, activeTab }) => {
     {
       key: 'Workout',
       label: 'Workout',
-      icon: <Ionicons name="fitness-outline" size={24} color={activeTab === 'Workout' ? '#7B61FF' : '#232B3A'} />,
+      icon: <Ionicons name="barbell-outline" size={24} color={activeTab === 'Workout' ? '#7B61FF' : '#232B3A'} />,
       route: 'Exercise',
     },
     {
