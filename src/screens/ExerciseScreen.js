@@ -1,7 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const PRIMARY = '#7B61FF';
 const PURPLE = '#A084E8';
@@ -25,6 +25,68 @@ const recent = [
   { color: '#22C55E', title: '15 min - HIIT', time: 'Yesterday, 7:00 PM' },
   { color: '#F472B6', title: '45 min - Cardio', time: '2 days ago, 9:00 AM' },
 ];
+
+// Add FooterBar component
+const FooterBar = ({ navigation, activeTab }) => {
+  const tabs = [
+    {
+      key: 'Workouts',
+      label: 'Workouts',
+      icon: <Ionicons name="barbell-outline" size={24} color={activeTab === 'Exercise' ? '#7B61FF' : '#232B3A'} />,
+      route: 'Exercise',
+    },
+    
+    {
+      key: 'Create',
+      label: 'Create',
+      icon: <Ionicons name="add-circle-outline" size={24} color={activeTab === 'Create' ? '#232B3A' : '#232B3A'} />,
+      route: 'Create',
+    },
+    {
+      key: 'Saved',
+      label: 'Saved',
+      icon: <Ionicons name="bookmark-outline" size={24} color={activeTab === 'WorkoutSaveScreen' ? '#7B61FF' : '#232B3A'} />,
+      route: 'WorkoutSaveScreen',
+    },
+    {
+      key: 'History',
+      label: 'History',
+      icon: <Ionicons name="bookmark-outline" size={24} color={activeTab === 'Workouts' ? '#7B61FF' : '#232B3A'} />,
+      route: 'Workouts',
+    },
+  ];
+
+  return (
+    <View style={footerStyles.container}>
+      <View style={footerStyles.ovalFooter}>
+        {tabs.map(tab => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[
+              footerStyles.tab,
+              tab.key === activeTab && footerStyles.activeTab
+            ]}
+            onPress={() => navigation.navigate(tab.route)}
+            activeOpacity={0.7}
+          >
+            {React.cloneElement(tab.icon, {
+              color: tab.key === activeTab ? '#7B61FF' : '#232B3A',
+            })}
+            <Text
+              style={[
+                footerStyles.label,
+                tab.key === activeTab && footerStyles.activeLabel
+              ]}
+            >
+              {tab.label}
+            </Text>
+            {tab.key === activeTab && <View style={footerStyles.activeIndicator} />}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+};
 
 export default function ExerciseScreen() {
   const [exercises, setExercises] = useState([]);
@@ -73,7 +135,7 @@ export default function ExerciseScreen() {
         <View style={{ width: 28 }} />
       </View>
       
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100, paddingTop: 20 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 110, paddingTop: 20 }}>
         
 
         {/* Calendar Widget */}
@@ -97,7 +159,7 @@ export default function ExerciseScreen() {
                 <View key={i} style={[styles.dateCell, date === 27 && styles.activeDateCell]}>
                   <Text style={[styles.dateText, date === 27 && styles.activeDateText]}>
                     {date}
-                  </Text>
+                </Text>
                   {date === 27 && <View style={styles.activeDateDots} />}
                 </View>
               ))}
@@ -109,7 +171,7 @@ export default function ExerciseScreen() {
             <View style={styles.progressBar}>
               <View style={styles.progressFill} />
             </View>
-          </View>
+              </View>
         </View>
 
         {/* Summary Cards */}
@@ -161,8 +223,8 @@ export default function ExerciseScreen() {
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.cardioTitle}>Cardio Sessions</Text>
               <Text style={styles.cardioSubtitle}>Intervals, HIIT & more</Text>
-            </View>
-          </View>
+                </View>
+                  </View>
           
           <TouchableOpacity style={styles.startCardioButton} onPress={() => navigation.navigate('WorkoutSaveScreen')}>
             <Text style={styles.startCardioButtonText}>Start Cardio</Text>
@@ -170,7 +232,7 @@ export default function ExerciseScreen() {
           
           <TouchableOpacity style={styles.createNewButton} onPress={() => navigation.navigate('Create')}>
             <Text style={styles.createNewButtonText}>Create New</Text>
-          </TouchableOpacity>
+              </TouchableOpacity>
         </View>
 
         {/* Recent Workouts */}
@@ -194,25 +256,7 @@ export default function ExerciseScreen() {
         ))}
       </ScrollView>
       
-      {/* Custom Footer Bar */}
-      <View style={footerStyles.footerBar}>
-        <TouchableOpacity style={footerStyles.footerBtn} onPress={() => navigation.navigate('Workouts')}>
-          <Ionicons name="barbell-outline" size={26} color="#7B61FF" />
-          <Text style={footerStyles.footerLabel}>Workouts</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={footerStyles.footerBtn} onPress={() => navigation.navigate('Create')}>
-          <Ionicons name="add-circle-outline" size={26} color="#7B61FF" />
-          <Text style={footerStyles.footerLabel}>Create</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={footerStyles.footerBtn} onPress={() => navigation.navigate('WorkoutSaveScreen')}>
-          <Ionicons name="bookmark-outline" size={26} color="#7B61FF" />
-          <Text style={footerStyles.footerLabel}>Saved</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={footerStyles.footerBtn} onPress={() => navigation.navigate('Workouts')}>
-          <Ionicons name="bookmark-outline" size={26} color="#7B61FF" />
-          <Text style={footerStyles.footerLabel}>History</Text>
-        </TouchableOpacity>
-      </View>
+      <FooterBar navigation={navigation} activeTab="Workout" />
     </SafeAreaView>
   );
 }
@@ -613,33 +657,61 @@ const styles = StyleSheet.create({
 });
 
 const footerStyles = StyleSheet.create({
-  footerBar: {
+  container: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: Platform.OS === 'ios' ? 20 : 16,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  ovalFooter: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    paddingVertical: 12,
-    paddingBottom: 20, // Extra padding for safe area
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 80, // Increased height to accommodate safe area
-    zIndex: 10,
+    width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 35,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    shadowColor: '#7B61FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 16,
+    // Add backdrop filter effect for iOS
+    ...(Platform.OS === 'ios' && {
+      backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    }),
   },
-  footerBtn: {
+  tab: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: 8, // Add horizontal padding for better spacing
+    paddingHorizontal: 6,
+    position: 'relative',
   },
-  footerLabel: {
-    fontSize: 12, // Slightly smaller font to ensure it fits
-    color: '#7B61FF',
+  activeTab: {
+    // Additional styling for active tab if needed
+  },
+  label: {
+    fontSize: 12,
     marginTop: 4,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    color: '#232B3A',
+    letterSpacing: 0.1,
+    fontWeight: '500',
   },
-});
+  activeLabel: {
+    color: '#7B61FF',
+    fontWeight: '600',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: -12,
+    width: 30,
+    height: 3,
+    backgroundColor: '#7B61FF',
+    borderRadius: 2,
+  },
+}); 
