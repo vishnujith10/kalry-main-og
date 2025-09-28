@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import supabase from '../lib/supabase';
 
 const AuthLoadingScreen = ({ navigation }) => {

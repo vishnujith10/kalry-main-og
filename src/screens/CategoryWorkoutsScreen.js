@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, Platform, findNodeHandle } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, findNodeHandle } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 const PRIMARY = '#7B61FF';
 const BG = '#F7F7FA';

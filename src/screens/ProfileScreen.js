@@ -11,7 +11,9 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
+import { getResponsiveFontSize, getResponsivePadding, isSmallScreen } from '../utils/responsive';
 
 // Updated FooterBar component with oval design
 const FooterBar = ({ navigation, activeTab }) => {
@@ -120,7 +122,7 @@ const ProfileScreen = () => {
   }
   
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#E8E9F0" />
       
              {/* Header */}
@@ -238,7 +240,7 @@ const ProfileScreen = () => {
 
       {/* Updated FooterBar with oval design */}
       <FooterBar navigation={navigation} activeTab="Profile" />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -251,16 +253,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 10,
+    paddingTop: isSmallScreen() ? 30 : 50,
+    paddingHorizontal: getResponsivePadding(20),
+    paddingBottom: getResponsivePadding(10),
     backgroundColor: '#E8E9F0',
   },
   backButton: {
     padding: 8,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: getResponsiveFontSize(18),
     fontWeight: '600',
     color: '#333',
   },
@@ -413,9 +415,9 @@ const styles = StyleSheet.create({
 const footerStyles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: Platform.OS === 'ios' ? 20 : 16,
+    left: getResponsivePadding(16),
+    right: getResponsivePadding(16),
+    bottom: Platform.OS === 'ios' ? getResponsivePadding(20) : getResponsivePadding(16),
     backgroundColor: 'transparent',
     alignItems: 'center',
     zIndex: 100,
@@ -450,8 +452,8 @@ const footerStyles = StyleSheet.create({
     // Additional styling for active tab if needed
   },
   label: {
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: getResponsiveFontSize(12),
+    marginTop: getResponsivePadding(4),
     color: '#232B3A',
     letterSpacing: 0.1,
     fontWeight: '500',
