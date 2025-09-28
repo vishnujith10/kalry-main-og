@@ -7,6 +7,7 @@ import { Alert, Animated, Modal, ScrollView, StyleSheet, Text, TextInput, Toucha
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import supabase from '../lib/supabase';
+import { getResponsivePadding } from '../utils/responsive';
 
 const HydrationTrackerScreen = () => {
   const navigation = useNavigation();
@@ -809,14 +810,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 1,
+    paddingHorizontal: getResponsivePadding(20),
+    paddingVertical: getResponsivePadding(1),
   },
   backButton: {
     padding: 5,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: getResponsiveFontSize(20),
     fontWeight: '600',
     color: '#000',
   },
