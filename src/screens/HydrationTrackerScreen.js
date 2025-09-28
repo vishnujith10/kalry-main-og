@@ -7,7 +7,7 @@ import { Alert, Animated, Modal, ScrollView, StyleSheet, Text, TextInput, Toucha
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import supabase from '../lib/supabase';
-import { getResponsivePadding } from '../utils/responsive';
+import { getResponsiveFontSize, getResponsivePadding } from '../utils/responsive';
 
 const HydrationTrackerScreen = () => {
   const navigation = useNavigation();

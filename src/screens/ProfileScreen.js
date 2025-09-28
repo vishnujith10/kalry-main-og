@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
-import { getResponsiveFontSize, getResponsivePadding, isSmallScreen } from '../utils/responsive';
+import { getResponsiveFontSize, getResponsivePadding } from '../utils/responsive';
 
 // Updated FooterBar component with oval design
 const FooterBar = ({ navigation, activeTab }) => {
@@ -122,7 +122,7 @@ const ProfileScreen = () => {
   }
   
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#E8E9F0" />
       
              {/* Header */}
@@ -253,10 +253,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: isSmallScreen() ? 30 : 50,
+    paddingTop: getResponsivePadding(20),
     paddingHorizontal: getResponsivePadding(20),
-    paddingBottom: getResponsivePadding(10),
+    paddingBottom: getResponsivePadding(20),
     backgroundColor: '#E8E9F0',
+    minHeight: getResponsivePadding(60),
   },
   backButton: {
     padding: 8,
