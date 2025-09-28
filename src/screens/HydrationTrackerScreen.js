@@ -1,11 +1,15 @@
 // HydrationTrackerScreen.js
 
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { Alert, Animated, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import supabase from '../lib/supabase';
 
 const HydrationTrackerScreen = () => {
+  const navigation = useNavigation();
   const [currentIntake, setCurrentIntake] = useState(0);
   const [dailyGoal, setDailyGoal] = useState(2.5);
   const [remindersEnabled, setRemindersEnabled] = useState(true);
@@ -623,11 +627,21 @@ const HydrationTrackerScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {console.log('HydrationTracker rendering - currentIntake:', currentIntake, 'dailyGoal:', dailyGoal, 'intake1:', intake1, 'intake2:', intake2)}
-      <View style={styles.innerContainer}>
-        
-        <Text style={styles.subtitle}>Today's Progress</Text>
+    <View style={styles.container}>
+      {/* Header */}
+      <SafeAreaView style={styles.headerContainer}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Hydration</Text>
+          <View style={styles.placeholder} />
+        </View>
+      </SafeAreaView>
+      
+      <ScrollView style={styles.scrollContainer}>
+        {console.log('HydrationTracker rendering - currentIntake:', currentIntake, 'dailyGoal:', dailyGoal, 'intake1:', intake1, 'intake2:', intake2)}
+        <View style={styles.innerContainer}>
         <View style={styles.waterContainer}>
           <View style={[styles.waterFill, { height: `${progress}%` }]} />
           <View style={styles.waterTextContainer} pointerEvents="box-none">
@@ -775,14 +789,42 @@ const HydrationTrackerScreen = () => {
             </View>
           </View>
         </Modal>
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     backgroundColor: '#f9fafb',
+  },
+  headerContainer: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 1,
+  },
+  backButton: {
+    padding: 5,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#000',
+  },
+  placeholder: {
+    width: 34,
+  },
+  scrollContainer: {
+    flex: 1,
   },
   innerContainer: {
     padding: 16,
