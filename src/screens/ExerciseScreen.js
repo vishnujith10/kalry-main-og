@@ -130,7 +130,7 @@ export default function ExerciseScreen() {
           onPress={() => navigation.navigate('MainDashboard')}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={28} color="#7B61FF" />
+          <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Exercise</Text>
         <View style={{ width: 28 }} />
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderColor: '#eee',
-    minHeight: 60,
+    minHeight: 65,
   },
   backButton: {
     marginRight: 12,
@@ -279,7 +279,8 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#7B61FF',
+    color: '#333',
+    justifyContent: 'center',
     textAlign: 'center',
   },
   header: { 

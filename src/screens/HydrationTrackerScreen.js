@@ -28,6 +28,8 @@ const HydrationTrackerScreen = () => {
   const [weeklyIntakeData, setWeeklyIntakeData] = useState({});
   // New state for tracking intake values per day
   const [weeklyIntakeValues, setWeeklyIntakeValues] = useState({});
+  // New state for tracking goals per day
+  const [weeklyGoals, setWeeklyGoals] = useState({});
   // Animated value for bar height
   const [barAnimation] = useState(new Animated.Value(0));
 
@@ -157,7 +159,7 @@ const HydrationTrackerScreen = () => {
       
       const { data, error } = await supabase
         .from('daily_water_intake')
-        .select('date, current_intake_ml, intake1_ml, intake2_ml')
+        .select('date, current_intake_ml, intake1_ml, intake2_ml, daily_goal_ml')
         .eq('user_id', userId)
         .in('date', weekDates);
 
@@ -166,6 +168,7 @@ const HydrationTrackerScreen = () => {
       // Convert data to our weekly format
       const weeklyData = {};
       const weeklyIntakeValuesData = {};
+      const weeklyGoalsData = {};
       data?.forEach(record => {
         const dayIndex = weekDates.indexOf(record.date);
         if (dayIndex !== -1) {
@@ -174,11 +177,15 @@ const HydrationTrackerScreen = () => {
             intake1: record.intake1_ml || 250,
             intake2: record.intake2_ml || 500
           };
+          // Store each day's goal separately
+          weeklyGoalsData[dayIndex] = record.daily_goal_ml / 1000; // Convert ml to L
         }
       });
 
       setWeeklyIntakeData(weeklyData);
       setWeeklyIntakeValues(weeklyIntakeValuesData);
+      // Store weekly goals separately
+      setWeeklyGoals(weeklyGoalsData);
     } catch (error) {
       console.error('Error loading weekly data:', error);
     }
@@ -244,16 +251,20 @@ const HydrationTrackerScreen = () => {
       // First, clean up any existing duplicate records for today
       await cleanupDuplicateRecords(userId, today);
       
+      // Use upsert to prevent duplicates - this will insert if not exists, update if exists
       const { data, error } = await supabase
         .from('daily_water_intake')
-        .insert({
+        .upsert({
           user_id: userId,
           date: today,
           current_intake_ml: 0,
           daily_goal_ml: dailyGoal * 1000, // Convert L to ml
           intake1_ml: intake1,
           intake2_ml: intake2,
-          goal_status: 'not achieved'
+          goal_status: 'not achieved',
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,date' // This will prevent duplicates
         })
         .select()
         .single();
@@ -420,7 +431,7 @@ const HydrationTrackerScreen = () => {
       label: 'Mon', 
       intake: todayIndex === 0 ? currentIntake : (weeklyIntakeData[0] || 0), 
       isToday: todayIndex === 0, 
-      goalAchieved: todayIndex === 0 ? isGoalAchieved : (weeklyIntakeData[0] || 0) >= dailyGoal,
+      goalAchieved: todayIndex === 0 ? isGoalAchieved : (weeklyIntakeData[0] || 0) >= (weeklyGoals[0] || dailyGoal),
       intake1: todayIndex === 0 ? intake1 : (weeklyIntakeValues[0]?.intake1 || 250),
       intake2: todayIndex === 0 ? intake2 : (weeklyIntakeValues[0]?.intake2 || 500)
     },
@@ -429,7 +440,7 @@ const HydrationTrackerScreen = () => {
       label: 'Tue', 
       intake: todayIndex === 1 ? currentIntake : (weeklyIntakeData[1] || 0), 
       isToday: todayIndex === 1, 
-      goalAchieved: todayIndex === 1 ? isGoalAchieved : (weeklyIntakeData[1] || 0) >= dailyGoal,
+      goalAchieved: todayIndex === 1 ? isGoalAchieved : (weeklyIntakeData[1] || 0) >= (weeklyGoals[1] || dailyGoal),
       intake1: todayIndex === 1 ? intake1 : (weeklyIntakeValues[1]?.intake1 || 250),
       intake2: todayIndex === 1 ? intake2 : (weeklyIntakeValues[1]?.intake2 || 500)
     },
@@ -438,7 +449,7 @@ const HydrationTrackerScreen = () => {
       label: 'Wed', 
       intake: todayIndex === 2 ? currentIntake : (weeklyIntakeData[2] || 0), 
       isToday: todayIndex === 2, 
-      goalAchieved: todayIndex === 2 ? isGoalAchieved : (weeklyIntakeData[2] || 0) >= dailyGoal,
+      goalAchieved: todayIndex === 2 ? isGoalAchieved : (weeklyIntakeData[2] || 0) >= (weeklyGoals[2] || dailyGoal),
       intake1: todayIndex === 2 ? intake1 : (weeklyIntakeValues[2]?.intake1 || 250),
       intake2: todayIndex === 2 ? intake2 : (weeklyIntakeValues[2]?.intake2 || 500)
     },
@@ -447,7 +458,7 @@ const HydrationTrackerScreen = () => {
       label: 'Thu', 
       intake: todayIndex === 3 ? currentIntake : (weeklyIntakeData[3] || 0), 
       isToday: todayIndex === 3, 
-      goalAchieved: todayIndex === 3 ? isGoalAchieved : (weeklyIntakeData[3] || 0) >= dailyGoal,
+      goalAchieved: todayIndex === 3 ? isGoalAchieved : (weeklyIntakeData[3] || 0) >= (weeklyGoals[3] || dailyGoal),
       intake1: todayIndex === 3 ? intake1 : (weeklyIntakeValues[3]?.intake1 || 250),
       intake2: todayIndex === 3 ? intake2 : (weeklyIntakeValues[3]?.intake2 || 500)
     },
@@ -456,7 +467,7 @@ const HydrationTrackerScreen = () => {
       label: 'Fri', 
       intake: todayIndex === 4 ? currentIntake : (weeklyIntakeData[4] || 0), 
       isToday: todayIndex === 4, 
-      goalAchieved: todayIndex === 4 ? isGoalAchieved : (weeklyIntakeData[4] || 0) >= dailyGoal,
+      goalAchieved: todayIndex === 4 ? isGoalAchieved : (weeklyIntakeData[4] || 0) >= (weeklyGoals[4] || dailyGoal),
       intake1: todayIndex === 4 ? intake1 : (weeklyIntakeValues[4]?.intake1 || 250),
       intake2: todayIndex === 4 ? intake2 : (weeklyIntakeValues[4]?.intake2 || 500)
     },
@@ -465,7 +476,7 @@ const HydrationTrackerScreen = () => {
       label: 'Sat', 
       intake: todayIndex === 5 ? currentIntake : (weeklyIntakeData[5] || 0), 
       isToday: todayIndex === 5, 
-      goalAchieved: todayIndex === 5 ? isGoalAchieved : (weeklyIntakeData[5] || 0) >= dailyGoal,
+      goalAchieved: todayIndex === 5 ? isGoalAchieved : (weeklyIntakeData[5] || 0) >= (weeklyGoals[5] || dailyGoal),
       intake1: todayIndex === 5 ? intake1 : (weeklyIntakeValues[5]?.intake1 || 250),
       intake2: todayIndex === 5 ? intake2 : (weeklyIntakeValues[5]?.intake2 || 500)
     },
@@ -474,7 +485,7 @@ const HydrationTrackerScreen = () => {
       label: 'Sun', 
       intake: todayIndex === 6 ? currentIntake : (weeklyIntakeData[6] || 0), 
       isToday: todayIndex === 6, 
-      goalAchieved: todayIndex === 6 ? isGoalAchieved : (weeklyIntakeData[6] || 0) >= dailyGoal,
+      goalAchieved: todayIndex === 6 ? isGoalAchieved : (weeklyIntakeData[6] || 0) >= (weeklyGoals[6] || dailyGoal),
       intake1: todayIndex === 6 ? intake1 : (weeklyIntakeValues[6]?.intake1 || 250),
       intake2: todayIndex === 6 ? intake2 : (weeklyIntakeValues[6]?.intake2 || 500)
     }
@@ -644,7 +655,14 @@ const HydrationTrackerScreen = () => {
         {console.log('HydrationTracker rendering - currentIntake:', currentIntake, 'dailyGoal:', dailyGoal, 'intake1:', intake1, 'intake2:', intake2)}
         <View style={styles.innerContainer}>
         <View style={styles.waterContainer}>
+          {/* Glass jar rim effect */}
+          <View style={styles.glassRim} />
+          {/* Glass jar highlight */}
+          <View style={styles.glassHighlight} />
+          {/* Water fill with glass effect */}
           <View style={[styles.waterFill, { height: `${progress}%` }]} />
+          {/* Water surface effect */}
+          <View style={[styles.waterSurface, { bottom: `${progress}%` }]} />
           <View style={styles.waterTextContainer} pointerEvents="box-none">
             <Text style={styles.waterAmount}>{currentIntake.toFixed(2)}L</Text>
             <Text style={styles.waterGoal}>of {dailyGoal}L</Text>
@@ -807,6 +825,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
   },
   header: {
+    minHeight: 65,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -853,54 +872,172 @@ const styles = StyleSheet.create({
     marginTop: 20,
     width: 280,
     height: 420,
-    backgroundColor: '#f3f4f6',
+    // Remove the white background - this was blocking the glass effect
+    backgroundColor: '#D3D3D3', // Changed from rgba(255, 255, 255, 0.1)
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
     overflow: 'hidden',
     justifyContent: 'flex-end',
     alignItems: 'center',
     position: 'relative',
     alignSelf: 'center',
     marginBottom: 16,
+    // Enhanced glass morphism effects
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
   },
+  
+  // Add a new glass background layer
+  glassBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(232, 11, 11, 0.05)', // Very subtle white tint
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    zIndex: 0,
+  },
+  
+  // Enhanced glass rim
+  glassRim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 12, // Increased height
+    backgroundColor: 'rgba(255, 255, 255, 0.4)', // More visible
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    zIndex: 3,
+    // Add inner shadow effect
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  
+  // Enhanced glass highlight
+  glassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 8, // Slight offset from edge
+    width: 24, // Wider highlight
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)', // More visible
+    borderTopLeftRadius: 6,
+    borderBottomLeftRadius: 20,
+    zIndex: 2,
+  },
+  
+  // Add a second highlight on the right side for more realism
+  glassHighlightRight: {
+    position: 'absolute',
+    top: 0,
+    right: 8,
+    width: 12,
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 20,
+    zIndex: 2,
+  },
+  
   waterFill: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     backgroundColor: '#9333ea',
-    opacity: 1,
+    opacity: 0.9, // Slightly more opaque
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     zIndex: 1,
+    // Enhanced water effect
+    shadowColor: '#00D4FF',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  waterTextContainer: {
+  
+  // Enhanced water surface
+  waterSurface: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingBottom: 16,
+    height: 6, // Slightly thicker surface
+    backgroundColor: 'rgba(255, 255, 255, 0.6)', // More visible
+    borderRadius: 3,
     zIndex: 2,
+    // Add shimmer effect
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.8,
+    shadowRadius: 2,
   },
-  waterAmount: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'black',
-  },
-  waterGoal: {
-    fontSize: 14,
-    color: 'black',
-  },
-  hydrated: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'black',
-    marginVertical: 4,
-  },
+  waterTextContainer: {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  justifyContent: 'center',
+  alignItems: 'center',
+  paddingHorizontal: 10,
+  paddingBottom: 16,
+  zIndex: 2,
+  // NO background at all!
+},
+
+// Also update your text styles to have better contrast against the glass:
+
+waterAmount: {
+  fontSize: 24,
+  fontWeight: 'bold',
+  color: '#1f2937', // Darker color for better readability
+  textShadowColor: 'rgba(255, 255, 255, 0.8)',
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 2,
+},
+
+waterGoal: {
+  fontSize: 14,
+  color: '#4b5563', // Darker color for better readability
+  textShadowColor: 'rgba(255, 255, 255, 0.8)',
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 2,
+},
+
+hydrated: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#1f2937', // Darker color for better readability
+  marginVertical: 4,
+  textShadowColor: 'rgba(255, 255, 255, 0.8)',
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 2,
+},
+
+// Optional: Add a subtle backdrop for the text area only (not the whole container)
+// You can add this as a separate view behind the text if needed:
+textBackdrop: {
+  position: 'absolute',
+  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  borderRadius: 12,
+  padding: 8,
+  backdropFilter: 'blur(10px)', // Note: This might not work in React Native
+},
   goalAchieved: {
     fontSize: 14,
     fontWeight: 'bold',
@@ -916,8 +1053,15 @@ const styles = StyleSheet.create({
   addButton: {
     paddingVertical: 6,
     paddingHorizontal: 16,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   addButtonText: {
     color: '#7c3aed',
