@@ -1,7 +1,8 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
-import { Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PRIMARY = '#7B61FF';
 const PURPLE = '#A084E8';
@@ -266,11 +267,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 18,
-    paddingTop: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderColor: '#eee',
-    backgroundColor: '#F3F0FF',
+    minHeight: 60,
   },
   backButton: {
     marginRight: 12,
