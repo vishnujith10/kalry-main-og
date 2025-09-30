@@ -1,19 +1,23 @@
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useContext, useEffect, useState } from "react";
 import {
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from "react-native-svg";
 import { OnboardingContext } from "../context/OnboardingContext";
 import supabase from "../lib/supabase";
+import { getResponsivePadding } from '../utils/responsive';
 
 const SLEEP_QUALITIES = ["Excellent", "Good", "Fair", "Poor"];
 const MOODS = ["Relaxed", "Neutral", "Tired", "Stressed"];
@@ -51,6 +55,7 @@ function getWeekDates() {
 }
 
 const SleepTrackerScreen = () => {
+  const navigation = useNavigation();
   const { onboardingData } = useContext(OnboardingContext);
   const [sleepLogs, setSleepLogs] = useState([]);
   const [showAllLogs, setShowAllLogs] = useState(false);
@@ -786,7 +791,16 @@ const SleepTrackerScreen = () => {
   console.log("=== END CONSISTENCY DEBUG ===");
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#F8F7FC" }}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Sleep Tracker</Text>
+        <View style={styles.placeholder} />
+      </View>
+
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
@@ -1905,7 +1919,7 @@ const SleepTrackerScreen = () => {
         )}
       </ScrollView>
 
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -2059,6 +2073,32 @@ const styles = StyleSheet.create({
     fontFamily: "Lexend-Bold",
     color: "#222",
     marginHorizontal: 8,
+  },
+  // Header styles matching ProfileScreen
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F7FC',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: getResponsivePadding(8),
+    paddingHorizontal: getResponsivePadding(20),
+    paddingBottom: getResponsivePadding(8),
+    backgroundColor: '#F8F7FC',
+    minHeight: getResponsivePadding(40),
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  placeholder: {
+    width: 40,
   },
 });
 
