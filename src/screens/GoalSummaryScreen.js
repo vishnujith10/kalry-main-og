@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import React, { useContext } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from '../context/OnboardingContext';
 
 const PRIMARY = '#000000';

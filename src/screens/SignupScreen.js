@@ -2,7 +2,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import React, { useContext, useEffect, useState } from 'react';
 import {
     Alert,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
@@ -10,6 +9,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from '../context/OnboardingContext';
 import supabase from '../lib/supabase';
 import calculateCalorieProfile from '../utils/calorieCalculator';

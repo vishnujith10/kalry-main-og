@@ -8,12 +8,12 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from "../lib/supabase";
 import { createFoodLog } from "../utils/api";
 

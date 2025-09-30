@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
-import { Image, KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PRIMARY = '#000000';
 const SECONDARY = '#666666';

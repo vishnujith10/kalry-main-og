@@ -2,7 +2,8 @@ import { Feather, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-ico
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useContext, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from '../context/OnboardingContext';
 
 const PRIMARY = '#000000';

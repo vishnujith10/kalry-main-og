@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as FileSystem from 'expo-file-system/legacy';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
 import { createFoodLog } from '../utils/api';
 

@@ -3,15 +3,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import React, { useContext, useEffect, useState } from "react";
 import {
-  Image,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from "../context/OnboardingContext";
 import supabase from "../lib/supabase";
 

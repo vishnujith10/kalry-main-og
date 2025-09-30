@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dimensions, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
 import { getFoodLogs } from '../utils/api';
 

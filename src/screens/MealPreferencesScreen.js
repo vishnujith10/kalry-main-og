@@ -1,7 +1,8 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import React, { useContext, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from '../context/OnboardingContext';
 
 const COLORS = {

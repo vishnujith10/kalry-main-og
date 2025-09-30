@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { MaterialIcons , MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
+import React, { useContext, useEffect, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from '../context/OnboardingContext';
 
 const PRIMARY = '#000000';

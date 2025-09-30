@@ -1,6 +1,7 @@
-import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import React, { useContext, useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from '../context/OnboardingContext';
 
 const PRIMARY = '#000000';

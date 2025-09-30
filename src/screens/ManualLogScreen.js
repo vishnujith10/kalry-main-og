@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
 
 const ManualLogScreen = ({ route, navigation }) => {

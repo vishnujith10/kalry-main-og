@@ -3,16 +3,16 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useState } from "react";
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from "../lib/supabase";
 
 const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
