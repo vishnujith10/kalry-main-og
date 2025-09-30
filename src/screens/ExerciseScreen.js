@@ -95,6 +95,36 @@ export default function ExerciseScreen() {
   const [error, setError] = useState(null);
   const navigation = useNavigation();
 
+  // Get current week dates (Monday to Sunday)
+  const getCurrentWeekDates = () => {
+    const today = new Date();
+    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const monday = new Date(today);
+    
+    // Calculate days to subtract to get to Monday (1)
+    const daysToMonday = currentDay === 0 ? 6 : currentDay - 1;
+    monday.setDate(today.getDate() - daysToMonday);
+    
+    const weekDates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      weekDates.push({
+        date: date.getDate(),
+        isToday: date.toDateString() === today.toDateString()
+      });
+    }
+    
+    return weekDates;
+  };
+
+  const currentWeekDates = getCurrentWeekDates();
+  const today = new Date();
+  const monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
   useEffect(() => {
     fetch('http://192.168.1.4:3000/api/exercise')
       .then(async res => {
@@ -137,12 +167,10 @@ export default function ExerciseScreen() {
       </View>
       
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 110, paddingTop: 20 }}>
-        
-
         {/* Calendar Widget */}
         <View style={styles.calendarCard}>
           <View style={styles.calendarHeader}>
-            <Text style={styles.calendarMonth}>Aug 2025</Text>
+            <Text style={styles.calendarMonth}>{monthNames[today.getMonth()]} {today.getFullYear()}</Text>
             <View style={styles.streakBadge}>
               <Text style={styles.streakEmoji}>🔥</Text>
               <Text style={styles.streakText}>7-day streak</Text>
@@ -156,12 +184,12 @@ export default function ExerciseScreen() {
               ))}
             </View>
             <View style={styles.datesRow}>
-              {[25, 26, 27, 28, 29, 30, 31].map((date, i) => (
-                <View key={i} style={[styles.dateCell, date === 27 && styles.activeDateCell]}>
-                  <Text style={[styles.dateText, date === 27 && styles.activeDateText]}>
-                    {date}
-                </Text>
-                  {date === 27 && <View style={styles.activeDateDots} />}
+              {currentWeekDates.map((day, i) => (
+                <View key={i} style={[styles.dateCell, day.isToday && styles.activeDateCell]}>
+                  <Text style={[styles.dateText, day.isToday && styles.activeDateText]}>
+                    {day.date}
+                  </Text>
+                  {day.isToday && <View style={styles.activeDateDots} />}
                 </View>
               ))}
             </View>
@@ -172,7 +200,7 @@ export default function ExerciseScreen() {
             <View style={styles.progressBar}>
               <View style={styles.progressFill} />
             </View>
-              </View>
+          </View>
         </View>
 
         {/* Summary Cards */}
@@ -224,8 +252,8 @@ export default function ExerciseScreen() {
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.cardioTitle}>Cardio Sessions</Text>
               <Text style={styles.cardioSubtitle}>Intervals, HIIT & more</Text>
-                </View>
-                  </View>
+            </View>
+          </View>
           
           <TouchableOpacity style={styles.startCardioButton} onPress={() => navigation.navigate('WorkoutSaveScreen')}>
             <Text style={styles.startCardioButtonText}>Start Cardio</Text>
@@ -233,7 +261,7 @@ export default function ExerciseScreen() {
           
           <TouchableOpacity style={styles.createNewButton} onPress={() => navigation.navigate('Create')}>
             <Text style={styles.createNewButtonText}>Create New</Text>
-              </TouchableOpacity>
+          </TouchableOpacity>
         </View>
 
         {/* Recent Workouts */}
@@ -406,6 +434,7 @@ const styles = StyleSheet.create({
   },
   activeDateCell: {
     backgroundColor: '#7B61FF',
+    borderRadius: 20,
   },
   dateText: {
     fontFamily: 'Lexend-SemiBold',
@@ -715,4 +744,4 @@ const footerStyles = StyleSheet.create({
     backgroundColor: '#7B61FF',
     borderRadius: 2,
   },
-}); 
+});
