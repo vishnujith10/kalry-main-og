@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://192.168.1.9:3000/api'; // Updated to correct local IP
+const API_BASE_URL = 'http://192.168.1.4:3000/api'; // Updated to correct local IP
 
 // Food Logs API
 export const createFoodLog = async (foodLog) => {

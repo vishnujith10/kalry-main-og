@@ -2,7 +2,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Animated, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
@@ -30,6 +30,7 @@ const HydrationTrackerScreen = () => {
   const [weeklyIntakeValues, setWeeklyIntakeValues] = useState({});
   // New state for tracking goals per day
   const [weeklyGoals, setWeeklyGoals] = useState({});
+  const [historicalGoals, setHistoricalGoals] = useState({});
   // Animated value for bar height
   const [barAnimation] = useState(new Animated.Value(0));
 
@@ -186,6 +187,9 @@ const HydrationTrackerScreen = () => {
       setWeeklyIntakeValues(weeklyIntakeValuesData);
       // Store weekly goals separately
       setWeeklyGoals(weeklyGoalsData);
+      // Store historical goals (don't update when today's goal changes)
+      setHistoricalGoals(weeklyGoalsData);
+      
     } catch (error) {
       console.error('Error loading weekly data:', error);
     }
@@ -380,6 +384,12 @@ const HydrationTrackerScreen = () => {
 
       if (error) throw error;
 
+      // Update the weeklyGoals state for today's index
+      setWeeklyGoals(prev => ({
+        ...prev,
+        [todayIndex]: newGoalL
+      }));
+
     } catch (error) {
       console.error('Error updating daily goal:', error);
       Alert.alert('Error', 'Failed to update daily goal');
@@ -424,14 +434,15 @@ const HydrationTrackerScreen = () => {
 
   const bestDay = getBestDay();
 
+  
   // Updated weekly data with dynamic today's progress and database data
-  const weeklyData = [
+  const weeklyData = useMemo(() => [
     { 
       day: 'Mon', 
       label: 'Mon', 
       intake: todayIndex === 0 ? currentIntake : (weeklyIntakeData[0] || 0), 
       isToday: todayIndex === 0, 
-      goalAchieved: todayIndex === 0 ? isGoalAchieved : (weeklyIntakeData[0] || 0) >= (weeklyGoals[0] || dailyGoal),
+      goalAchieved: todayIndex === 0 ? isGoalAchieved : (weeklyIntakeData[0] || 0) >= (historicalGoals[0] || 2.5),
       intake1: todayIndex === 0 ? intake1 : (weeklyIntakeValues[0]?.intake1 || 250),
       intake2: todayIndex === 0 ? intake2 : (weeklyIntakeValues[0]?.intake2 || 500)
     },
@@ -440,7 +451,7 @@ const HydrationTrackerScreen = () => {
       label: 'Tue', 
       intake: todayIndex === 1 ? currentIntake : (weeklyIntakeData[1] || 0), 
       isToday: todayIndex === 1, 
-      goalAchieved: todayIndex === 1 ? isGoalAchieved : (weeklyIntakeData[1] || 0) >= (weeklyGoals[1] || dailyGoal),
+      goalAchieved: todayIndex === 1 ? isGoalAchieved : (weeklyIntakeData[1] || 0) >= (historicalGoals[1] || 2.5),
       intake1: todayIndex === 1 ? intake1 : (weeklyIntakeValues[1]?.intake1 || 250),
       intake2: todayIndex === 1 ? intake2 : (weeklyIntakeValues[1]?.intake2 || 500)
     },
@@ -449,7 +460,7 @@ const HydrationTrackerScreen = () => {
       label: 'Wed', 
       intake: todayIndex === 2 ? currentIntake : (weeklyIntakeData[2] || 0), 
       isToday: todayIndex === 2, 
-      goalAchieved: todayIndex === 2 ? isGoalAchieved : (weeklyIntakeData[2] || 0) >= (weeklyGoals[2] || dailyGoal),
+      goalAchieved: todayIndex === 2 ? isGoalAchieved : (weeklyIntakeData[2] || 0) >= (historicalGoals[2] || 2.5),
       intake1: todayIndex === 2 ? intake1 : (weeklyIntakeValues[2]?.intake1 || 250),
       intake2: todayIndex === 2 ? intake2 : (weeklyIntakeValues[2]?.intake2 || 500)
     },
@@ -458,7 +469,7 @@ const HydrationTrackerScreen = () => {
       label: 'Thu', 
       intake: todayIndex === 3 ? currentIntake : (weeklyIntakeData[3] || 0), 
       isToday: todayIndex === 3, 
-      goalAchieved: todayIndex === 3 ? isGoalAchieved : (weeklyIntakeData[3] || 0) >= (weeklyGoals[3] || dailyGoal),
+      goalAchieved: todayIndex === 3 ? isGoalAchieved : (weeklyIntakeData[3] || 0) >= (historicalGoals[3] || 2.5),
       intake1: todayIndex === 3 ? intake1 : (weeklyIntakeValues[3]?.intake1 || 250),
       intake2: todayIndex === 3 ? intake2 : (weeklyIntakeValues[3]?.intake2 || 500)
     },
@@ -467,7 +478,7 @@ const HydrationTrackerScreen = () => {
       label: 'Fri', 
       intake: todayIndex === 4 ? currentIntake : (weeklyIntakeData[4] || 0), 
       isToday: todayIndex === 4, 
-      goalAchieved: todayIndex === 4 ? isGoalAchieved : (weeklyIntakeData[4] || 0) >= (weeklyGoals[4] || dailyGoal),
+      goalAchieved: todayIndex === 4 ? isGoalAchieved : (weeklyIntakeData[4] || 0) >= (historicalGoals[4] || 2.5),
       intake1: todayIndex === 4 ? intake1 : (weeklyIntakeValues[4]?.intake1 || 250),
       intake2: todayIndex === 4 ? intake2 : (weeklyIntakeValues[4]?.intake2 || 500)
     },
@@ -476,7 +487,7 @@ const HydrationTrackerScreen = () => {
       label: 'Sat', 
       intake: todayIndex === 5 ? currentIntake : (weeklyIntakeData[5] || 0), 
       isToday: todayIndex === 5, 
-      goalAchieved: todayIndex === 5 ? isGoalAchieved : (weeklyIntakeData[5] || 0) >= (weeklyGoals[5] || dailyGoal),
+      goalAchieved: todayIndex === 5 ? isGoalAchieved : (weeklyIntakeData[5] || 0) >= (historicalGoals[5] || 2.5),
       intake1: todayIndex === 5 ? intake1 : (weeklyIntakeValues[5]?.intake1 || 250),
       intake2: todayIndex === 5 ? intake2 : (weeklyIntakeValues[5]?.intake2 || 500)
     },
@@ -485,11 +496,11 @@ const HydrationTrackerScreen = () => {
       label: 'Sun', 
       intake: todayIndex === 6 ? currentIntake : (weeklyIntakeData[6] || 0), 
       isToday: todayIndex === 6, 
-      goalAchieved: todayIndex === 6 ? isGoalAchieved : (weeklyIntakeData[6] || 0) >= (weeklyGoals[6] || dailyGoal),
+      goalAchieved: todayIndex === 6 ? isGoalAchieved : (weeklyIntakeData[6] || 0) >= (historicalGoals[6] || 2.5),
       intake1: todayIndex === 6 ? intake1 : (weeklyIntakeValues[6]?.intake1 || 250),
       intake2: todayIndex === 6 ? intake2 : (weeklyIntakeValues[6]?.intake2 || 500)
     }
-  ];
+  ], [todayIndex, currentIntake, weeklyIntakeData, weeklyGoals, historicalGoals, isGoalAchieved, intake1, intake2, weeklyIntakeValues]);
 
   const addWater = async (amount) => {
     const newIntake = Math.min(currentIntake + amount, dailyGoal);
@@ -873,7 +884,7 @@ const styles = StyleSheet.create({
     width: 280,
     height: 420,
     // Remove the white background - this was blocking the glass effect
-    backgroundColor: '#D3D3D3', // Changed from rgba(255, 255, 255, 0.1)
+    backgroundColor: '#E8E8E8', // Changed from rgba(255, 255, 255, 0.1)
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     borderTopLeftRadius: 8,
@@ -958,7 +969,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#9333ea',
+    backgroundColor: '#a855f7',
     opacity: 0.9, // Slightly more opaque
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
@@ -1002,19 +1013,19 @@ const styles = StyleSheet.create({
 
 // Also update your text styles to have better contrast against the glass:
 
-waterAmount: {
-  fontSize: 24,
-  fontWeight: 'bold',
-  color: '#1f2937', // Darker color for better readability
-  textShadowColor: 'rgba(255, 255, 255, 0.8)',
-  textShadowOffset: { width: 0, height: 1 },
-  textShadowRadius: 2,
-},
+  waterAmount: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffffff', // White text for visibility against purple water
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
 
 waterGoal: {
   fontSize: 14,
-  color: '#4b5563', // Darker color for better readability
-  textShadowColor: 'rgba(255, 255, 255, 0.8)',
+  color: '#ffffff', // White text for visibility against purple water
+  textShadowColor: 'rgba(0, 0, 0, 0.5)',
   textShadowOffset: { width: 0, height: 1 },
   textShadowRadius: 2,
 },
@@ -1022,9 +1033,9 @@ waterGoal: {
 hydrated: {
   fontSize: 16,
   fontWeight: '600',
-  color: '#1f2937', // Darker color for better readability
+  color: '#ffffff', // White text for visibility against purple water
   marginVertical: 4,
-  textShadowColor: 'rgba(255, 255, 255, 0.8)',
+  textShadowColor: 'rgba(0, 0, 0, 0.5)',
   textShadowOffset: { width: 0, height: 1 },
   textShadowRadius: 2,
 },
@@ -1051,21 +1062,25 @@ textBackdrop: {
     marginTop: 12,
   },
   addButton: {
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)', // More opaque white background
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderWidth: 2,
+    borderColor: 'rgba(124, 58, 237, 0.3)', // Purple border for better contrast
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
   },
   addButtonText: {
     color: '#7c3aed',
     fontWeight: 'bold',
+    fontSize: 14,
+    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
   card: {
     backgroundColor: '#fff',
