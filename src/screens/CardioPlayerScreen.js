@@ -1,5 +1,5 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { Audio } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useRef, useState } from 'react';
 import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -55,7 +55,7 @@ export default function CardioPlayerScreen({ route, navigation }) {
       }
     }
     loadSound();
-    return () => { soundObj && soundObj.unloadAsync(); };
+    return () => { try { soundObj && soundObj.unloadAsync && soundObj.unloadAsync(); } catch {} };
   }, [session.soundOption, session.soundAlerts]);
 
   // Play sound and vibrate at transitions

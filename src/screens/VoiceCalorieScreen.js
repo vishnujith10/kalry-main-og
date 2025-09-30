@@ -8,40 +8,68 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  PermissionsAndroid,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from "react-native-safe-area-context";
 import supabase from "../lib/supabase";
 import { createFoodLog } from "../utils/api";
 
 const VoiceCalorieScreen = ({ navigation, route }) => {
   const { mealType = "Quick Log", selectedDate } = route.params || {};
   const recordingRef = useRef(null);
-  const [permissionResponse, requestPermission] = Audio.usePermissions();
+  const ensureAudioPermission = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        const has = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+        if (has) return true;
+        const res = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+        return res === PermissionsAndroid.RESULTS.GRANTED;
+      }
+      // iOS: rely on system prompt when starting recording (NSMicrophoneUsageDescription set)
+      return true;
+    } catch (error) {
+      console.log('Permission error:', error);
+      return false;
+    }
+  };
   const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [nutritionData, setNutritionData] = useState(null);
   const [transcribedText, setTranscribedText] = useState("");
   const [showListening, setShowListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [audioLevels, setAudioLevels] = useState(Array.from({ length: 20 }, () => 0));
+  const [audioLevels, setAudioLevels] = useState(
+    Array.from({ length: 20 }, () => 0)
+  );
   const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
   const genAI = new GoogleGenerativeAI(apiKey);
-  
+
   // Animation values for waveform
-  const waveformAnimations = useRef(Array.from({ length: 20 }, () => new Animated.Value(0))).current;
-  const dotAnimations = useRef(Array.from({ length: 8 }, () => new Animated.Value(0))).current;
+  const waveformAnimations = useRef(
+    Array.from({ length: 20 }, () => new Animated.Value(0))
+  ).current;
+  const dotAnimations = useRef(
+    Array.from({ length: 8 }, () => new Animated.Value(0))
+  ).current;
   const audioLevelInterval = useRef(null);
 
   useEffect(() => {
     return () => {
       if (recordingRef.current) {
-        recordingRef.current.unloadAsync();
-        recordingRef.current = null;
+        try {
+          recordingRef.current.stopAndUnloadAsync && recordingRef.current.stopAndUnloadAsync();
+        } catch (e) {
+          // ignore
+        } finally {
+          recordingRef.current = null;
+        }
       }
+      stopAnimations();
     };
   }, []);
 
@@ -75,21 +103,21 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
         // Create a wave-like pattern that moves across the bars
         const time = Date.now() * 0.005; // Time factor for wave movement
         const position = index / 19; // Position factor (0 to 1)
-        
+
         // Base wave pattern
         const wave = Math.sin(time + position * Math.PI * 2) * 0.3;
-        
+
         // Add some randomness for natural variation
         const random = (Math.random() - 0.5) * 0.4;
-        
+
         // Combine wave and randomness, ensure it stays within bounds
         const level = Math.max(0.1, Math.min(1, 0.3 + wave + random));
-        
+
         return level;
       });
-      
+
       setAudioLevels(newLevels);
-      
+
       // Animate each bar to its new level with different speeds
       newLevels.forEach((level, index) => {
         Animated.timing(waveformAnimations[index], {
@@ -107,20 +135,29 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
       clearInterval(audioLevelInterval.current);
       audioLevelInterval.current = null;
     }
-    
-    dotAnimations.forEach(anim => anim.stopAnimation());
-    waveformAnimations.forEach(anim => anim.stopAnimation());
-    dotAnimations.forEach(anim => anim.setValue(0));
-    waveformAnimations.forEach(anim => anim.setValue(0));
+
+    dotAnimations.forEach((anim) => anim.stopAnimation());
+    waveformAnimations.forEach((anim) => anim.stopAnimation());
+    dotAnimations.forEach((anim) => anim.setValue(0));
+    waveformAnimations.forEach((anim) => anim.setValue(0));
     setAudioLevels(Array.from({ length: 20 }, () => 0));
   };
 
   const startRecording = async () => {
     try {
-      if (permissionResponse.status !== "granted") await requestPermission();
+      const hasPerm = await ensureAudioPermission();
+      if (!hasPerm) {
+        Alert.alert("Permission Required", "Microphone access is needed to record audio.");
+        return;
+      }
       if (recordingRef.current) {
-        await recordingRef.current.unloadAsync();
-        recordingRef.current = null;
+        try {
+          await (recordingRef.current.stopAndUnloadAsync && recordingRef.current.stopAndUnloadAsync());
+        } catch (e) {
+          // ignore
+        } finally {
+          recordingRef.current = null;
+        }
       }
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
@@ -134,10 +171,10 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
       setShowListening(true);
       setNutritionData(null);
       setTranscribedText("");
-      
+
       // Start dot animation initially
       startDotAnimation();
-      
+
       // Switch to waveform animation after 500ms
       setTimeout(() => {
         if (isRecording) {
@@ -147,6 +184,7 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
         }
       }, 500);
     } catch (err) {
+      console.log('startRecording error (VoiceCalorieScreen):', err);
       Alert.alert("Recording Error", "Could not start recording.");
     }
   };
@@ -172,12 +210,12 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
       // Try different models if one fails
       const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
       let lastError = null;
-      
+
       for (const modelName of models) {
         try {
           const model = genAI.getGenerativeModel({ model: modelName });
           const audioData = await FileSystem.readAsStringAsync(uri, {
-            encoding: 'base64',
+            encoding: "base64",
           });
           const prompt = `Analyze the food items in this audio. Your response MUST be a single valid JSON object and nothing else. Do not include markdown formatting like \`\`\`json.
 
@@ -230,48 +268,56 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
 
 The JSON object must have this structure: 
 { "transcription": "The full text of what you heard", "items": [ { "name": "EXACT_QUANTITY + food item", "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number>, "fiber": <number> } ], "total": { "calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number>, "fiber": <number> } }`;
-          
+
           const result = await model.generateContent([
             prompt,
             { inlineData: { mimeType: "audio/mp4", data: audioData } },
           ]);
           const response = await result.response;
           let text = response.text();
-          
-          console.log('VoiceCalorieScreen - Raw AI response:', text);
-          
+
+          console.log("VoiceCalorieScreen - Raw AI response:", text);
+
           const jsonMatch = text.match(/\{[\s\S]*\}/);
-          
+
           if (jsonMatch) {
             const jsonString = jsonMatch[0];
-            console.log('VoiceCalorieScreen - Extracted JSON:', jsonString);
+            console.log("VoiceCalorieScreen - Extracted JSON:", jsonString);
             const data = JSON.parse(jsonString);
             // Check for error response
             if (data.error) {
               throw new Error(data.error);
             }
-            
-            if (!data.total || !Array.isArray(data.items) || !data.transcription) {
+
+            if (
+              !data.total ||
+              !Array.isArray(data.items) ||
+              !data.transcription
+            ) {
               throw new Error("Invalid JSON structure from API.");
             }
-            
+
             // Check if any food items were detected
             if (data.items.length === 0) {
-              throw new Error("No food items detected. Please speak clearly about what you ate.");
+              throw new Error(
+                "No food items detected. Please speak clearly about what you ate."
+              );
             }
             setTranscribedText(data.transcription);
             setShowListening(false);
             setNutritionData({ ...data.total, items: data.items });
-            
+
             // Create clean food name from extracted items (just quantities and food names)
-            const cleanFoodName = data.items.map(item => item.name).join(", ");
-            
-            console.log('VoiceCalorieScreen - Generated data:', data);
-            console.log('VoiceCalorieScreen - Items:', data.items);
-            console.log('VoiceCalorieScreen - Clean food name:', cleanFoodName);
-            console.log('VoiceCalorieScreen - Total nutrition:', data.total);
-            
-            navigation.replace('VoicePostCalorieScreen', {
+            const cleanFoodName = data.items
+              .map((item) => item.name)
+              .join(", ");
+
+            console.log("VoiceCalorieScreen - Generated data:", data);
+            console.log("VoiceCalorieScreen - Items:", data.items);
+            console.log("VoiceCalorieScreen - Clean food name:", cleanFoodName);
+            console.log("VoiceCalorieScreen - Total nutrition:", data.total);
+
+            navigation.replace("VoicePostCalorieScreen", {
               analysis: {
                 total: {
                   calories: data.total.calories,
@@ -282,11 +328,13 @@ The JSON object must have this structure:
                 },
                 items: data.items,
               },
-              cleanFoodName: cleanFoodName
+              cleanFoodName: cleanFoodName,
             });
             return;
           } else {
-            throw new Error("Invalid JSON format from API. No JSON object found.");
+            throw new Error(
+              "Invalid JSON format from API. No JSON object found."
+            );
           }
         } catch (error) {
           lastError = error;
@@ -294,15 +342,20 @@ The JSON object must have this structure:
           // Continue to next model
         }
       }
-      
+
       // If all models failed, show error
       throw lastError || new Error("All AI models are currently unavailable.");
     } catch (error) {
       let errorMessage = "Could not analyze the audio.";
-      if (error.message.includes("503") || error.message.includes("overloaded")) {
-        errorMessage = "AI service is temporarily overloaded. Please try again in a few moments.";
+      if (
+        error.message.includes("503") ||
+        error.message.includes("overloaded")
+      ) {
+        errorMessage =
+          "AI service is temporarily overloaded. Please try again in a few moments.";
       } else if (error.message.includes("API key")) {
-        errorMessage = "AI service configuration error. Please check your settings.";
+        errorMessage =
+          "AI service configuration error. Please check your settings.";
       } else {
         errorMessage += " " + error.message;
       }
@@ -354,7 +407,7 @@ The JSON object must have this structure:
             style: "cancel",
             onPress: () => {
               // Continue recording - do nothing
-            }
+            },
           },
           {
             text: "Yes",
@@ -373,8 +426,8 @@ The JSON object must have this structure:
               setIsSpeaking(false);
               stopAnimations();
               navigation.navigate("Home");
-            }
-          }
+            },
+          },
         ]
       );
     } else {
@@ -384,13 +437,10 @@ The JSON object must have this structure:
 
   // UI rendering logic
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={handleBackPress}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={28} color="#7B61FF" />
+        <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Voice Logging</Text>
         <View style={{ width: 28 }} />
@@ -398,7 +448,7 @@ The JSON object must have this structure:
       <View style={styles.content}>
         {/* Top spacer for centering content */}
         <View style={styles.topSpacer} />
-        
+
         {/* Results - stays in center when showing */}
         {nutritionData && !isLoading && (
           <View style={styles.resultContainer}>
@@ -475,7 +525,7 @@ The JSON object must have this structure:
             </TouchableOpacity>
           </View>
         )}
-        
+
         {/* Loading spinner - stays in center */}
         {isLoading && (
           <View style={styles.centerContainer}>
@@ -486,7 +536,7 @@ The JSON object must have this structure:
             />
           </View>
         )}
-        
+
         {/* Audio Animation */}
         {isRecording && !isLoading && (
           <View style={styles.animationContainer}>
@@ -500,12 +550,14 @@ The JSON object must have this structure:
                       styles.dot,
                       {
                         opacity: anim,
-                        transform: [{ 
-                          scale: anim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0.5, 1.5],
-                          })
-                        }],
+                        transform: [
+                          {
+                            scale: anim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.5, 1.5],
+                            }),
+                          },
+                        ],
                       },
                     ]}
                   />
@@ -533,7 +585,7 @@ The JSON object must have this structure:
             )}
           </View>
         )}
-        
+
         {/* Instructions section at top */}
         <View style={styles.instructionsSection}>
           {!isRecording && !nutritionData && !isLoading && (
@@ -558,7 +610,7 @@ The JSON object must have this structure:
             </>
           )}
         </View>
-        
+
         {/* Bottom section with mic button */}
         <View style={styles.bottomSection}>
           {/* Mic button */}
@@ -594,10 +646,16 @@ The JSON object must have this structure:
       {/* Fixed footer for action buttons */}
       {nutritionData && !isLoading && (
         <View style={styles.footerActionRow}>
-          <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirmLog}>
+          <TouchableOpacity
+            style={styles.confirmBtn}
+            onPress={handleConfirmLog}
+          >
             <Text style={styles.confirmBtnText}>Confirm & Log</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={() => navigation.goBack()}
+          >
             <Text style={styles.cancelBtnText}>Cancel</Text>
           </TouchableOpacity>
         </View>
@@ -608,54 +666,76 @@ The JSON object must have this structure:
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingTop: 32, paddingBottom: 18, borderBottomWidth: 1, borderColor: '#eee', backgroundColor: '#F3F0FF' },
-  backButton: { marginRight: 12,marginTop: 20 },
-  headerTitle: { flex: 1, fontSize: 22,marginTop: 20 , fontWeight: 'bold', color: '#7B61FF', textAlign: 'center' },
-  content: { flex: 1, alignItems: 'center', paddingHorizontal: 24, justifyContent: 'space-between', width: '100%' },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+    backgroundColor: "#fff",
+    minHeight: 58,
+  },
+  backButton: { marginRight: 12 },
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "black",
+    textAlign: "center",
+  },
+  content: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: 24,
+    justifyContent: "space-between",
+    width: "100%",
+  },
   topSpacer: { flex: 1 },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  centerContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   instructionsSection: {
-    width: '100%',
-    alignItems: 'center',
+    width: "100%",
+    alignItems: "center",
     paddingTop: 40,
     paddingBottom: 20,
   },
-  bottomSection: { 
-    width: '100%', 
-    alignItems: 'center', 
+  bottomSection: {
+    width: "100%",
+    alignItems: "center",
     paddingBottom: 40,
-    paddingTop: 20
+    paddingTop: 20,
   },
   animationContainer: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 20,
   },
   dotContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     height: 60,
   },
   dot: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#7B61FF',
+    backgroundColor: "#7B61FF",
     marginHorizontal: 6,
   },
   waveformContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     height: 60,
     gap: 3,
   },
   waveformBar: {
     width: 4,
     borderRadius: 2,
-    backgroundColor: '#7B61FF',
+    backgroundColor: "#7B61FF",
   },
   gradientMicWrap: {
     marginVertical: 24,
@@ -744,14 +824,14 @@ const styles = StyleSheet.create({
   },
   retryBtnText: { color: "#7B61FF", fontWeight: "bold", fontSize: 15 },
   footerActionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
     padding: 18,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderTopWidth: 1,
-    borderColor: '#eee',
-    position: 'absolute',
+    borderColor: "#eee",
+    position: "absolute",
     bottom: 20,
     left: 0,
   },

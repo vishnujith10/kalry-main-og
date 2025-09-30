@@ -238,7 +238,7 @@ export default function ExerciseScreen() {
               <Text style={styles.exploreSubtitle}>Pick from 100+ exercises</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.browseButton} onPress={() => navigation.navigate('ExerciseLibrary')}>
+          <TouchableOpacity style={styles.browseButton} onPress={() => navigation.navigate('CategoryWorkouts')}>
             <Text style={styles.browseButtonText}>Browse Exercises</Text>
           </TouchableOpacity>
         </View>

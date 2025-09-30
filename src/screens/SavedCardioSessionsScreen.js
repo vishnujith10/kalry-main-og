@@ -1,6 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { loadCardioSessions } from '../lib/cardioSessionApi';
 import supabase from '../lib/supabase';
 
@@ -25,9 +27,28 @@ export default function SavedCardioSessionsScreen() {
   if (loading) return <ActivityIndicator />;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB', padding: 16 }}>
-      <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 16 }}>Saved Workouts</Text>
-      <FlatList
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }} edges={['top']}>
+      {/* Header (SafeArea) */}
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 12,
+        paddingBottom: 6,
+        borderBottomWidth: 1,
+        borderColor: '#eee',
+        minHeight: 48,
+        backgroundColor: '#F9FAFB'
+      }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8 }}>
+          <Ionicons name="chevron-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={{ fontSize: 20, fontWeight: '600', color: '#333' }}>Saved Workouts</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <View style={{ flex: 1, padding: 16 }}>
+        <FlatList
         data={sessions}
         keyExtractor={item => item.id}
         renderItem={({ item }) => (
@@ -49,7 +70,8 @@ export default function SavedCardioSessionsScreen() {
             <Text style={{ color: '#22C55E', marginTop: 4 }}>Play</Text>
           </TouchableOpacity>
         )}
-      />
-    </View>
+        />
+      </View>
+    </SafeAreaView>
   );
 } 

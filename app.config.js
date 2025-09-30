@@ -53,7 +53,13 @@ export default {
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     },
     plugins: [
-      "expo-system-ui"
+      "expo-system-ui",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Kalry to access your microphone for voice food descriptions."
+        }
+      ]
     ]
   }
 }; 

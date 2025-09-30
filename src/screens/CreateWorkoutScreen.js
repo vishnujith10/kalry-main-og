@@ -2,6 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, FlatList, Image, Modal, ScrollView, StatusBar, StyleSheet, Switch, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
 
 const { width, height } = Dimensions.get('window');
@@ -610,16 +611,17 @@ export default function CardioSessionBuilder({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" />
-      
-      {/* Back Button - Only Fixed Element */}
-      <TouchableOpacity 
-        style={styles.backButton}
-        onPress={() => navigation.navigate('Exercise')}
-      >
-        <Ionicons name="arrow-back" size={24} color="#1f2937" />
-      </TouchableOpacity>
+
+      {/* Header (same pattern as ProfileScreen) */}
+      <View style={styles.topHeaderCW}>
+        <TouchableOpacity style={styles.backButtonCW} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitleCW}>Cardio</Text>
+        <View style={styles.placeholderCW} />
+      </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Header Text - Now Scrollable */}
@@ -1151,7 +1153,7 @@ export default function CardioSessionBuilder({ navigation }) {
       <Animated.View style={[styles.toast, { transform: [{ translateY: slideAnim }] }]}>
         <Text style={styles.toastText}>Template loaded successfully! 🎉</Text>
       </Animated.View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -1173,6 +1175,28 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     paddingHorizontal: 20,
     alignItems: 'center',
+  },
+  // CreateWorkout header (copied pattern from ProfileScreen, unique keys to avoid conflicts)
+  topHeaderCW: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+    backgroundColor: '#f8fafc',
+    minHeight: 60,
+  },
+  backButtonCW: {
+    padding: 8,
+  },
+  headerTitleCW: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  placeholderCW: {
+    width: 40,
   },
   
 

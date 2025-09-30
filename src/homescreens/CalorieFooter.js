@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Dimensions, Easing, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Dimensions, Easing, Modal, PermissionsAndroid, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import supabase from '../lib/supabase';
 import { createFoodLog } from '../utils/api';
 
@@ -278,7 +278,21 @@ const CalorieFooter = ({ navigation, activeTab }) => {
 
 const VoiceLoggingModal = ({ visible, onClose, onLog, mealType }) => {
   const recordingRef = useRef(null);
-  const [permissionResponse, requestPermission] = Audio.usePermissions();
+  const ensureAudioPermission = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        const has = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+        if (has) return true;
+        const res = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+        return res === PermissionsAndroid.RESULTS.GRANTED;
+      }
+      // iOS: rely on system prompt when starting recording (NSMicrophoneUsageDescription set)
+      return true;
+    } catch (error) {
+      console.log('Permission error:', error);
+      return false;
+    }
+  };
   const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [nutritionData, setNutritionData] = useState(null);
@@ -301,7 +315,11 @@ const VoiceLoggingModal = ({ visible, onClose, onLog, mealType }) => {
 
   const startRecording = async () => {
     try {
-      if (permissionResponse.status !== 'granted') await requestPermission();
+      const hasPerm = await ensureAudioPermission();
+      if (!hasPerm) {
+        Alert.alert('Permission Required', 'Microphone access is needed to record audio.');
+        return;
+      }
       if (recordingRef.current) {
         await recordingRef.current.unloadAsync();
         recordingRef.current = null;
@@ -313,6 +331,7 @@ const VoiceLoggingModal = ({ visible, onClose, onLog, mealType }) => {
       setNutritionData(null);
       setTranscribedText('');
     } catch (err) {
+      console.log('startRecording error (CalorieFooter):', err);
       Alert.alert("Recording Error", "Could not start recording.");
     }
   };
