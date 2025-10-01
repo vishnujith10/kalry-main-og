@@ -1,24 +1,27 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useContext, useEffect, useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from '../context/OnboardingContext';
 import supabase from '../lib/supabase';
 import calculateCalorieProfile from '../utils/calorieCalculator';
 
-const PRIMARY = '#000000';
-const ORANGE = '#ff8800';
-const BACKGROUND = '#ffffff';
-const GRAY_MEDIUM = '#e0e0e0';
-const GRAY_LIGHT = '#f5f5f5';
+// Modern Fitness Light Mode Palette
+const LIGHT_BG = '#F8F9FE';
+const CARD_BG = '#FFFFFF';
+const TEXT_PRIMARY = '#1A1D2E';
+const TEXT_SECONDARY = '#6B7280';
+const ELECTRIC_BLUE = '#2563EB';
+const BRIGHT_CYAN = '#06B6D4';
 
 const SignupScreen = ({ navigation }) => {
   const { onboardingData } = useContext(OnboardingContext);
@@ -26,6 +29,8 @@ const SignupScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState(false);
+  const [confirmPasswordError, setConfirmPasswordError] = useState(false);
 
   // Test Supabase connectivity
   useEffect(() => {
@@ -38,9 +43,39 @@ const SignupScreen = ({ navigation }) => {
       });
   }, []);
 
+  const handlePasswordChange = (text) => {
+    setPassword(text);
+    if (passwordError) {
+      setPasswordError(false);
+    }
+  };
+
+  const handleConfirmPasswordChange = (text) => {
+    setConfirmPassword(text);
+    if (confirmPasswordError) {
+      setConfirmPasswordError(false);
+    }
+  };
+
   const handleSignup = async () => {
-    if (!email || !password) {
+    // Clear previous errors
+    setPasswordError(false);
+    setConfirmPasswordError(false);
+
+    if (!email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (password.length < 6) {
+      setPasswordError(true);
+      Alert.alert('Weak Password', 'Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setConfirmPasswordError(true);
+      Alert.alert('Password Mismatch', 'Passwords do not match. Please re-enter the correct password.');
       return;
     }
 
@@ -108,7 +143,7 @@ const SignupScreen = ({ navigation }) => {
       if (data.user) {
         // For production: Sign in immediately after signup to establish session
         console.log('User created, signing in to establish session...');
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email: email,
           password: password
         });
@@ -188,61 +223,107 @@ const SignupScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <MaterialIcons name="arrow-back" size={28} color={PRIMARY} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.content}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>
-            Sign up to start your fitness journey
-          </Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <View style={styles.backButtonCircle}>
+            <MaterialIcons name="arrow-back" size={24} color={TEXT_PRIMARY} />
+          </View>
+        </TouchableOpacity>
+        <Text style={styles.heading}>Create Account</Text>
+        <View style={{ width: 44 }} />
+      </View>
+
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false} 
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.contentWrapper}>
+          <View style={styles.header}>
+            <Text style={styles.subtitle}>GET STARTED</Text>
+            <Text style={styles.title}>Create your{'\n'}account</Text>
+            <Text style={styles.description}>
+              Sign up to start your fitness journey
+            </Text>
+          </View>
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <MaterialIcons name="email" size={24} color={GRAY_MEDIUM} style={styles.inputIcon} />
+              <LinearGradient
+                colors={['#EEF2FF', '#E0E7FF']}
+                style={styles.inputIconWrapper}
+              >
+                <MaterialIcons name="email" size={20} color={ELECTRIC_BLUE} />
+              </LinearGradient>
               <TextInput
                 style={styles.input}
                 placeholder="Email"
+                placeholderTextColor={TEXT_SECONDARY}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
             </View>
-            <View style={styles.inputContainer}>
-              <MaterialIcons name="lock" size={24} color={GRAY_MEDIUM} style={styles.inputIcon} />
+            <View style={[styles.inputContainer, passwordError && styles.inputContainerError]}>
+              <LinearGradient
+                colors={passwordError ? ['#FEE2E2', '#FECACA'] : ['#F3E8FF', '#E9D5FF']}
+                style={styles.inputIconWrapper}
+              >
+                <MaterialIcons name="lock" size={20} color={passwordError ? '#EF4444' : ELECTRIC_BLUE} />
+              </LinearGradient>
               <TextInput
                 style={styles.input}
                 placeholder="Password"
+                placeholderTextColor={TEXT_SECONDARY}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={handlePasswordChange}
                 secureTextEntry
               />
             </View>
-            <View style={styles.inputContainer}>
-              <MaterialIcons name="lock" size={24} color={GRAY_MEDIUM} style={styles.inputIcon} />
+            {passwordError && (
+              <Text style={styles.errorText}>Password must be at least 6 characters long</Text>
+            )}
+            <View style={[styles.inputContainer, confirmPasswordError && styles.inputContainerError]}>
+              <LinearGradient
+                colors={confirmPasswordError ? ['#FEE2E2', '#FECACA'] : ['#DBEAFE', '#BFDBFE']}
+                style={styles.inputIconWrapper}
+              >
+                <MaterialIcons name="lock" size={20} color={confirmPasswordError ? '#EF4444' : ELECTRIC_BLUE} />
+              </LinearGradient>
               <TextInput
                 style={styles.input}
                 placeholder="Confirm Password"
+                placeholderTextColor={TEXT_SECONDARY}
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                onChangeText={handleConfirmPasswordChange}
                 secureTextEntry
               />
             </View>
+            {confirmPasswordError && (
+              <Text style={styles.errorText}>Passwords do not match</Text>
+            )}
             <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+              style={[styles.ctaButton, loading && styles.ctaButtonDisabled]}
               onPress={handleSignup}
               disabled={loading}
+              activeOpacity={0.85}
             >
-              <Text style={styles.buttonText}>
-                {loading ? 'Creating Account...' : 'SIGN UP'}
-              </Text>
+              {loading ? (
+                <View style={styles.buttonDisabled}>
+                  <Text style={styles.buttonTextDisabled}>Creating Account...</Text>
+                </View>
+              ) : (
+                <LinearGradient
+                  colors={[ELECTRIC_BLUE, BRIGHT_CYAN]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.buttonGradient}
+                >
+                  <Text style={styles.buttonText}>Create Account</Text>
+                  <MaterialIcons name="arrow-forward" size={22} color="#FFFFFF" />
+                </LinearGradient>
+              )}
             </TouchableOpacity>
             {/* <View style={styles.loginContainer}>
               <Text style={styles.loginText}>Already have an account? </Text>
@@ -260,35 +341,71 @@ const SignupScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: BACKGROUND,
+    backgroundColor: LIGHT_BG,
   },
-  keyboardView: {
-    flex: 1,
-  },
-  header: {
-    padding: 16,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    marginBottom: 20,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: GRAY_LIGHT,
-    justifyContent: 'center',
+    zIndex: 10,
+  },
+  backButtonCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: CARD_BG,
     alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  content: {
+  heading: {
+    fontSize: 20,
+    fontFamily: 'Lexend-Bold',
+    color: TEXT_PRIMARY,
+    textAlign: 'center',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 100,
+  },
+  contentWrapper: {
     flex: 1,
-    padding: 24,
+    paddingHorizontal: 24,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: PRIMARY,
-    marginBottom: 8,
+  header: {
+    marginBottom: 28,
   },
   subtitle: {
+    fontSize: 11,
+    color: TEXT_SECONDARY,
+    fontFamily: 'Manrope-Regular',
+    letterSpacing: 2,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: TEXT_PRIMARY,
+    fontFamily: 'Lexend-Bold',
+    letterSpacing: -0.5,
+    marginBottom: 8,
+    lineHeight: 34,
+  },
+  description: {
     fontSize: 16,
-    color: GRAY_MEDIUM,
+    color: TEXT_SECONDARY,
+    fontFamily: 'Manrope-Regular',
+    lineHeight: 24,
     marginBottom: 32,
   },
   form: {
@@ -297,34 +414,84 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: GRAY_LIGHT,
-    borderRadius: 12,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
     marginBottom: 16,
     paddingHorizontal: 16,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  inputIcon: {
+  inputIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   input: {
     flex: 1,
-    height: 56,
+    height: 48,
     fontSize: 16,
+    color: TEXT_PRIMARY,
+    fontFamily: 'Manrope-Regular',
   },
-  button: {
-    backgroundColor: PRIMARY,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
+  inputContainerError: {
+    borderWidth: 2,
+    borderColor: '#EF4444',
+    shadowColor: '#EF4444',
+    shadowOpacity: 0.2,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
+    marginTop: -12,
+    marginBottom: 16,
+    marginLeft: 4,
+  },
+  ctaButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
     marginTop: 24,
+    shadowColor: ELECTRIC_BLUE,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  buttonDisabled: {
-    opacity: 0.7,
+  buttonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 10,
   },
   buttonText: {
-    color: BACKGROUND,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Lexend-Bold',
+    letterSpacing: 0.3,
+  },
+  ctaButtonDisabled: {
+    opacity: 1,
+  },
+  buttonDisabled: {
+    backgroundColor: '#E5E7EB',
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderRadius: 16,
+  },
+  buttonTextDisabled: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: TEXT_SECONDARY,
+    fontFamily: 'Manrope-Regular',
   },
   loginContainer: {
     flexDirection: 'row',
@@ -332,11 +499,13 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   loginText: {
-    color: GRAY_MEDIUM,
+    color: TEXT_SECONDARY,
+    fontFamily: 'Manrope-Regular',
   },
   loginLink: {
-    color: ORANGE,
-    fontWeight: 'bold',
+    color: ELECTRIC_BLUE,
+    fontWeight: '600',
+    fontFamily: 'Manrope-Regular',
   },
 });
 

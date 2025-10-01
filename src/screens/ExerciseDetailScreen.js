@@ -1,9 +1,11 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-
+import { SafeAreaView } from 'react-native-safe-area-context';
+import supabase from '../lib/supabase';
+  
 const COLORS = {
   primary: '#7B61FF',
   purple: '#A084E8',
@@ -63,7 +65,9 @@ const mock = {
 
 export default function ExerciseDetailScreen() {
   const route = useRoute();
-  const workout = route.params?.workout || mock;
+  const initialWorkout = route.params?.workout || mock;
+  const [workout, setWorkout] = useState(initialWorkout);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   // Micro-interaction helpers
   function usePressScale(initial = 1, pressed = 1.06) {
@@ -74,44 +78,75 @@ export default function ExerciseDetailScreen() {
     return { animatedStyle, onPressIn, onPressOut };
   }
 
-  // Play button
-  const playBtnAnim = usePressScale();
   // Footer buttons
-  const startBtnAnim = usePressScale();
   const addBtnAnim = usePressScale();
-  const cameraBtnAnim = usePressScale();
+
+  // Helper to normalize string/JSON to array
+  function normalizeToArray(value) {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map(v => (typeof v === 'string' ? v.trim() : String(v))).filter(Boolean);
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed.map(v => (typeof v === 'string' ? v.trim() : String(v))).filter(Boolean);
+      } catch {}
+      return value.split(/\n|,/).map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+  }
+
+  // Fetch full exercise by id if provided
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!initialWorkout?.id) return;
+      setLoadingDetails(true);
+      const { data, error } = await supabase.from('exercise').select('*').eq('id', initialWorkout.id).single();
+      if (!cancelled) {
+        if (!error && data) setWorkout(prev => ({ ...prev, ...data }));
+        setLoadingDetails(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [initialWorkout?.id]);
+
+  const targetList = useMemo(() => {
+    const arr = normalizeToArray(workout.target_muscles || workout.target);
+    return arr.map(label => ({ icon: 'arm-flex', label, sub: '' }));
+  }, [workout]);
+
+  const stepsList = useMemo(() => normalizeToArray(workout.steps || workout.instructions), [workout]);
+  
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: COLORS.background }}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.headerIcon}><Ionicons name="arrow-back" size={24} color={COLORS.darkText} /></TouchableOpacity>
+        <TouchableOpacity style={styles.headerIcon}><Ionicons name="chevron-back" size={24} color={COLORS.darkText} /></TouchableOpacity>
         <Text style={styles.headerTitle}>Exercise Detail</Text>
         <TouchableOpacity style={styles.headerIcon}><Ionicons name="share-outline" size={22} color={COLORS.darkText} /></TouchableOpacity>
       </View>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         {/* Media */}
         <View style={styles.mediaWrap}>
-          <Image source={{ uri: workout.image }} style={styles.mediaImg} />
-          <TouchableOpacity
-            style={styles.playBtn}
-            onPressIn={playBtnAnim.onPressIn}
-            onPressOut={playBtnAnim.onPressOut}
-          >
-            <Animated.View style={playBtnAnim.animatedStyle}>
-              <Ionicons name="play" size={32} color={COLORS.primary} />
-            </Animated.View>
-          </TouchableOpacity>
+          <Image
+            source={{ uri: workout.gif_url || workout.image_url || workout.image }}
+            style={styles.mediaImg}
+            resizeMode="contain"
+          />
         </View>
         {/* Info Card */}
         <View style={styles.infoCard}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-            <Text style={styles.exerciseName}>{workout.name}</Text>
-            <View style={styles.levelPill}><Text style={styles.levelText}>{workout.level}</Text></View>
+            <Text style={styles.exerciseName}>{workout.workout || workout.name}</Text>
+            {!!workout.level && (
+              <View style={styles.levelPill}><Text style={styles.levelText}>{workout.level}</Text></View>
+            )}
           </View>
           <View style={styles.infoRow}>
             <MaterialCommunityIcons name="arm-flex" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
-            <Text style={styles.infoMeta}>{workout.type} • {workout.equipment}</Text>
+            <Text style={styles.infoMeta}>{[workout.type, workout.equipment].filter(Boolean).join(' • ')}</Text>
             <MaterialCommunityIcons name="fire" size={18} color={COLORS.warning} style={{ marginLeft: 16, marginRight: 4 }} />
             <Text style={styles.infoMeta}>{workout.kcal}</Text>
             <MaterialCommunityIcons name="counter" size={18} color={COLORS.primary} style={{ marginLeft: 16, marginRight: 4 }} />
@@ -121,7 +156,7 @@ export default function ExerciseDetailScreen() {
         {/* Target Muscles */}
         <Text style={styles.sectionTitle}>Target Muscles</Text>
         <View style={styles.pillRow}>
-          {(workout.target || []).map((t, i) => {
+          {targetList.map((t, i) => {
             const pillAnim = usePressScale();
             return (
               <TouchableOpacity
@@ -134,37 +169,18 @@ export default function ExerciseDetailScreen() {
                   <MaterialCommunityIcons name={t.icon} size={24} color={COLORS.primary} />
                   <View style={{ marginLeft: 8 }}>
                     <Text style={styles.targetLabel}>{t.label}</Text>
-                    <Text style={styles.targetSub}>{t.sub}</Text>
+                    {!!t.sub && <Text style={styles.targetSub}>{t.sub}</Text>}
                   </View>
                 </Animated.View>
               </TouchableOpacity>
             );
           })}
         </View>
-        {/* Benefits */}
-        <Text style={styles.sectionTitle}>Benefits</Text>
-        <View style={styles.card}>
-          {(workout.benefits || []).map((b, i) => {
-            const benefitAnim = usePressScale();
-            return (
-              <TouchableOpacity
-                key={i}
-                activeOpacity={0.85}
-                onPressIn={benefitAnim.onPressIn}
-                onPressOut={benefitAnim.onPressOut}
-              >
-                <Animated.View style={[styles.benefitRow, benefitAnim.animatedStyle]}>
-                  <MaterialCommunityIcons name={b.icon} size={20} color={COLORS.purple} />
-                  <Text style={styles.benefitText}>{b.text}</Text>
-                </Animated.View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        
         {/* Steps */}
         <Text style={styles.sectionTitle}>How to Perform</Text>
         <View style={styles.card}>
-          {(workout.steps || []).map((step, i) => {
+          {stepsList.map((step, i) => {
             const stepAnim = usePressScale();
             return (
               <TouchableOpacity
@@ -175,7 +191,10 @@ export default function ExerciseDetailScreen() {
                 disabled
               >
                 <Animated.View style={[styles.stepRow, stepAnim.animatedStyle]}>
-                  <View style={[styles.stepCircle, { backgroundColor: i === 1 ? '#DDD6FE' : '#F3F4F6' }]}><Text style={styles.stepNumber}>{i + 1}</Text></View>
+                  <View style={[
+                    styles.stepCircle,
+                    { backgroundColor: (workout.stepWarnings || []).includes(i) ? '#DDD6FE' : '#F3F4F6' }
+                  ]}><Text style={styles.stepNumber}>{i + 1}</Text></View>
                   <Text style={styles.stepText}>{step}</Text>
                   {(workout.stepWarnings || []).includes(i) && (
                     <View style={styles.warningBox}>
@@ -188,56 +207,8 @@ export default function ExerciseDetailScreen() {
             );
           })}
         </View>
-        {/* Equipment */}
-        <Text style={styles.sectionTitle}>What You’ll Need</Text>
-        <View style={styles.pillRow}>
-          {(workout.equipmentList || []).map((item, i) => {
-            const equipAnim = usePressScale();
-            return (
-              <TouchableOpacity
-                key={i}
-                activeOpacity={0.85}
-                onPressIn={equipAnim.onPressIn}
-                onPressOut={equipAnim.onPressOut}
-              >
-                <Animated.View style={[styles.equipPill, equipAnim.animatedStyle]}>
-                  <Ionicons name="information-circle-outline" size={18} color={COLORS.gray} style={{ marginRight: 6 }} />
-                  <Text style={styles.equipText}>{item}</Text>
-                </Animated.View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-        {/* Progress */}
-        <Text style={styles.sectionTitle}>Your Progress</Text>
-        <View style={styles.progressCard}>
-          <View style={styles.progressRow}><Text style={styles.progressLabel}>Last performed</Text><Text style={styles.progressValue}>{workout.progress?.lastPerformed || ''}</Text></View>
-          <View style={styles.progressRow}><Text style={styles.progressLabel}>Last session</Text><Text style={styles.progressValue}>{workout.progress?.lastSession || ''}</Text></View>
-          <View style={styles.progressRow}><Text style={styles.progressLabel}>This week</Text><Text style={[styles.progressValue, { color: COLORS.green }]}>{workout.progress?.thisWeek || ''}</Text></View>
-        </View>
-        {/* Footer Buttons */}
-        <View style={styles.footerButtons}>
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            activeOpacity={0.85}
-            onPressIn={startBtnAnim.onPressIn}
-            onPressOut={startBtnAnim.onPressOut}
-          >
-            <Animated.View style={startBtnAnim.animatedStyle}>
-              <Text style={styles.primaryBtnText}>Start Exercise</Text>
-            </Animated.View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.secondaryBtn}
-            activeOpacity={0.85}
-            onPressIn={cameraBtnAnim.onPressIn}
-            onPressOut={cameraBtnAnim.onPressOut}
-          >
-            <Animated.View style={cameraBtnAnim.animatedStyle}>
-              <Ionicons name="camera-outline" size={20} color={COLORS.primary} />
-            </Animated.View>
-          </TouchableOpacity>
-        </View>
+        
+        
         <TouchableOpacity
           style={styles.outlineBtn}
           activeOpacity={0.85}
@@ -249,7 +220,7 @@ export default function ExerciseDetailScreen() {
           </Animated.View>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -257,7 +228,7 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 18, paddingBottom: 8, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   headerTitle: { fontFamily: FONT.heading, fontSize: 20, color: COLORS.darkText, textAlign: 'center', flex: 1 },
   headerIcon: { width: 32, alignItems: 'center' },
-  mediaWrap: { width: '100%', aspectRatio: 1.7, borderRadius: 20, marginTop: 8, overflow: 'hidden', marginBottom: 10, backgroundColor: COLORS.card, alignSelf: 'center' },
+  mediaWrap: { width: '100%', aspectRatio: 1.7, borderRadius: 20, marginTop: 8, overflow: 'hidden', marginBottom: 10, backgroundColor: COLORS.card, alignSelf: 'center', alignItems: 'center', justifyContent: 'center' },
   mediaImg: { width: '100%', height: '100%' },
   playBtn: { position: 'absolute', top: '45%', left: '45%', backgroundColor: COLORS.white, padding: 12, borderRadius: 30, elevation: 4 },
   infoCard: { backgroundColor: COLORS.card, marginHorizontal: 16, borderRadius: 16, padding: 18, marginBottom: 16, shadowColor: COLORS.shadow, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
@@ -286,10 +257,7 @@ const styles = StyleSheet.create({
   progressRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   progressLabel: { fontFamily: FONT.regular, fontSize: 15, color: COLORS.subText },
   progressValue: { fontFamily: FONT.bold, color: COLORS.darkText },
-  footerButtons: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginHorizontal: 16 },
-  primaryBtn: { backgroundColor: COLORS.primary, paddingVertical: 14, borderRadius: 12, flex: 1, alignItems: 'center' },
-  primaryBtnText: { fontFamily: FONT.bold, fontSize: 16, color: COLORS.white },
-  secondaryBtn: { marginLeft: 12, padding: 12, borderWidth: 1, borderColor: COLORS.primary, borderRadius: 12, backgroundColor: COLORS.white },
+  
   outlineBtn: { marginHorizontal: 16, marginTop: 16, borderWidth: 2, borderColor: COLORS.primary, borderRadius: 12, alignItems: 'center', paddingVertical: 14 },
   outlineBtnText: { fontFamily: FONT.bold, fontSize: 16, color: COLORS.primary },
 });

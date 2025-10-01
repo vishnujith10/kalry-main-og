@@ -1,37 +1,33 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useNavigation } from "@react-navigation/native";
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useContext, useEffect, useState } from "react";
 import {
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from "../context/OnboardingContext";
 import supabase from "../lib/supabase";
 
-const PRIMARY = "#000000";
-const SECONDARY = "#666666";
-const BACKGROUND = "#ffffff";
-const GRAY_LIGHT = "#f5f5f5";
-const GRAY_MEDIUM = "#e0e0e0";
-const ACCENT = "#FAD89B";
-const INPUT_BG = "#F8F8F8";
-const ACCENT_GREEN = "#1abc9c";
-const ACCENT_RED = "#e74c3c";
-const CARD_BG = "#F8F8F8";
-const HIGHLIGHT = "#FAD89B";
-const MOTIV_BG = "#F8F8F8";
+// Modern Fitness Light Mode Palette
+const LIGHT_BG = '#F8F9FE';
+const CARD_BG = '#FFFFFF';
+const TEXT_PRIMARY = '#1A1D2E';
+const TEXT_SECONDARY = '#6B7280';
+const ELECTRIC_BLUE = '#2563EB';
+const BRIGHT_CYAN = '#06B6D4';
+const SUCCESS_GREEN = '#10B981';
+const ENERGY_ORANGE = '#F97316';
 
 const paceOptions = [0.5, 0.75, 1, 1.5];
 
-const WeightGoalScreen = ({ navigation: navProp }) => {
-  const navigation = navProp || useNavigation();
+const WeightGoalScreen = ({ navigation }) => {
   const { onboardingData, setOnboardingData } = useContext(OnboardingContext);
   const [weightUnit, setWeightUnit] = useState(
     onboardingData.selectedWeightUnit || "kg"
@@ -188,7 +184,7 @@ const WeightGoalScreen = ({ navigation: navProp }) => {
   // Calculate difference
   const weightDiff = Math.round(Number(currentWeight) - Number(targetWeight));
   let diffColor =
-    weightDiff > 0 ? ACCENT_GREEN : weightDiff < 0 ? ACCENT_RED : "#888";
+    weightDiff > 0 ? SUCCESS_GREEN : weightDiff < 0 ? ENERGY_ORANGE : TEXT_SECONDARY;
   let diffText = "";
   if (weightDiff > 0) diffText = `-${Math.abs(weightDiff)} ${weightUnit}`;
   else if (weightDiff < 0) diffText = `+${Math.abs(weightDiff)} ${weightUnit}`;
@@ -196,22 +192,28 @@ const WeightGoalScreen = ({ navigation: navProp }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <View style={styles.backButtonCircle}>
+            <MaterialIcons name="arrow-back" size={24} color={TEXT_PRIMARY} />
+          </View>
+        </TouchableOpacity>
+        <View style={{ width: 44 }} />
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <MaterialIcons name="arrow-back" size={28} color={PRIMARY} />
-        </TouchableOpacity>
         <View style={styles.contentWrapper}>
-          <Text style={styles.header}>Set Your Target Weight</Text>
-          <Text style={styles.subheader}>
-            We'll help you track and reach it safely over time.
-          </Text>
+          <View style={styles.header}>
+            <Text style={styles.subtitle}>TARGET WEIGHT</Text>
+            <Text style={styles.title}>Set your weight goal</Text>
+            <Text style={styles.description}>
+              We&apos;ll help you track and reach it safely over time
+            </Text>
+          </View>
 
           {/* Current and Target Weight Modern Card */}
           <View style={styles.weightCardRow}>
@@ -227,7 +229,7 @@ const WeightGoalScreen = ({ navigation: navProp }) => {
             <MaterialIcons
               name="arrow-forward"
               size={28}
-              color={HIGHLIGHT}
+              color={ELECTRIC_BLUE}
               style={{ marginHorizontal: 8, alignSelf: "center" }}
             />
             <View style={styles.weightCard}>
@@ -273,33 +275,35 @@ const WeightGoalScreen = ({ navigation: navProp }) => {
             Kalry does not recommend weight targets.
           </Text>
 
-          <Text style={styles.choosePace}>Choose your weekly pace</Text>
-          <View style={styles.paceGrid}>
-            {paceOptions.map((opt, idx) => (
-              <TouchableOpacity
-                key={opt}
-                style={[styles.paceBtn, pace === opt && styles.paceBtnActive]}
-                onPress={() => setPace(opt)}
-              >
-                <Text
-                  style={[
-                    styles.paceBtnText,
-                    pace === opt && styles.paceBtnTextActive,
-                  ]}
+          <View style={styles.paceSection}>
+            <Text style={styles.choosePace}>Choose your weekly pace</Text>
+            <View style={styles.paceGrid}>
+              {paceOptions.map((opt, idx) => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.paceBtn, pace === opt && styles.paceBtnActive]}
+                  onPress={() => setPace(opt)}
                 >
-                  {opt} {weightUnit}/week
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={styles.safePaceRow}>
-            <MaterialIcons
-              name="favorite"
-              size={18}
-              color={ACCENT_RED}
-              style={{ marginRight: 6 }}
-            />
-            <Text style={styles.safePaceText}>Safe & sustainable pace</Text>
+                  <Text
+                    style={[
+                      styles.paceBtnText,
+                      pace === opt && styles.paceBtnTextActive,
+                    ]}
+                  >
+                    {opt} {weightUnit}/week
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.safePaceRow}>
+              <MaterialIcons
+                name="favorite"
+                size={18}
+                color={ENERGY_ORANGE}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.safePaceText}>Safe & sustainable pace</Text>
+            </View>
           </View>
 
           {/* Estimated Time and Date in separate modern cards, stacked vertically */}
@@ -309,7 +313,7 @@ const WeightGoalScreen = ({ navigation: navProp }) => {
                 <MaterialIcons
                   name="calendar-today"
                   size={24}
-                  color={PRIMARY}
+                  color={TEXT_PRIMARY}
                 />
               </View>
               <View style={styles.estimateTextCol}>
@@ -324,7 +328,7 @@ const WeightGoalScreen = ({ navigation: navProp }) => {
                 <MaterialIcons
                   name="event-available"
                   size={24}
-                  color={PRIMARY}
+                  color={TEXT_PRIMARY}
                 />
               </View>
               <View style={styles.estimateTextCol}>
@@ -347,24 +351,66 @@ const WeightGoalScreen = ({ navigation: navProp }) => {
           </View>
         </View>
       </ScrollView>
-      <TouchableOpacity style={styles.continueBtn} onPress={handleContinue}>
-        <Text style={styles.continueBtnText}>Continue</Text>
-      </TouchableOpacity>
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={styles.ctaButton}
+          onPress={handleContinue}
+          activeOpacity={0.85}
+        >
+          <LinearGradient
+            colors={[ELECTRIC_BLUE, BRIGHT_CYAN]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.buttonGradient}
+          >
+            <Text style={styles.buttonText}>Continue</Text>
+            <MaterialIcons name="arrow-forward" size={22} color="#FFFFFF" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BACKGROUND },
-  scrollContent: { flexGrow: 1, paddingBottom: 32 },
+  container: { 
+    flex: 1, 
+    backgroundColor: LIGHT_BG 
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    marginBottom: 20,
+  },
   backButton: {
-    position: "absolute",
-    top: 50,
-    left: 16,
-    zIndex: 2,
-    backgroundColor: GRAY_LIGHT,
-    borderRadius: 20,
-    padding: 4,
+    zIndex: 10,
+  },
+  backButtonCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: CARD_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  heading: {
+    fontSize: 20,
+    fontFamily: 'Lexend-Bold',
+    color: TEXT_PRIMARY,
+    textAlign: 'center',
+  },
+  scrollContent: { 
+    flexGrow: 1, 
+    paddingBottom: 100 
   },
   contentWrapper: {
     flex: 1,
@@ -373,22 +419,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   header: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: PRIMARY,
-    marginTop: 60,
-    marginBottom: 4,
-    textAlign: "center",
-    fontFamily: "Lexend-Bold",
-    letterSpacing: 0.2,
+    marginBottom: 28,
   },
-  subheader: {
-    fontSize: 17,
-    color: SECONDARY,
-    marginBottom: 18,
-    textAlign: "center",
-    fontFamily: "Manrope-Regular",
-    letterSpacing: 0.1,
+  subtitle: {
+    fontSize: 11,
+    color: TEXT_SECONDARY,
+    fontFamily: 'Manrope-Regular',
+    letterSpacing: 2,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: TEXT_PRIMARY,
+    fontFamily: 'Lexend-Bold',
+    letterSpacing: -0.5,
+    marginBottom: 8,
+    lineHeight: 38,
+  },
+  description: {
+    fontSize: 16,
+    color: TEXT_SECONDARY,
+    fontFamily: 'Manrope-Regular',
+    lineHeight: 24,
   },
   weightCardRow: {
     flexDirection: "row",
@@ -398,32 +452,33 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   weightCard: {
-    backgroundColor: "#fff",
+    backgroundColor: CARD_BG,
     borderRadius: 16,
     paddingVertical: 18,
     paddingHorizontal: 24,
     alignItems: "center",
-    shadowColor: PRIMARY,
-    shadowOpacity: 0.07,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
     minWidth: 110,
   },
   weightCardLabel: {
     fontSize: 15,
-    color: SECONDARY,
+    color: TEXT_SECONDARY,
     fontFamily: "Manrope-Regular",
     marginBottom: 2,
   },
   weightCardValue: {
     fontSize: 28,
     fontWeight: "bold",
-    color: PRIMARY,
+    color: TEXT_PRIMARY,
     fontFamily: "Lexend-Bold",
   },
   weightCardUnit: {
     fontSize: 16,
-    color: SECONDARY,
+    color: TEXT_SECONDARY,
     fontFamily: "Manrope-Regular",
   },
   targetInputRow: {
@@ -446,7 +501,7 @@ const styles = StyleSheet.create({
   },
   inputUnitInline: {
     fontSize: 20,
-    color: SECONDARY,
+    color: TEXT_SECONDARY,
     fontWeight: "bold",
     fontFamily: "Manrope-Regular",
     marginLeft: 2,
@@ -474,9 +529,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 0.2,
   },
+  paceSection: {
+    width: "100%",
+    marginBottom: 20,
+  },
   choosePace: {
     fontSize: 16,
-    color: PRIMARY,
+    color: TEXT_PRIMARY,
     marginTop: 5,
     marginBottom: 8,
     fontWeight: "bold",
@@ -491,24 +550,44 @@ const styles = StyleSheet.create({
   },
   paceBtn: {
     width: "48%",
-    borderWidth: 1,
-    borderColor: HIGHLIGHT,
+    borderWidth: 2,
+    borderColor: 'transparent',
     borderRadius: 12,
     paddingVertical: 16,
     marginBottom: 10,
-    backgroundColor: "#fff",
+    backgroundColor: CARD_BG,
     alignItems: "center",
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  paceBtnActive: { backgroundColor: HIGHLIGHT },
-  paceBtnText: { color: PRIMARY, fontWeight: "bold", fontSize: 15 },
-  paceBtnTextActive: { color: "#fff" },
+  paceBtnActive: { 
+    backgroundColor: ELECTRIC_BLUE,
+    borderColor: ELECTRIC_BLUE,
+  },
+  paceBtnText: { 
+    color: TEXT_PRIMARY, 
+    fontWeight: "bold", 
+    fontSize: 15,
+    fontFamily: "Manrope-Regular",
+  },
+  paceBtnTextActive: { 
+    color: "#fff" 
+  },
   safePaceRow: {
     flexDirection: "row",
-    textAlign: "left",
+    alignItems: "center",
     marginBottom: 4,
     marginTop: 2,
   },
-  safePaceText: { color: ACCENT_RED, fontWeight: "bold", fontSize: 15 },
+  safePaceText: { 
+    color: ENERGY_ORANGE, 
+    fontWeight: "bold", 
+    fontSize: 15,
+    fontFamily: "Manrope-Regular",
+  },
   estimateColumnBoxes: {
     flexDirection: "column",
     width: "100%",
@@ -521,8 +600,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 10,
     borderWidth: 1,
-    borderColor: HIGHLIGHT,
-    shadowColor: PRIMARY,
+    borderColor: ELECTRIC_BLUE,
+    shadowColor: '#000',
     shadowOpacity: 0.07,
     shadowRadius: 8,
     elevation: 2,
@@ -531,54 +610,79 @@ const styles = StyleSheet.create({
   estimateBoxRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: CARD_BG,
     borderRadius: 16,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: HIGHLIGHT,
-    shadowColor: PRIMARY,
-    shadowOpacity: 0.07,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
-    marginHorizontal: 2,
     marginBottom: 10,
   },
   estimateTextCol: { flexDirection: "column", justifyContent: "center" },
   estimateLabel: {
-    color: SECONDARY,
+    color: TEXT_SECONDARY,
     fontSize: 15,
     fontFamily: "Manrope-Regular",
     marginBottom: 2,
   },
   estimateValue: {
-    color: PRIMARY,
+    color: TEXT_PRIMARY,
     fontWeight: "bold",
     fontSize: 19,
     fontFamily: "Lexend-Bold",
   },
   motivCard: {
     width: "100%",
-    backgroundColor: MOTIV_BG,
+    backgroundColor: CARD_BG,
     borderRadius: 18,
     alignItems: "center",
     padding: 18,
     marginTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   motivImg: { width: 80, height: 80, marginBottom: 10 },
   motivText: {
-    color: PRIMARY,
+    color: TEXT_PRIMARY,
     fontSize: 15,
     textAlign: "center",
     fontFamily: "Manrope-Regular",
   },
-  continueBtn: {
-    backgroundColor: ACCENT,
-    borderRadius: 18,
-    margin: 18,
-    paddingVertical: 16,
-    alignItems: "center",
+  buttonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: LIGHT_BG,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
   },
-  continueBtnText: { color: PRIMARY, fontWeight: "bold", fontSize: 18 },
+  ctaButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  buttonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    gap: 12,
+  },
+  buttonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Lexend-Bold',
+    letterSpacing: 0.3,
+  },
   badgeRowModern: {
     flexDirection: "row",
     justifyContent: "center",

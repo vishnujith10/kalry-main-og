@@ -1,21 +1,25 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useContext, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from '../context/OnboardingContext';
 
-const PRIMARY = '#222';
-const SECONDARY = '#666666';
-const BACKGROUND = '#ffffff';
-const GRAY_LIGHT = '#f5f5f5';
-const GRAY_MEDIUM = '#e0e0e0';
-const ACCENT = '#FAD89B';
-const INPUT_BG = '#f6f0ea';
-const PLACEHOLDER = '#a08c7d';
+// Modern Fitness Light Mode Palette
+const LIGHT_BG = '#F8F9FE';
+const CARD_BG = '#FFFFFF';
+const TEXT_PRIMARY = '#1A1D2E';
+const TEXT_SECONDARY = '#6B7280';
+const ELECTRIC_BLUE = '#2563EB';
+const BRIGHT_CYAN = '#06B6D4';
+const VIBRANT_PURPLE = '#7C3AED';
+const SUCCESS_GREEN = '#10B981';
+const ENERGY_ORANGE = '#F97316';
+const WARNING_YELLOW = '#F59E0B';
 
-const genders = ['Male', 'Female', ];
+const genders = ['Male', 'Female'];
 
 const MiniProfileScreen = () => {
   const navigation = useNavigation();
@@ -27,42 +31,10 @@ const MiniProfileScreen = () => {
   const [heightFt, setHeightFt] = useState('');
   const [weightKg, setWeightKg] = useState('');
   const [weightLbs, setWeightLbs] = useState('');
-  const [isMetric, setIsMetric] = useState(true); // true for metric (cm/kg), false for imperial (ft/lbs)
-  // Track which field is being edited
-  const [editingHeight, setEditingHeight] = useState(''); // 'cm' or 'ft'
-  const [editingWeight, setEditingWeight] = useState(''); // 'kg' or 'lbs'
+  const [isMetric, setIsMetric] = useState(true);
+  const [editingHeight, setEditingHeight] = useState('');
+  const [editingWeight, setEditingWeight] = useState('');
 
-  const handleUnitToggle = () => {
-    if (isMetric) {
-      // Convert from metric to imperial
-      setIsMetric(false);
-      // Convert current weight from kg to lbs
-      if (weightKg) {
-        const weightInLbs = (Number(weightKg) * 2.20462).toFixed(1);
-        setWeightLbs(weightInLbs);
-      }
-      // Convert current height from cm to ft
-      if (heightCm) {
-        const heightInFt = (Number(heightCm) / 30.48).toFixed(1);
-        setHeightFt(heightInFt);
-      }
-    } else {
-      // Convert from imperial to metric
-      setIsMetric(true);
-      // Convert current weight from lbs to kg
-      if (weightLbs) {
-        const weightInKg = (Number(weightLbs) / 2.20462).toFixed(1);
-        setWeightKg(weightInKg);
-      }
-      // Convert current height from ft to cm
-      if (heightFt) {
-        const heightInCm = (Number(heightFt) * 30.48).toFixed(0);
-        setHeightCm(heightInCm);
-      }
-    }
-  };
-
-  // Height conversion
   const handleHeightCmChange = (val) => {
     setEditingHeight('cm');
     setHeightCm(val);
@@ -73,6 +45,7 @@ const MiniProfileScreen = () => {
     }
     setEditingHeight('');
   };
+
   const handleHeightFtChange = (val) => {
     setEditingHeight('ft');
     setHeightFt(val);
@@ -84,7 +57,6 @@ const MiniProfileScreen = () => {
     setEditingHeight('');
   };
 
-  // Weight conversion
   const handleWeightKgChange = (val) => {
     setEditingWeight('kg');
     setWeightKg(val);
@@ -95,6 +67,7 @@ const MiniProfileScreen = () => {
     }
     setEditingWeight('');
   };
+
   const handleWeightLbsChange = (val) => {
     setEditingWeight('lbs');
     setWeightLbs(val);
@@ -106,7 +79,6 @@ const MiniProfileScreen = () => {
     setEditingWeight('');
   };
 
-  // Validation rules
   const minHeightCm = 100;
   const minHeightFt = 3.3;
   const minWeightKg = 30;
@@ -134,37 +106,38 @@ const MiniProfileScreen = () => {
   const canShowBMI = allFieldsFilled && validHeight && validWeight;
   const canContinue = canShowBMI;
 
-  // Calculate BMI (kg/m^2)
   let bmi = '';
   let bmiStatus = '';
   let bmiColor = '';
-  
+  let bmiGradient = [];
+
   if (canShowBMI) {
     const h = Number(heightCm) / 100;
     const w = Number(weightKg);
     if (h > 0) {
       bmi = (w / (h * h)).toFixed(1);
       const bmiNum = Number(bmi);
-      
-      // Determine BMI status and color
       if (bmiNum < 18.5) {
         bmiStatus = 'Underweight';
-        bmiColor = '#FF6B6B';
+        bmiColor = ENERGY_ORANGE;
+        bmiGradient = ['#FEE2E2', '#FECACA'];
       } else if (bmiNum >= 18.5 && bmiNum < 25) {
         bmiStatus = 'Healthy';
-        bmiColor = '#51CF66';
+        bmiColor = SUCCESS_GREEN;
+        bmiGradient = ['#D1FAE5', '#A7F3D0'];
       } else if (bmiNum >= 25 && bmiNum < 30) {
         bmiStatus = 'Overweight';
-        bmiColor = '#FFA726';
+        bmiColor = WARNING_YELLOW;
+        bmiGradient = ['#FEF3C7', '#FDE68A'];
       } else {
         bmiStatus = 'Obese';
-        bmiColor = '#FF6B6B';
+        bmiColor = ENERGY_ORANGE;
+        bmiGradient = ['#FEE2E2', '#FECACA'];
       }
     }
   }
 
   const handleContinue = async () => {
-    // Save all data to context
     setOnboardingData({
       name,
       age,
@@ -176,109 +149,205 @@ const MiniProfileScreen = () => {
       isMetric,
       bmi,
     });
-    // Save to AsyncStorage for access in other screens before signup
+
     try {
       await AsyncStorage.setItem('kalry_onboarding_weight', isMetric ? weightKg : weightLbs);
       await AsyncStorage.setItem('kalry_onboarding_height', isMetric ? heightCm : heightFt);
       await AsyncStorage.setItem('kalry_onboarding_unit', isMetric ? 'kg' : 'lbs');
-    } catch (e) { console.warn('Failed to save onboarding weight/height to storage', e); }
+    } catch (e) {
+      console.warn('Failed to save onboarding weight/height to storage', e);
+    }
     navigation.navigate('ReferralSource');
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={PRIMARY} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <View style={styles.backButtonCircle}>
+            <Ionicons name="arrow-back" size={24} color={TEXT_PRIMARY} />
+          </View>
         </TouchableOpacity>
         <Text style={styles.heading}>Personal Setup</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 44 }} />
       </View>
-      <ScrollView 
-        contentContainerStyle={[styles.scrollContent, { flexGrow: 1, paddingBottom: 32 }]}
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.formWrap}>
-          <Text style={styles.label}>Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your name"
-            placeholderTextColor={PLACEHOLDER}
-            value={name}
-            onChangeText={setName}
-          />
-          <Text style={styles.label}>Age</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your age"
-            placeholderTextColor={PLACEHOLDER}
-            value={age}
-            onChangeText={setAge}
-            keyboardType="numeric"
-          />
-          <Text style={styles.label}>Gender</Text>
-          <View style={styles.genderRow}>
-            {genders.map(gender => (
-              <TouchableOpacity
-                key={gender}
-                style={[styles.genderButton, selectedGender === gender && styles.genderButtonSelected]}
-                onPress={() => setSelectedGender(gender)}
-              >
-                <Text style={[styles.genderText, selectedGender === gender && styles.genderTextSelected]}>{gender}</Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Name</Text>
+            <View style={styles.inputCard}>
+              <MaterialCommunityIcons name="account" size={20} color={TEXT_SECONDARY} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your name"
+                placeholderTextColor={TEXT_SECONDARY}
+                value={name}
+                onChangeText={setName}
+              />
+            </View>
           </View>
-          <Text style={styles.label}>Height & Weight</Text>
-          <View style={styles.heightWeightRow}>
-            <TextInput
-              style={styles.heightWeightInput}
-              placeholder={isMetric ? "Height (cm)" : "Height (ft)"}
-              placeholderTextColor={PLACEHOLDER}
-              value={isMetric ? heightCm : heightFt}
-              onChangeText={isMetric ? handleHeightCmChange : handleHeightFtChange}
-              keyboardType="numeric"
-            />
-            <TextInput
-              style={styles.heightWeightInput}
-              placeholder={isMetric ? "Weight (kg)" : "Weight (lbs)"}
-              placeholderTextColor={PLACEHOLDER}
-              value={isMetric ? weightKg : weightLbs}
-              onChangeText={isMetric ? handleWeightKgChange : handleWeightLbsChange}
-              keyboardType="numeric"
-            />
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Age</Text>
+            <View style={styles.inputCard}>
+              <MaterialCommunityIcons name="calendar" size={20} color={TEXT_SECONDARY} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your age"
+                placeholderTextColor={TEXT_SECONDARY}
+                value={age}
+                onChangeText={setAge}
+                keyboardType="numeric"
+              />
+            </View>
           </View>
-          <View style={styles.toggleRow}>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Gender</Text>
+            <View style={styles.genderRow}>
+              {genders.map(gender => (
+                <TouchableOpacity
+                  key={gender}
+                  style={[
+                    styles.genderButton,
+                    selectedGender === gender && styles.genderButtonSelected
+                  ]}
+                  onPress={() => setSelectedGender(gender)}
+                  activeOpacity={0.7}
+                >
+                  {selectedGender === gender ? (
+                    <LinearGradient
+                      colors={[ELECTRIC_BLUE, BRIGHT_CYAN]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.genderGradient}
+                    >
+                      <MaterialCommunityIcons 
+                        name={gender === 'Male' ? 'gender-male' : 'gender-female'} 
+                        size={20} 
+                        color="#FFFFFF" 
+                      />
+                      <Text style={styles.genderTextSelected}>{gender}</Text>
+                    </LinearGradient>
+                  ) : (
+                    <View style={styles.genderContent}>
+                      <MaterialCommunityIcons 
+                        name={gender === 'Male' ? 'gender-male' : 'gender-female'} 
+                        size={20} 
+                        color={TEXT_SECONDARY} 
+                      />
+                      <Text style={styles.genderText}>{gender}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.unitToggleContainer}>
             <TouchableOpacity
-              style={[styles.toggleBtn, isMetric && styles.toggleBtnActive]}
+              style={[styles.unitToggle, isMetric && styles.unitToggleActive]}
               onPress={() => setIsMetric(true)}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.toggleBtnText, isMetric && styles.toggleBtnTextActive]}>Metric</Text>
+              <Text style={[styles.unitToggleText, isMetric && styles.unitToggleTextActive]}>
+                Metric
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.toggleBtn, !isMetric && styles.toggleBtnActive]}
+              style={[styles.unitToggle, !isMetric && styles.unitToggleActive]}
               onPress={() => setIsMetric(false)}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.toggleBtnText, !isMetric && styles.toggleBtnTextActive]}>Imperial</Text>
+              <Text style={[styles.unitToggleText, !isMetric && styles.unitToggleTextActive]}>
+                Imperial
+              </Text>
             </TouchableOpacity>
           </View>
+
+          <View style={styles.measurementsRow}>
+            <View style={styles.measurementCard}>
+              <Text style={styles.measurementLabel}>Height</Text>
+              <View style={styles.measurementInputWrapper}>
+                <TextInput
+                  style={styles.measurementInput}
+                  placeholder={isMetric ? "170" : "5.6"}
+                  placeholderTextColor={TEXT_SECONDARY}
+                  value={isMetric ? heightCm : heightFt}
+                  onChangeText={isMetric ? handleHeightCmChange : handleHeightFtChange}
+                  keyboardType="numeric"
+                />
+                <Text style={styles.measurementUnit}>{isMetric ? 'cm' : 'ft'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.measurementCard}>
+              <Text style={styles.measurementLabel}>Weight</Text>
+              <View style={styles.measurementInputWrapper}>
+                <TextInput
+                  style={styles.measurementInput}
+                  placeholder={isMetric ? "70" : "154"}
+                  placeholderTextColor={TEXT_SECONDARY}
+                  value={isMetric ? weightKg : weightLbs}
+                  onChangeText={isMetric ? handleWeightKgChange : handleWeightLbsChange}
+                  keyboardType="numeric"
+                />
+                <Text style={styles.measurementUnit}>{isMetric ? 'kg' : 'lbs'}</Text>
+              </View>
+            </View>
+          </View>
+
           {canShowBMI && (
-            <View style={styles.bmiContainer}>
-              <Text style={styles.bmiText}>BMI: {bmi}</Text>
-              <Text style={[styles.bmiStatus, { color: bmiColor }]}>({bmiStatus})</Text>
+            <View style={styles.bmiCard}>
+              <LinearGradient
+                colors={bmiGradient}
+                style={styles.bmiGradient}
+              >
+                <View style={styles.bmiContent}>
+                  <MaterialCommunityIcons name="heart-pulse" size={24} color={bmiColor} />
+                  <View style={styles.bmiTextContent}>
+                    <Text style={styles.bmiLabel}>Your BMI</Text>
+                    <View style={styles.bmiValueRow}>
+                      <Text style={[styles.bmiValue, { color: bmiColor }]}>{bmi}</Text>
+                      <Text style={[styles.bmiStatus, { color: bmiColor }]}>• {bmiStatus}</Text>
+                    </View>
+                  </View>
+                </View>
+              </LinearGradient>
             </View>
           )}
         </View>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, !canContinue && styles.buttonDisabled]}
-            disabled={!canContinue}
-            onPress={handleContinue}
-          >
-            <Text style={styles.buttonText}>Continue</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.ctaButton, !canContinue && styles.ctaButtonDisabled]}
+          disabled={!canContinue}
+          onPress={handleContinue}
+          activeOpacity={0.85}
+        >
+          {canContinue ? (
+            <LinearGradient
+              colors={[ELECTRIC_BLUE, BRIGHT_CYAN]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.buttonGradient}
+            >
+              <Text style={styles.buttonText}>Continue</Text>
+              <MaterialIcons name="arrow-forward" size={22} color="#FFFFFF" />
+            </LinearGradient>
+          ) : (
+            <View style={styles.buttonDisabled}>
+              <Text style={styles.buttonTextDisabled}>Complete all fields</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
@@ -286,212 +355,277 @@ const MiniProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: BACKGROUND,
-    paddingTop: Platform.OS === 'android' ? 32 : 0,
+    backgroundColor: LIGHT_BG,
+    paddingTop: Platform.OS === 'android' ? 3 : 0,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 16,
-    marginBottom: 12,
+    marginBottom: 20,
   },
-  backBtn: {
-    padding: 4,
+  backButton: {
+    zIndex: 10,
+  },
+  backButtonCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: CARD_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   heading: {
     fontSize: 20,
     fontFamily: 'Lexend-Bold',
-    color: PRIMARY,
+    color: TEXT_PRIMARY,
     textAlign: 'center',
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    paddingTop: 0,
-    paddingBottom: 24,
+    paddingBottom: 100,
   },
   formWrap: {
-    flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 8,
+  },
+  inputGroup: {
+    marginBottom: 20,
   },
   label: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'Manrope-Regular',
-    color: PRIMARY,
-    marginBottom: 6,
-    marginTop: 18,
-  },
-  input: {
-    backgroundColor: INPUT_BG,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    fontFamily: 'Manrope-Regular',
-    color: PRIMARY,
+    color: TEXT_PRIMARY,
+    fontWeight: '600',
     marginBottom: 10,
-    borderWidth: 0,
+  },
+  inputCard: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  inputText: {
-    fontSize: 15,
-    fontFamily: 'Manrope-Regular',
-    color: PRIMARY,
-  },
-  dropdownIcon: {
-    position: 'absolute',
-    right: 16,
-    top: '50%',
-    marginTop: -10,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  heightWeightRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  heightWeightInput: {
-    flex: 1,
-    backgroundColor: INPUT_BG,
-    borderRadius: 12,
-    paddingVertical: 14,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
     paddingHorizontal: 16,
-    fontSize: 15,
+    paddingVertical: 16,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
     fontFamily: 'Manrope-Regular',
-    color: PRIMARY,
-    marginBottom: 10,
-    borderWidth: 0,
+    color: TEXT_PRIMARY,
   },
   genderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-    marginTop: 2,
+    gap: 12,
   },
   genderButton: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: GRAY_MEDIUM,
-    borderRadius: 8,
-    paddingVertical: 10,
-    marginHorizontal: 4,
-    backgroundColor: GRAY_LIGHT,
-    alignItems: 'center',
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: CARD_BG,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   genderButtonSelected: {
-    borderColor: PRIMARY,
-    backgroundColor: GRAY_LIGHT,
+    borderColor: ELECTRIC_BLUE,
+  },
+  genderGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  genderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
   },
   genderText: {
-    color: SECONDARY,
-    fontWeight: '500',
     fontSize: 15,
+    fontFamily: 'Manrope-Regular',
+    color: TEXT_SECONDARY,
+    fontWeight: '600',
   },
   genderTextSelected: {
-    color: PRIMARY,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontFamily: 'Lexend-Bold',
+    color: '#FFFFFF',
+  },
+  unitToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    padding: 4,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  unitToggle: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  unitToggleActive: {
+    backgroundColor: '#EEF2FF',
+  },
+  unitToggleText: {
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
+    color: TEXT_SECONDARY,
+    fontWeight: '600',
+  },
+  unitToggleTextActive: {
+    color: ELECTRIC_BLUE,
+    fontFamily: 'Lexend-Bold',
+  },
+  measurementsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  measurementCard: {
+    flex: 1,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  measurementLabel: {
+    fontSize: 13,
+    fontFamily: 'Manrope-Regular',
+    color: TEXT_SECONDARY,
+    fontWeight: '500',
+    marginBottom: 12,
+  },
+  measurementInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+  },
+  measurementInput: {
+    fontSize: 28,
+    fontFamily: 'Lexend-Bold',
+    color: TEXT_PRIMARY,
+    flex: 1,
+    padding: 0,
+  },
+  measurementUnit: {
+    fontSize: 16,
+    fontFamily: 'Manrope-Regular',
+    color: TEXT_SECONDARY,
+    fontWeight: '600',
+  },
+  bmiCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: 4,
+  },
+  bmiGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  bmiContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  bmiTextContent: {
+    flex: 1,
+  },
+  bmiLabel: {
+    fontSize: 13,
+    fontFamily: 'Manrope-Regular',
+    color: TEXT_SECONDARY,
+    fontWeight: '500',
+    marginBottom: 6,
+  },
+  bmiValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bmiValue: {
+    fontSize: 24,
+    fontFamily: 'Lexend-Bold',
+    fontWeight: '700',
+  },
+  bmiStatus: {
+    fontSize: 16,
+    fontFamily: 'Manrope-Regular',
+    fontWeight: '600',
   },
   buttonContainer: {
-    width: '100%',
-    paddingHorizontal: 24,
-    marginTop: 0,
-    marginBottom: 24,
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'transparent',
+    backgroundColor: LIGHT_BG,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
   },
-  button: {
-    backgroundColor: ACCENT,
-    borderRadius: 24,
-    paddingVertical: 18,
+  ctaButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  buttonGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    marginTop: 8,
-    shadowColor: ACCENT,
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    justifyContent: 'center',
+    paddingVertical: 18,
+    gap: 12,
   },
   buttonText: {
-    color: PRIMARY,
-    fontSize: 16,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
     fontFamily: 'Lexend-Bold',
-    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  ctaButtonDisabled: {
+    opacity: 1,
   },
   buttonDisabled: {
-    backgroundColor: GRAY_MEDIUM,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 16,
-    marginTop: 8,
-    backgroundColor: '#f8f6f3',
-    borderRadius: 12,
-    padding: 4,
-    marginHorizontal: 20,
-  },
-  toggleBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: 'transparent',
+    backgroundColor: '#E5E7EB',
+    paddingVertical: 18,
     alignItems: 'center',
-    marginHorizontal: 2,
+    borderRadius: 16,
   },
-  toggleBtnActive: {
-    backgroundColor: ACCENT,
-    shadowColor: ACCENT,
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  toggleBtnText: {
+  buttonTextDisabled: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: TEXT_SECONDARY,
     fontFamily: 'Manrope-Regular',
-    color: '#a08c7d',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  toggleBtnTextActive: {
-    color: PRIMARY,
-    fontFamily: 'Lexend-Bold',
-    fontWeight: '600',
-  },
-  bmiContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 16,
-    marginBottom: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    backgroundColor: '#f8f6f3',
-    borderRadius: 12,
-    marginHorizontal: 20,
-  },
-  bmiText: {
-    fontSize: 16,
-    fontFamily: 'Lexend-Bold',
-    color: PRIMARY,
-    marginRight: 8,
-  },
-  bmiStatus: {
-    fontSize: 16,
-    fontFamily: 'Lexend-Bold',
-    fontWeight: '600',
   },
 });
 
-export default MiniProfileScreen; 
+export default MiniProfileScreen;

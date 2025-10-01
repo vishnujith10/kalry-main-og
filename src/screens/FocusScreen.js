@@ -1,29 +1,33 @@
 import { Feather, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useContext, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from '../context/OnboardingContext';
 
-const PRIMARY = '#000000';
-const SECONDARY = '#666666';
-const BACKGROUND = '#ffffff';
-const GRAY_LIGHT = '#f5f5f5';
-const GRAY_MEDIUM = '#e0e0e0';
-const ACCENT = '#FAD89B';
-const INPUT_BG = '#F8F8F8';
+// Modern Fitness Light Mode Palette
+const LIGHT_BG = '#F8F9FE';
+const CARD_BG = '#FFFFFF';
+const TEXT_PRIMARY = '#1A1D2E';
+const TEXT_SECONDARY = '#6B7280';
+const ELECTRIC_BLUE = '#2563EB';
+const BRIGHT_CYAN = '#06B6D4';
 
 const options = [
   {
     label: 'Lose Weight',
-    icon: <Feather name="activity" size={28} color={PRIMARY} />,
+    icon: 'activity',
+    gradient: ['#FEE2E2', '#FECACA'],
   },
   {
     label: 'Gain Muscle',
-    icon: <FontAwesome5 name="dumbbell" size={28} color={PRIMARY} />,
+    icon: 'dumbbell',
+    gradient: ['#FEF3C7', '#FDE68A'],
   },
   {
     label: 'Stay Fit',
-    icon: <MaterialIcons name="favorite" size={28} color={PRIMARY} />,
+    icon: 'favorite',
+    gradient: ['#D1FAE5', '#A7F3D0'],
   },
 ];
 
@@ -41,36 +45,87 @@ const FocusScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <MaterialIcons name="arrow-back" size={28} color={PRIMARY} />
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <View style={styles.backButtonCircle}>
+            <MaterialIcons name="arrow-back" size={24} color={TEXT_PRIMARY} />
+          </View>
         </TouchableOpacity>
-        <View style={styles.spacer} />
-        <Text style={styles.header}>Choose Your Focus</Text>
-        <Text style={styles.subheader}>Select your primary fitness goal</Text>
-        <View style={styles.cardsWrapper}>
-          {options.map((item, idx) => (
-            <TouchableOpacity
-              key={item.label}
-              style={[styles.card, selected === idx && styles.cardSelected]}
-              onPress={() => setSelected(idx)}
-              activeOpacity={0.85}
-            >
-              <View style={styles.cardIconContainer}>{item.icon}</View>
-              <Text style={styles.cardTitle}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, selected === null && styles.buttonDisabled]}
-            disabled={selected === null}
-            onPress={() => handleContinue(options[selected].label)}
-          >
-            <Text style={styles.buttonText}>Continue</Text>
-          </TouchableOpacity>
+        <View style={{ width: 44 }} />
+      </View>
+
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.contentWrapper}>
+          <View style={styles.header}>
+            <Text style={styles.subtitle}>FITNESS GOAL</Text>
+            <Text style={styles.title}>What&apos;s your primary focus?</Text>
+            <Text style={styles.description}>
+              Select the goal that matters most to you
+            </Text>
+          </View>
+
+          <View style={styles.optionsGrid}>
+            {options.map((option, idx) => (
+              <TouchableOpacity
+                key={option.label}
+                style={[
+                  styles.optionCard,
+                  selected === idx && styles.optionCardSelected
+                ]}
+                onPress={() => setSelected(idx)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.optionContent}>
+                  <LinearGradient
+                    colors={option.gradient}
+                    style={styles.iconWrapper}
+                  >
+                    {option.icon === 'activity' && <Feather name="activity" size={24} color={TEXT_PRIMARY} />}
+                    {option.icon === 'dumbbell' && <FontAwesome5 name="dumbbell" size={24} color={TEXT_PRIMARY} />}
+                    {option.icon === 'favorite' && <MaterialIcons name="favorite" size={24} color={TEXT_PRIMARY} />}
+                  </LinearGradient>
+                  <Text style={styles.optionText}>{option.label}</Text>
+                  {selected === idx ? (
+                    <View style={styles.checkCircle}>
+                      <MaterialIcons name="check" size={16} color="#FFFFFF" />
+                    </View>
+                  ) : (
+                    <View style={styles.emptyCircle} />
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       </ScrollView>
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.ctaButton, selected === null && styles.ctaButtonDisabled]}
+          disabled={selected === null}
+          onPress={() => handleContinue(options[selected].label)}
+          activeOpacity={0.85}
+        >
+          {selected !== null ? (
+            <LinearGradient
+              colors={[ELECTRIC_BLUE, BRIGHT_CYAN]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.buttonGradient}
+            >
+              <Text style={styles.buttonText}>Continue</Text>
+              <MaterialIcons name="arrow-forward" size={22} color="#FFFFFF" />
+            </LinearGradient>
+          ) : (
+            <View style={styles.buttonDisabled}>
+              <Text style={styles.buttonTextDisabled}>Select a focus</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
@@ -78,95 +133,174 @@ const FocusScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: BACKGROUND,
+    backgroundColor: LIGHT_BG,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    marginBottom: 20,
+  },
+  backButton: {
+    zIndex: 10,
+  },
+  backButtonCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: CARD_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  heading: {
+    fontSize: 20,
+    fontFamily: 'Lexend-Bold',
+    color: TEXT_PRIMARY,
+    textAlign: 'center',
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 32,
+    paddingBottom: 100,
   },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 16,
-    zIndex: 1,
-    padding: 4,
-  },
-  spacer: {
-    height: 32,
+  contentWrapper: {
+    flex: 1,
+    paddingHorizontal: 24,
   },
   header: {
-    fontSize: 25,
-    fontFamily: 'Lexend-Bold',
-    color: PRIMARY,
-    marginTop: 60,
-    marginBottom: 4,
-    textAlign: 'center',
+    marginBottom: 28,
   },
-  subheader: {
-    fontSize: 17,
+  subtitle: {
+    fontSize: 11,
+    color: TEXT_SECONDARY,
     fontFamily: 'Manrope-Regular',
-    color: SECONDARY,
-    marginBottom: 32,
-    textAlign: 'center',
+    letterSpacing: 2,
+    fontWeight: '600',
+    marginBottom: 6,
   },
-  cardsWrapper: {
-    width: '100%',
-    paddingHorizontal: 24,
+  title: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: TEXT_PRIMARY,
+    fontFamily: 'Lexend-Bold',
+    letterSpacing: -0.5,
+    marginBottom: 8,
+    lineHeight: 38,
   },
-  card: {
+  description: {
+    fontSize: 16,
+    color: TEXT_SECONDARY,
+    fontFamily: 'Manrope-Regular',
+    lineHeight: 24,
+  },
+  optionsGrid: {
+    gap: 12,
+    marginBottom: 20,
+  },
+  optionCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  optionCardSelected: {
+    borderColor: ELECTRIC_BLUE,
+    shadowColor: ELECTRIC_BLUE,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  optionContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: BACKGROUND,
+    padding: 18,
+    gap: 14,
+  },
+  iconWrapper: {
+    width: 48,
+    height: 48,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: GRAY_MEDIUM,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: PRIMARY,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-    height: 120,
-  },
-  cardSelected: {
-    backgroundColor: ACCENT,
-    borderColor: ACCENT,
-  },
-  cardIconContainer: {
-    width: 60,
-    height: 70,
-    borderRadius: 8,
-    backgroundColor: INPUT_BG,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    justifyContent: 'center',
   },
-  cardTitle: {
+  optionText: {
+    flex: 1,
     fontSize: 16,
-    fontFamily: 'Lexend-Bold',
-    color: PRIMARY,
+    fontWeight: '600',
+    color: TEXT_PRIMARY,
+    fontFamily: 'Manrope-Regular',
+  },
+  checkCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: ELECTRIC_BLUE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
   },
   buttonContainer: {
-    width: '100%',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: LIGHT_BG,
     paddingHorizontal: 24,
-    marginTop: 'auto',
-    marginBottom: 24,
+    paddingTop: 16,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
   },
-  button: {
-    backgroundColor: ACCENT,
-    borderRadius: 12,
-    paddingVertical: 16,
+  ctaButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  buttonGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-  },
-  buttonDisabled: {
-    backgroundColor: GRAY_MEDIUM,
+    justifyContent: 'center',
+    paddingVertical: 18,
+    gap: 12,
   },
   buttonText: {
-    color: PRIMARY,
-    fontSize: 16,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
     fontFamily: 'Lexend-Bold',
+    letterSpacing: 0.3,
+  },
+  ctaButtonDisabled: {
+    opacity: 1,
+  },
+  buttonDisabled: {
+    backgroundColor: '#E5E7EB',
+    paddingVertical: 18,
+    alignItems: 'center',
+    borderRadius: 16,
+  },
+  buttonTextDisabled: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: TEXT_SECONDARY,
+    fontFamily: 'Manrope-Regular',
   },
 });
 
