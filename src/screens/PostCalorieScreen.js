@@ -540,6 +540,36 @@ const PostCalorieScreen = ({ route, navigation }) => {
       const { calories } = analysis?.total || analysis?.total_nutrition || {};
       const { protein, carbs, fat, fiber } = macros;
       const { description } = analysis || {};
+      
+      // Check if we have a photo to upload (from PhotoCalorieScreen)
+      let photoUrl = null;
+      if (route?.params?.photoUri) {
+        try {
+          const fileName = `food-photos/${user.id}/${Date.now()}.jpg`;
+          
+          // Convert photo URI to ArrayBuffer for upload (works on RN/Expo)
+          const response = await fetch(route.params.photoUri);
+          const arrayBuffer = await response.arrayBuffer();
+          
+          const { data, error } = await supabase.storage
+            .from('food-photos')
+            .upload(fileName, arrayBuffer, {
+              contentType: 'image/jpeg'
+            });
+          
+          if (error) {
+            console.error('Error uploading photo:', error);
+            // Continue without photo if upload fails
+          } else {
+            // Store the storage path, not the public URL
+            photoUrl = fileName;
+          }
+        } catch (uploadError) {
+          console.error('Error uploading photo:', uploadError);
+          // Continue without photo if upload fails
+        }
+      }
+      
       const { error } = await supabase.from('saved_meal').insert([
         {
           user_id: user.id,
@@ -550,6 +580,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
           carbs: carbs || 0,
           fat: fat || 0,
           fiber: fiber || 0,
+          photo_url: photoUrl,
         },
       ]);
       if (error) throw error;
@@ -579,6 +610,35 @@ const PostCalorieScreen = ({ route, navigation }) => {
       // Get selected mood emoji
       const selectedMoodEmoji = selectedMood !== null ? moodOptions[selectedMood].emoji : null;
       
+      // Check if we have a photo to upload (from PhotoCalorieScreen)
+      let photoUrl = null;
+      if (route?.params?.photoUri) {
+        try {
+          const fileName = `food-photos/${user.id}/${Date.now()}.jpg`;
+          
+          // Convert photo URI to ArrayBuffer for upload (works on RN/Expo)
+          const response = await fetch(route.params.photoUri);
+          const arrayBuffer = await response.arrayBuffer();
+          
+          const { data, error } = await supabase.storage
+            .from('food-photos')
+            .upload(fileName, arrayBuffer, {
+              contentType: 'image/jpeg'
+            });
+          
+          if (error) {
+            console.error('Error uploading photo:', error);
+            // Continue without photo if upload fails
+          } else {
+            // Store the storage path, not the public URL
+            photoUrl = fileName;
+          }
+        } catch (uploadError) {
+          console.error('Error uploading photo:', uploadError);
+          // Continue without photo if upload fails
+        }
+      }
+      
       const logData = {
         user_id: user.id,
         food_name: cleanFoodName,
@@ -589,6 +649,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
         fat: fat || 0,
         fiber: fiber || 0,
         mood: selectedMoodEmoji,
+        photo_url: photoUrl,
         date_time: new Date().toISOString().split('T')[0],
         meal_type: 'Quick Log',
         notes: '',
@@ -617,7 +678,7 @@ const PostCalorieScreen = ({ route, navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top','bottom']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -872,7 +933,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 50,
+    paddingTop: 12,
     paddingBottom: 5,
   },
   titleSection: {

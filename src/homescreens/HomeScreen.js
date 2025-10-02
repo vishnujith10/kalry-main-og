@@ -45,9 +45,9 @@ const FooterBar = ({ navigation, activeTab }) => {
     },
     {
       key: 'Workout',
-      label: 'Workout',
-      icon: <Ionicons name="barbell-outline" size={24} color={activeTab === 'Workout' ? '#7B61FF' : '#232B3A'} />,
-      route: 'Exercise',
+      label: 'Saved',
+      icon: <Ionicons name="fast-food-outline" size={24} color={activeTab === 'Workout' ? '#7B61FF' : '#232B3A'} />,
+      route: 'SavedMealsScreen',
     },
     {
       key: 'Profile',
@@ -186,16 +186,14 @@ const AnimatedPlusIcon = ({ navigation }) => {
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Camera Icon (above plus) - only show when expanded */}
-      {isExpanded && (
-        <TouchableOpacity
-          style={plusStyles.cameraButton}
-          onPress={handleCameraPress}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="camera" size={24} color="#fff" />
-        </TouchableOpacity>
-      )}
+      {/* Camera Icon (above plus) */}
+      <TouchableOpacity
+        style={plusStyles.cameraButton}
+        onPress={handleCameraPress}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="camera" size={24} color="#fff" />
+      </TouchableOpacity>
 
       {/* Main Plus Icon */}
       <TouchableOpacity
@@ -359,7 +357,22 @@ const HomeScreen = ({ navigation }) => {
       });
       setFoodLogs(filteredLogs);
       calculateTotals(filteredLogs);
-      setRecentMeals(filteredLogs.slice(-5).reverse());
+      // Resolve signed URLs for recent meals
+      const recent = filteredLogs.slice(-5).reverse();
+      const withUrls = await Promise.all(recent.map(async (meal) => {
+        if (meal.photo_url && !meal.photo_url.startsWith('http')) {
+          try {
+            const { data } = await supabase.storage
+              .from('food-photos')
+              .createSignedUrl(meal.photo_url, 60 * 60);
+            return { ...meal, photo_url: data?.signedUrl || meal.photo_url };
+          } catch {
+            return meal;
+          }
+        }
+        return meal;
+      }));
+      setRecentMeals(withUrls);
     } catch (error) {
       console.error("Error fetching food logs:", error);
     }
@@ -780,7 +793,7 @@ const HomeScreen = ({ navigation }) => {
                 >
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     {/* Meal Image */}
-                    {meal.photo_url ? (
+                    {meal.photo_url && meal.photo_url.startsWith('http') ? (
                       <Image
                         source={{ uri: meal.photo_url }}
                         style={{

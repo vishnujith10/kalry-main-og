@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
+import supabase from '../lib/supabase';
 
 const macroPills = [
   {
@@ -36,6 +37,44 @@ const macroPills = [
 const RecentMeals = ({ recentMeals = [], handleDeleteMeal }) => {
   const [menuOpen, setMenuOpen] = useState(null);
   const [expandedMeal, setExpandedMeal] = useState(null);
+  const [processedMeals, setProcessedMeals] = useState([]);
+
+  // Process meals to generate signed URLs for images
+  useEffect(() => {
+    const processMeals = async () => {
+      const processed = await Promise.all(recentMeals.map(async (meal) => {
+        let imageUrl = null;
+        
+        // If we have a photo_url (storage path), generate a signed URL
+        if (meal.photo_url && !meal.photo_url.startsWith('http')) {
+          try {
+            const { data: signedUrlData } = await supabase.storage
+              .from('food-photos')
+              .createSignedUrl(meal.photo_url, 60 * 60); // 1 hour expiry
+            
+            if (signedUrlData?.signedUrl) {
+              imageUrl = signedUrlData.signedUrl;
+            }
+          } catch (error) {
+            console.error('Error generating signed URL:', error);
+            // Fallback to placeholder if signed URL generation fails
+          }
+        } else if (meal.photo_url && meal.photo_url.startsWith('http')) {
+          // If it's already a full URL, use it directly
+          imageUrl = meal.photo_url;
+        }
+        
+        return {
+          ...meal,
+          processedPhotoUrl: imageUrl
+        };
+      }));
+      
+      setProcessedMeals(processed);
+    };
+    
+    processMeals();
+  }, [recentMeals]);
 
   const handleMealPress = (index) => {
     console.log('Meal pressed:', index, 'Current expanded:', expandedMeal);
@@ -47,12 +86,12 @@ const RecentMeals = ({ recentMeals = [], handleDeleteMeal }) => {
       <Text style={{ fontFamily: 'Lexend-SemiBold', fontSize: 20, color: '#181A20', marginBottom: 18 }}>
         Recent Meals
       </Text>
-      {recentMeals.length === 0 ? (
+      {processedMeals.length === 0 ? (
         <Text style={{ fontFamily: 'Manrope-Regular', fontSize: 15, color: '#888', marginLeft: 10, marginTop: 10 }}>
           No meals logged yet today.
         </Text>
       ) : (
-        recentMeals.map((meal, i) => {
+        processedMeals.map((meal, i) => {
           return (
             <TouchableOpacity
               key={i}
@@ -75,9 +114,9 @@ const RecentMeals = ({ recentMeals = [], handleDeleteMeal }) => {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 {/* Meal Image */}
-                {meal.photo_url ? (
+                {meal.processedPhotoUrl ? (
                   <Image
-                    source={{ uri: meal.photo_url }}
+                    source={{ uri: meal.processedPhotoUrl }}
                     style={{ width: 64, height: 64, borderRadius: 32, marginRight: 18, backgroundColor: '#F3F0FF' }}
                   />
                 ) : (

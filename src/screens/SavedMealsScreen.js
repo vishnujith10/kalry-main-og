@@ -39,17 +39,40 @@ const SavedMealsScreen = ({ navigation, route }) => {
         setLoading(false);
         return;
       }
-      // Map saved_meal to meal card format
-      const mapped = data.map(log => ({
-        id: log.id, // Include the database ID for deletion
-        dish_name: log.dish_name,
-        total_nutrition: { calories: Number(log.calories) },
-        macros: {
-          protein: Number(log.protein || 0),
-          carbs: Number(log.carbs || 0),
-          fat: Number(log.fat || 0),
-        },
-        image: log.photo_url || placeholderImg, // Use photo_url if available, otherwise use placeholder
+      // Map saved_meal to meal card format with signed URLs
+      const mapped = await Promise.all(data.map(async (log) => {
+        let imageUrl = placeholderImg;
+        
+        // If we have a photo_url (storage path), generate a signed URL
+        if (log.photo_url && !log.photo_url.startsWith('http')) {
+          try {
+            const { data: signedUrlData } = await supabase.storage
+              .from('food-photos')
+              .createSignedUrl(log.photo_url, 60 * 60); // 1 hour expiry
+            
+            if (signedUrlData?.signedUrl) {
+              imageUrl = signedUrlData.signedUrl;
+            }
+          } catch (error) {
+            console.error('Error generating signed URL:', error);
+            // Fallback to placeholder if signed URL generation fails
+          }
+        } else if (log.photo_url && log.photo_url.startsWith('http')) {
+          // If it's already a full URL, use it directly
+          imageUrl = log.photo_url;
+        }
+        
+        return {
+          id: log.id, // Include the database ID for deletion
+          dish_name: log.dish_name,
+          total_nutrition: { calories: Number(log.calories) },
+          macros: {
+            protein: Number(log.protein || 0),
+            carbs: Number(log.carbs || 0),
+            fat: Number(log.fat || 0),
+          },
+          image: imageUrl,
+        };
       }));
       setMeals(mapped);
       setLoading(false);
@@ -178,13 +201,13 @@ const SavedMealsScreen = ({ navigation, route }) => {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff', paddingTop: 0 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff', paddingTop: 0 }} edges={['top','bottom']}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation.navigate('Home')} style={{ marginRight: 12 }}>
         <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Saved Meals</Text>
-        <TouchableOpacity style={styles.headerAddBtn}><Ionicons name="add" size={26} color="#222" /></TouchableOpacity>
+        <View style={styles.headerAddBtn} />
       </View>
       <View style={styles.filterRow}>
         <TouchableOpacity style={styles.filterBtn}><Ionicons name="filter" size={18} color="#666" /><Text style={styles.filterText}>Filters</Text></TouchableOpacity>
@@ -223,7 +246,7 @@ const SavedMealsScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 36, paddingBottom: 8, paddingHorizontal: 20, backgroundColor: '#fff' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, paddingBottom: 8, paddingHorizontal: 20, backgroundColor: '#fff' },
   headerTitle: { fontSize: 26, fontWeight: 'bold', color: '#181A20', flex: 1, textAlign: 'center' },
   headerAddBtn: { padding: 4 },
   filterRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 16, marginTop: 8 },

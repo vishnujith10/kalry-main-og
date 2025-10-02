@@ -95,6 +95,13 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
       handleImageToCalorie(photoUri);
     }
     
+    // Check available buckets
+    const checkBuckets = async () => {
+      const { data: buckets, error } = await supabase.storage.listBuckets();
+      console.log('Buckets:', buckets?.map(b => b.name), 'Error:', error);
+    };
+    checkBuckets();
+    
     // Cleanup timeout on unmount
     return () => {
       if (reanalysisTimeoutRef.current) {
@@ -270,6 +277,35 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
           return;
         }
         
+        // Upload photo to Supabase storage
+        let photoUrl = null;
+        if (photoUri) {
+          try {
+            const fileName = `food-photos/${user_id}/${Date.now()}.jpg`;
+            
+            // Convert photo URI to ArrayBuffer for upload (works on RN/Expo)
+            const response = await fetch(photoUri);
+            const arrayBuffer = await response.arrayBuffer();
+            
+            const { data, error } = await supabase.storage
+              .from('food-photos')
+              .upload(fileName, arrayBuffer, {
+                contentType: 'image/jpeg'
+              });
+            
+            if (error) {
+              console.error('Error uploading photo:', error);
+              // Continue without photo if upload fails
+            } else {
+              // Store the storage path, not the public URL
+              photoUrl = fileName;
+            }
+          } catch (uploadError) {
+            console.error('Error uploading photo:', uploadError);
+            // Continue without photo if upload fails
+          }
+        }
+        
         const { error } = await supabase.from('saved_meal').insert([
           {
             user_id: user_id,
@@ -280,7 +316,7 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
             carbs: total_nutrition.carbs || 0,
             fat: total_nutrition.fat || 0,
             fiber: total_nutrition.fiber || 0,
-            photo_url: photoUri, // Save the photo URL
+            photo_url: photoUrl, // Save the storage path
           },
         ]);
         
@@ -311,24 +347,19 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
         // Get selected mood emoji
         const selectedMoodEmoji = selectedMood !== null ? moodOptions[selectedMood].emoji : null;
         
-        // Store photo URL (for now, use local URI until storage is configured)
-        let photoUrl = photoUri;
-        
-        // TODO: Uncomment when Supabase storage is properly configured
         // Upload photo to Supabase storage
-        /*
         let photoUrl = null;
         if (photoUri) {
           try {
             const fileName = `food-photos/${user_id}/${Date.now()}.jpg`;
             
-            // Convert photo URI to blob for upload
+            // Convert photo URI to ArrayBuffer for upload (works on RN/Expo)
             const response = await fetch(photoUri);
-            const blob = await response.blob();
+            const arrayBuffer = await response.arrayBuffer();
             
             const { data, error } = await supabase.storage
               .from('food-photos')
-              .upload(fileName, blob, {
+              .upload(fileName, arrayBuffer, {
                 contentType: 'image/jpeg'
               });
             
@@ -337,10 +368,8 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
               // Fallback to local URI if upload fails
               photoUrl = photoUri;
             } else {
-              const { data: { publicUrl } } = supabase.storage
-                .from('food-photos')
-                .getPublicUrl(fileName);
-              photoUrl = publicUrl;
+              // Store the storage path, not the public URL
+              photoUrl = fileName;
             }
           } catch (uploadError) {
             console.error('Error uploading photo:', uploadError);
@@ -348,7 +377,6 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
             photoUrl = photoUri;
           }
         }
-        */
         
         const logData = {
             meal_type: mealType,
@@ -556,7 +584,7 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top','bottom']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -926,7 +954,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 50,
+    paddingTop: 12,
     paddingBottom: 5,
   },
   titleSection: {

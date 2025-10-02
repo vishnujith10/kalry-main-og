@@ -1,22 +1,33 @@
 import { Ionicons } from "@expo/vector-icons";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from "../lib/supabase";
 
 const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
+
+// App theme colors (keep in sync with other screens)
+const COLORS = {
+  primary: "#7C3AED",
+  surface: "#FFFFFF",
+  background: "#FFFFFF",
+  text: "#181A20",
+  textMuted: "#8E8E93",
+  border: "#E5E7EB",
+  cardShadow: "rgba(0,0,0,0.06)",
+};
 
 async function getCachedAnalysis(mealText) {
   const key = "quicklog_cache_" + mealText.trim().toLowerCase();
@@ -32,6 +43,20 @@ export default function QuickLogScreen({ navigation }) {
   const [mealText, setMealText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [analysis, setAnalysis] = useState(null);
+  const tips = [
+    { icon: "🍎", title: "Portion Control", tip: "Use your hand as a guide: palm = protein, fist = veggies, cupped hand = carbs, thumb = fats.", color: "#FFF5F5", text: "#B42318", border: "#FECDCA" },
+    { icon: "💧", title: "Stay Hydrated", tip: "Drink water before meals. Thirst is often mistaken for hunger.", color: "#EFF8FF", text: "#175CD3", border: "#B2DDFF" },
+    { icon: "🍽️", title: "Mindful Eating", tip: "Eat slowly and without distractions. It takes ~20 minutes to feel full.", color: "#ECFDF3", text: "#067647", border: "#ABEFC6" },
+    { icon: "⚖️", title: "Balanced Plate", tip: "Half veggies, quarter lean protein, quarter whole grains.", color: "#F9F5FF", text: "#6941C6", border: "#E9D7FE" },
+    { icon: "❤️", title: "Healthy Fats", tip: "Include nuts, avocados, and olive oil for satiety and heart health.", color: "#FFF1F3", text: "#C01048", border: "#FECDD6" },
+    { icon: "💡", title: "Smart Snacking", tip: "Pick protein-rich snacks like Greek yogurt or nuts for lasting energy.", color: "#FFFAEB", text: "#B54708", border: "#FEDF89" },
+  ];
+
+  const currentTip = useMemo(() => {
+    const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+    const diffDays = Math.floor((Date.now() - startOfYear.getTime()) / 86400000);
+    return diffDays % tips.length;
+  }, [tips.length]);
 
   const handleAnalyze = async () => {
     if (!mealText.trim()) {
@@ -239,41 +264,79 @@ The JSON object must have this structure:
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top','bottom']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={{ padding: 8 }}
-          >
-            <Ionicons name="arrow-back" size={28} color="#222" />
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8 }}>
+            <Ionicons name="chevron-back" size={26} color={COLORS.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Quick Log</Text>
-          <View style={{ width: 36 }} />
+          <Text style={styles.headerTitle}>Text to Calorie</Text>
+          <View style={{ width: 32 }} />
         </View>
-        <View style={{ paddingHorizontal: 20, marginTop: 10 }}>
-          <Text style={{ color: "#888", fontSize: 15, marginBottom: 16 }}>
-            Type your meal like a message, and Kalry will analyze it
-          </Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 2 eggs, 1 banana, 1 cup cooked rice, 1 spoon ghee"
-            placeholderTextColor="#B0B0B0"
-            value={mealText}
-            onChangeText={setMealText}
-            multiline
-          />
+
+        <View style={{ paddingHorizontal: 20, marginTop: 32 }}>
+          {/* Nutrition Tip (now above input) */}
+          <View
+            style={[
+              styles.tipCard,
+              styles.tipCardYellow,
+            ]}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+              <View style={styles.tipIconWrap}>
+                <Ionicons name="bulb-outline" size={24} color="#B45309" />
+                <Text style={[styles.tipEmoji, styles.tipAmberText]}>🔆</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.tipTitle, styles.tipAmberText]}>Tip of the Day: {tips[currentTip].title}</Text>
+                <Text style={styles.tipText}>{tips[currentTip].tip}</Text>
+              </View>
+            </View>
+            {/* <View style={styles.tipDotsRow}>
+              {tips.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.tipDot,
+                    index === currentTip ? styles.tipDotActive : null,
+                  ]}
+                />
+              ))}
+            </View> */}
+          </View>
+
+          {/* Input card moved below tips */}
+          <View style={[styles.cardInput, { marginTop: 50 }]}>
+            <TouchableOpacity style={styles.editPill} activeOpacity={0.7}>
+              <Ionicons name="create-outline" size={18} color={COLORS.textMuted} />
+            </TouchableOpacity>
+            {(!mealText || mealText.length === 0) && (
+              <Text style={styles.multiPlaceholder} pointerEvents="none">
+                {"Describe your meal...\n" +
+                  "e.g., A bowl of oatmeal with\n" +
+                  "blueberries, a drizzle of honey, and a\n" +
+                  "sprinkle of almonds."}
+              </Text>
+            )}
+            <TextInput
+              style={styles.input}
+              placeholder={""}
+              value={mealText}
+              onChangeText={setMealText}
+              multiline
+            />
+          </View>
         </View>
         <View style={styles.footer}>
           <TouchableOpacity
-            style={styles.analyzeBtn}
+            style={[styles.analyzeBtn, { backgroundColor: COLORS.primary }]}
             onPress={handleAnalyze}
             disabled={isLoading}
           >
-            <Text style={styles.analyzeBtnText}>Analyze Meal</Text>
+            <Text style={styles.analyzeBtnText}>Convert to Calories</Text>
             <Ionicons
               name="arrow-forward"
               size={20}
@@ -296,31 +359,126 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 50,
+    paddingTop: 12,
     paddingBottom: 8,
     paddingHorizontal: 20,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.background,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "bold",
-    color: "#181A20",
+    color: COLORS.text,
     flex: 1,
     textAlign: "center",
   },
-  input: {
+  cardInput: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    position: "relative",
+    shadowColor: COLORS.cardShadow,
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 2,
+    marginBottom: 16,
+  },
+  editPill: {
+    position: "absolute",
+    top: 10,
+    right: 10,
     backgroundColor: "#F6F6F8",
-    borderRadius: 18,
+    borderRadius: 14,
+    padding: 6,
+  },
+  input: {
+    fontSize: 16,
+    color: COLORS.text,
+    minHeight: 130,
+  },
+  multiPlaceholder: {
+    position: 'absolute',
+    left: 16,
+    top: 14,
+    right: 16,
+    color: COLORS.textMuted,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  recentCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
     paddingHorizontal: 18,
     paddingVertical: 18,
+    shadowColor: COLORS.cardShadow,
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 2,
+    marginTop: 6,
+  },
+  recentTitle: {
+    fontSize: 18,
+    color: COLORS.text,
+    fontWeight: "600",
+  },
+  recentSub: {
+    marginTop: 4,
+    color: COLORS.textMuted,
+  },
+  tipCard: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    marginTop: 12,
+    minHeight: 140,
+  },
+  tipCardYellow: {
+    backgroundColor: '#FFFBEB', // amber-50
+    borderColor: '#FDE68A', // amber-300
+  },
+  tipIconWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginRight: 12,
+    marginTop: 2,
+  },
+  tipEmoji: {
     fontSize: 16,
-    color: "#222",
-    minHeight: 90,
-    marginBottom: 18,
-    shadowColor: "#000",
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
+  },
+  tipAmberText: {
+    color: '#B45309', // amber-700
+  },
+  tipTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  tipText: {
+    color: '#475467',
+    lineHeight: 22,
+    fontSize: 15,
+  },
+  tipDotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  tipDot: {
+    height: 7,
+    width: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#B45309',
+    opacity: 0.35,
+  },
+  tipDotActive: {
+    width: 28,
+    opacity: 1,
   },
   footer: {
     position: "absolute",
@@ -328,11 +486,10 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     padding: 20,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     alignItems: "center",
   },
   analyzeBtn: {
-    backgroundColor: "#6C63FF",
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 32,
