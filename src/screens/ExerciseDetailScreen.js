@@ -1,5 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -65,6 +65,7 @@ const mock = {
 
 export default function ExerciseDetailScreen() {
   const route = useRoute();
+  const navigation = useNavigation();
   const initialWorkout = route.params?.workout || mock;
   const [workout, setWorkout] = useState(initialWorkout);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -118,6 +119,28 @@ export default function ExerciseDetailScreen() {
 
   const stepsList = useMemo(() => normalizeToArray(workout.steps || workout.instructions), [workout]);
   
+  const [saving, setSaving] = useState(false);
+
+  const handleAddToPlan = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const prepared = {
+        id: workout.id,
+        name: workout.name || workout.workout,
+        workout: workout.workout || workout.name,
+        gif_url: workout.gif_url || workout.image_url || workout.image,
+        type: workout.type || '',
+        category: workout.type || '',
+        body_part: workout.body_part || '',
+        equipment: workout.equipment || '',
+      };
+      navigation.navigate('StartWorkout', { exercises: [prepared] });
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: COLORS.background }}>
@@ -214,9 +237,11 @@ export default function ExerciseDetailScreen() {
           activeOpacity={0.85}
           onPressIn={addBtnAnim.onPressIn}
           onPressOut={addBtnAnim.onPressOut}
+          onPress={handleAddToPlan}
+          disabled={saving}
         >
           <Animated.View style={addBtnAnim.animatedStyle}>
-            <Text style={styles.outlineBtnText}>Add to Plan</Text>
+            <Text style={styles.outlineBtnText}>{saving ? 'Adding…' : 'Add to Plan'}</Text>
           </Animated.View>
         </TouchableOpacity>
       </ScrollView>

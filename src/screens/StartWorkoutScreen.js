@@ -16,6 +16,7 @@ import {
   TouchableWithoutFeedback,
   View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
 import { saveWorkout } from '../lib/workoutApi';
 
@@ -29,6 +30,25 @@ const formatTime = (seconds) => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
+// Mask arbitrary user input to MM:SS (00:00) while typing
+const formatTimeInput = (raw) => {
+  const digitsRaw = String(raw || '').replace(/\D/g, '').slice(0, 4);
+  const len = digitsRaw.length;
+  let minutes = '00';
+  let seconds = '00';
+  if (len <= 2) {
+    seconds = digitsRaw.padStart(2, '0');
+  } else {
+    seconds = digitsRaw.slice(-2);
+    minutes = digitsRaw.slice(0, -2).padStart(2, '0').slice(-2);
+  }
+  let secNum = parseInt(seconds || '0', 10);
+  if (Number.isNaN(secNum)) secNum = 0;
+  secNum = Math.max(0, Math.min(59, secNum));
+  seconds = secNum.toString().padStart(2, '0');
+  return `${minutes}:${seconds}`;
 };
 
 // Determine exercise type based on name and category
@@ -261,9 +281,9 @@ export default function StartWorkoutScreen({ navigation, route }) {
     // Calculate calories based on exercise type and duration
     const totalKcal = exercises.reduce((sum, ex) => {
       const exerciseType = getExerciseType(ex);
-      // Use actual exercise duration if available, otherwise fall back to calculated duration
-      const duration = ex.duration || Math.round(workoutTime / exercises.length) || 0; // Duration in seconds
-      const durationMinutes = duration / 60;
+      
+      // Use the total workout timer time divided by number of exercises
+      const durationMinutes = (workoutTime / exercises.length) / 60;
       
       // Basic calorie calculation based on exercise type
       let caloriesPerMinute = 0;
@@ -278,6 +298,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
       }
       
       const exerciseCalories = Math.round(durationMinutes * caloriesPerMinute);
+      console.log(`Exercise: ${ex.name || ex.workout}, Type: ${exerciseType}, Duration: ${durationMinutes.toFixed(1)}min, Calories: ${exerciseCalories}`);
       return sum + exerciseCalories;
     }, 0);
     
@@ -428,21 +449,40 @@ export default function StartWorkoutScreen({ navigation, route }) {
       const userId = session?.user?.id;
       if (!userId) throw new Error('User not logged in');
       
-      const preparedExercises = exercises.map(exercise => ({
-        ...exercise,
-        // Use original exercise ID if available, otherwise null
-        id: typeof exercise.id === 'string' && exercise.id.length > 10 ? null : exercise.id,
-        // Calculate exercise duration (total workout time divided by number of exercises)
-        duration: Math.round(workoutTime / exercises.length) || 0,
-        // Ensure we have exercise name and image URL
-        name: exercise.name || exercise.workout || 'Unknown Exercise',
-        gif_url: exercise.gif_url || exercise.image_url || null,
-        sets: exercise.sets.map(set => ({
-          ...set,
-          reps: set.reps ? parseInt(set.reps) || 0 : null,
-          weight: set.weight ? parseFloat(set.weight) || 0 : null,
-        }))
-      }));
+      const preparedExercises = exercises.map(exercise => {
+        const exerciseType = getExerciseType(exercise);
+        
+        // Calculate duration and calories for this specific exercise
+        // Use the total workout timer time divided by number of exercises
+        const durationSeconds = Math.round(workoutTime / exercises.length) || 0;
+        let exerciseCalories = 0;
+        
+        if (exerciseType === 'cardio') {
+          exerciseCalories = Math.round((durationSeconds / 60) * 8); // 8 cal/min for cardio
+        } else if (exerciseType === 'timer') {
+          exerciseCalories = Math.round((durationSeconds / 60) * 3); // 3 cal/min for timer
+        } else {
+          exerciseCalories = Math.round((durationSeconds / 60) * 5); // 5 cal/min for strength
+        }
+        
+        return {
+          ...exercise,
+          // Use original exercise ID if available, otherwise null
+          id: typeof exercise.id === 'string' && exercise.id.length > 10 ? null : exercise.id,
+          // Use calculated duration
+          duration: durationSeconds,
+          // Add calculated calories
+          kcal: exerciseCalories,
+          // Ensure we have exercise name and image URL
+          name: exercise.name || exercise.workout || 'Unknown Exercise',
+          gif_url: exercise.gif_url || exercise.image_url || null,
+          sets: exercise.sets.map(set => ({
+            ...set,
+            reps: set.reps ? parseInt(set.reps) || 0 : null,
+            weight: set.weight ? parseFloat(set.weight) || 0 : null,
+          }))
+        };
+      });
       
       const workout = await saveWorkout({
         userId,
@@ -501,7 +541,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
   const { totalKcal, totalWeight, totalSets } = getTotalStats;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
       
       {/* Header */}
@@ -714,9 +754,12 @@ export default function StartWorkoutScreen({ navigation, route }) {
                           <TextInput
                             style={styles.setInput}
                             value={displayTime}
-                            onChangeText={(text) => updateSet(exercise.id, set.id, 'time', text)}
+                            onChangeText={(text) => updateSet(exercise.id, set.id, 'time', formatTimeInput(text))}
                             placeholder="00:00"
                             keyboardType="numeric"
+                            onFocus={() => { if (set.time === '00:00') updateSet(exercise.id, set.id, 'time', ''); }}
+                            onBlur={() => { if (!set.time) updateSet(exercise.id, set.id, 'time', '00:00'); }}
+                            maxLength={5}
                           />
                           <Text style={styles.setUnit}>mm:ss</Text>
                         </>
@@ -742,9 +785,12 @@ export default function StartWorkoutScreen({ navigation, route }) {
                           <TextInput
                             style={styles.setInput}
                             value={displayTime}
-                            onChangeText={(text) => updateSet(exercise.id, set.id, 'time', text)}
+                            onChangeText={(text) => updateSet(exercise.id, set.id, 'time', formatTimeInput(text))}
                             placeholder="00:00"
                             keyboardType="numeric"
+                            onFocus={() => { if (set.time === '00:00') updateSet(exercise.id, set.id, 'time', ''); }}
+                            onBlur={() => { if (!set.time) updateSet(exercise.id, set.id, 'time', '00:00'); }}
+                            maxLength={5}
                           />
                         </>
                       ) : (
@@ -908,7 +954,7 @@ export default function StartWorkoutScreen({ navigation, route }) {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

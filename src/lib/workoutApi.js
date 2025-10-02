@@ -76,7 +76,7 @@ export async function saveWorkout({ userId, date, duration, totalKcal, notes, ex
     const totalWeight = ex.sets.reduce((sum, s) => sum + (parseFloat(s.weight) || 0), 0);
     
     const { data: workoutExercise, error: exError } = await supabase
-      .from('saved_routine_exercises')
+      .from('daily_routine_exercises')
       .insert({
         workout_id: workout.id,
         exercise_id: ex.id || null, // Handle exercises without ID
@@ -152,9 +152,9 @@ export async function updateWorkout({ workoutId, userId, date, duration, totalKc
     throw workoutError;
   }
 
-  // 2. Delete old saved_routine_exercises (and sets via cascade)
+  // 2. Delete old routine exercises (and sets via cascade)
   const { error: deleteError } = await supabase
-    .from('saved_routine_exercises')
+    .from('daily_routine_exercises')
     .delete()
     .eq('workout_id', workoutId);
   if (deleteError) {
@@ -168,7 +168,7 @@ export async function updateWorkout({ workoutId, userId, date, duration, totalKc
     const totalReps = ex.sets.reduce((sum, s) => sum + (parseInt(s.reps) || 0), 0);
     const totalWeight = ex.sets.reduce((sum, s) => sum + (parseFloat(s.weight) || 0), 0);
     const { data: workoutExercise, error: exError } = await supabase
-      .from('saved_routine_exercises')
+      .from('daily_routine_exercises')
       .insert({
         workout_id: workoutId,
         exercise_id: ex.id || null,
@@ -218,7 +218,7 @@ export async function updateWorkout({ workoutId, userId, date, duration, totalKc
 export async function fetchWorkoutHistory(userId) {
   const { data, error } = await supabase
     .from('workouts')
-    .select('*, saved_routine_exercises(*, sets(*), exercise(*))')
+    .select('*, daily_routine_exercises(*, sets(*), exercise(*))')
     .eq('user_id', userId)
     .order('date', { ascending: false });
   if (error) throw error;
@@ -231,7 +231,7 @@ export async function fetchRecentWorkouts(userId) {
     .from('workouts')
     .select(`
       *,
-      saved_routine_exercises(
+      daily_routine_exercises(
         *,
         sets(*),
         exercise(*)
@@ -250,7 +250,7 @@ export async function fetchSavedRoutines(userId) {
     .from('workouts')
     .select(`
       *,
-      saved_routine_exercises(
+      daily_routine_exercises(
         *,
         sets(*),
         exercise(*)

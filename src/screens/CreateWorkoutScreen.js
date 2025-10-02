@@ -616,7 +616,7 @@ export default function CardioSessionBuilder({ navigation }) {
 
       {/* Header (same pattern as ProfileScreen) */}
       <View style={styles.topHeaderCW}>
-        <TouchableOpacity style={styles.backButtonCW} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backButtonCW} onPress={() => navigation.navigate('Exercise')}>
           <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitleCW}>Cardio</Text>

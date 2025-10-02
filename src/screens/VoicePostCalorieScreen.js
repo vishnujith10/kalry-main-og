@@ -608,15 +608,15 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
-        </View>
+      </View>
 
         {/* Title and Time */}
         <View style={styles.titleSection}>
           <Text style={styles.title}>Meal Reflected</Text>
           {isEditing ? (
-        <TextInput
+            <TextInput
               style={[styles.mealName, styles.editableText]}
-          value={mealNameState}
+              value={mealNameState}
               onChangeText={setMealNameState}
               placeholder="Enter meal name"
             />
@@ -654,7 +654,7 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
          </View>
 
          {/* Macros Grid */}
-        <View style={styles.macrosGrid}>
+            <View style={styles.macrosGrid}>
   <View style={[styles.macroCard, { backgroundColor: '#FFF2E6' }]}>
     <View style={styles.macroIconColumn}>
       <Ionicons name="restaurant-outline" size={20} color="#333" />
@@ -700,7 +700,7 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
       ) : (
         <Text style={styles.macroValue}>{Math.round(macros.fat)}g</Text>
             )}
-          </View>
+              </View>
                 <Text style={styles.macroLabel}>Fat</Text>
               </View>
   <View style={[styles.macroCard, { backgroundColor: '#F3E6FF' }]}>
@@ -717,7 +717,7 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
         <Text style={styles.macroValue}>{Math.round(macros.fiber)}g</Text>
             )}
           </View>
-            <Text style={styles.macroLabel}>Fiber</Text>
+                <Text style={styles.macroLabel}>Fiber</Text>
           </View>
         </View>
 
@@ -789,7 +789,7 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
                   </TouchableOpacity>
             )}
           </View>
-        </View>
+              </View>
             ))}
           </View>
 

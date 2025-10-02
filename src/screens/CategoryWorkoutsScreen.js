@@ -68,8 +68,8 @@ function AnimatedWorkoutCard({ item, getWorkoutIcon, navigation }) {
           <Text style={styles.workoutSub}>{[item.body_part, item.equipment].filter(Boolean).join(' • ')}</Text>
         </View>
         {item.level && (
-          <View style={[styles.levelPill, { backgroundColor: LEVEL_COLORS[item.level] || '#EDE9FE' }, { alignSelf: 'flex-start', marginTop: 2 }] }>
-            <Text style={[styles.levelText, { color: LEVEL_COLORS[item.level] ? '#fff' : '#7B61FF' }]}>{item.level}</Text>
+          <View style={[styles.levelPill, { alignSelf: 'flex-start', marginTop: 2 } ]}>
+            <Text style={[styles.levelText, { color: LEVEL_COLORS[item.level] || '#7B61FF' }]}>{item.level}</Text>
           </View>
         )}
       </Animated.View>
@@ -84,7 +84,7 @@ export default function CategoryWorkoutsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchExpanded, setSearchExpanded] = useState(false);
-  const [sortBy, setSortBy] = useState('A–Z'); // 'A–Z' | 'Muscle' | 'Level'
+  const [sortBy, setSortBy] = useState('Muscle'); // 'A–Z' | 'Muscle' | 'Level'
   const [grid, setGrid] = useState(false);
 
   useEffect(() => {

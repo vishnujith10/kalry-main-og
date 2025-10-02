@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Animated, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
+
+const { width } = Dimensions.get('window');
 
 const COLORS = {
   primary: '#7c3aed',
@@ -11,12 +14,16 @@ const COLORS = {
   gray: '#64748b',
   grayLight: '#94a3b8',
   dark: '#0f172a',
-  background: '#f8fafc',
+  background: '#1A0B3D', // Dark purple background
+  card: '#F5F0E6', // Light beige for exercise card
+  darkPurple: '#2D1B69',
+  mediumPurple: '#5C3A7A',
+  lightPurple: '#A05EEA',
   success: '#2ed573',
   warning: '#ffa502',
   error: '#ff4757',
   lightGray: '#f1f5f9',
-  textSecondary: '#6b7280',
+  textSecondary: 'rgba(255,255,255,0.8)',
 };
 
 export default function WorkoutStartScreen({ route, navigation }) {
@@ -42,6 +49,7 @@ export default function WorkoutStartScreen({ route, navigation }) {
   
   // Animation for timer
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
   // Initialize first exercise and start timer automatically
   useEffect(() => {
@@ -51,7 +59,7 @@ export default function WorkoutStartScreen({ route, navigation }) {
       setIsPlaying(true); // Start timer automatically
       setWorkoutStartTime(Date.now()); // Start tracking actual workout time
     }
-  }, []);
+  }, [exercises]);
 
   // Track actual workout time
   useEffect(() => {
@@ -66,7 +74,14 @@ export default function WorkoutStartScreen({ route, navigation }) {
         clearInterval(workoutTimerRef.current);
       }
     };
-  }, [workoutStartTime, workoutCompleted]);
+  }, [workoutStartTime]);
+
+  // Stop workout timer when completed
+  useEffect(() => {
+    if (workoutCompleted && workoutTimerRef.current) {
+      clearInterval(workoutTimerRef.current);
+    }
+  }, [workoutCompleted]);
 
   // Timer logic
   useEffect(() => {
@@ -83,7 +98,7 @@ export default function WorkoutStartScreen({ route, navigation }) {
         clearTimeout(timerRef.current);
       }
     };
-  }, [isPlaying, timeRemaining]);
+  }, [isPlaying, timeRemaining, handleTimerComplete]);
 
   // Pulse animation for timer
   useEffect(() => {
@@ -105,9 +120,22 @@ export default function WorkoutStartScreen({ route, navigation }) {
     } else {
       pulseAnim.setValue(1);
     }
-  }, [isPlaying, timeRemaining]);
+  }, [isPlaying, timeRemaining, pulseAnim]);
 
-  const handleTimerComplete = () => {
+  // Progress animation for circular timer
+  useEffect(() => {
+    const currentExercise = getCurrentExercise();
+    const totalDuration = parseInt(currentExercise.duration) || 45;
+    const progress = (totalDuration - timeRemaining) / totalDuration;
+    
+    Animated.timing(progressAnim, {
+      toValue: progress,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [timeRemaining, getCurrentExercise, progressAnim]);
+
+  const handleTimerComplete = useCallback(() => {
     if (isResting) {
       // Rest complete, move to next exercise or round
       let nextExerciseIndex = currentExerciseIndex + 1;
@@ -177,14 +205,13 @@ export default function WorkoutStartScreen({ route, navigation }) {
       setTimeRemaining(parseInt(currentExercise.rest) || 15);
       setIsPlaying(true);
     }
-  };
+  }, [isResting, currentExerciseIndex, exercises, currentRound, completeWorkout]);
 
-  const completeWorkout = () => {
-    console.log('Workout completed! Setting workoutCompleted to true');
+  const completeWorkout = useCallback(() => {
     setIsPlaying(false);
     setTotalExercisesCompleted(prev => prev + 1); // Track final exercise completion
     setWorkoutCompleted(true);
-  };
+  }, []);
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
@@ -213,9 +240,9 @@ export default function WorkoutStartScreen({ route, navigation }) {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getCurrentExercise = () => {
+  const getCurrentExercise = useCallback(() => {
     return exercises[currentExerciseIndex] || {};
-  };
+  }, [exercises, currentExerciseIndex]);
 
   const getNextExercise = () => {
     if (isResting) {
@@ -267,14 +294,16 @@ export default function WorkoutStartScreen({ route, navigation }) {
   };
 
   // Calculate actual workout stats
-  const actualDurationMinutes = Math.floor(actualWorkoutTime / 60);
-  const actualDurationSeconds = actualWorkoutTime % 60;
   
   // Use session data from database if available, otherwise calculate
   const plannedWorkoutDuration = sessionData?.estimated_time || exercises.reduce((total, ex) => {
-    const exerciseTime = (parseInt(ex.duration) || 45) * (ex.rounds || 1);
-    const restTime = (parseInt(ex.rest) || 15) * Math.max(0, (ex.rounds || 1) - 1);
-    return total + exerciseTime + restTime;
+    const exerciseDuration = parseInt(ex.duration) || 45;
+    const restDuration = parseInt(ex.rest) || 15;
+    const exerciseRounds = ex.rounds || 1;
+    
+    // Calculate total time for this exercise: (duration + rest) * rounds
+    const exerciseTotalTime = (exerciseDuration + restDuration) * exerciseRounds;
+    return total + exerciseTotalTime;
   }, 0);
 
   // Use session calories from database if available, otherwise calculate
@@ -283,9 +312,6 @@ export default function WorkoutStartScreen({ route, navigation }) {
     return Math.round((plannedWorkoutDuration / 60) * 8 * (safeIntensity / 50));
   })();
   
-  console.log('DEBUG - Session Data:', sessionData);
-  console.log('DEBUG - Planned Duration:', plannedWorkoutDuration, 'Actual Calories:', actualCalories);
-  console.log('DEBUG - Is NaN actualCalories?', isNaN(actualCalories));
   
   // Calculate workout score based on actual performance
   const calculateWorkoutScore = () => {
@@ -322,62 +348,25 @@ export default function WorkoutStartScreen({ route, navigation }) {
         return;
       }
 
-      console.log('Saving cardio details for exercises:', exercises.length);
 
-      // Create a session record first
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('saved_cardio_sessions')
-        .insert({
+      // Save each exercise as a separate row in saved_cardio_sessions
+      const exercisePromises = exercises.map(async (exercise, index) => {
+        const exerciseData = {
           user_id: userId,
-          name: sessionType || 'Cardio Workout',
-          total_rounds: Math.max(...exercises.map(ex => ex.rounds || 1)),
-          rest_between_rounds: restBetweenRounds || 15,
+          name: exercise.name || exercise.workout || `Exercise ${index + 1}`,
+          total_rounds: parseInt(exercise.rounds) || 1,
+          rest_between_rounds: parseInt(exercise.rest) || 15,
           sound_alerts: true,
           sound_option: 'ding',
           auto_repeat: false,
           notes: 'Completed Workout',
-          estimated_time: actualWorkoutTime,
-          estimated_calories: Math.round((actualWorkoutTime / 60) * 8 * (intensity / 50))
-        })
-        .select()
-        .single();
-
-      if (sessionError) {
-        console.error('Session save error:', sessionError);
-        Alert.alert('Error', `Failed to save workout session: ${sessionError.message}`);
-        return;
-      }
-
-      console.log('Session created with ID:', sessionData.id);
-
-      // Save each exercise to cardio_details
-      const exercisePromises = exercises.map(async (exercise, index) => {
-        // Validate exercise_id - only use if it's a valid UUID, otherwise set to null
-        let exerciseId = null;
-        if (exercise.id && typeof exercise.id === 'string' && exercise.id.length > 10) {
-          // Check if it looks like a UUID (basic validation)
-          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-          if (uuidRegex.test(exercise.id)) {
-            exerciseId = exercise.id;
-          }
-        }
-
-        const exerciseData = {
-          session_id: sessionData.id,
-          exercise_id: exerciseId,
-          exercise_name: exercise.name || exercise.workout || `Exercise ${index + 1}`,
-          duration: parseInt(exercise.duration) || 45,
-          rest: parseInt(exercise.rest) || 15,
-          rounds: parseInt(exercise.rounds) || 1,
-          order_index: index + 1,
-          image_url: exercise.gif_url || exercise.image_url || null
+          estimated_time: parseInt(exercise.duration) || 45, // Individual exercise duration
+          estimated_calories: Math.round(((parseInt(exercise.duration) || 45) / 60) * 7 * (intensity / 50))
         };
 
-        console.log(`Saving exercise ${index + 1}:`, exerciseData);
-        console.log(`Original exercise.id:`, exercise.id, 'Type:', typeof exercise.id);
 
         const { error: exerciseError } = await supabase
-          .from('cardio_details')
+          .from('saved_cardio_sessions')
           .insert(exerciseData);
 
         if (exerciseError) {
@@ -391,7 +380,6 @@ export default function WorkoutStartScreen({ route, navigation }) {
       // Wait for all exercises to be saved
       await Promise.all(exercisePromises);
 
-      console.log('All exercises saved successfully');
 
       Alert.alert(
         'Success',
@@ -404,11 +392,7 @@ export default function WorkoutStartScreen({ route, navigation }) {
     }
   };
 
-  console.log('Current workout state - workoutCompleted:', workoutCompleted, 'exercises:', exercises.length);
-
   if (workoutCompleted) {
-    console.log('Rendering completion screen');
-    console.log('workoutCompleted state:', workoutCompleted);
     return (
       <ScrollView style={styles.completedContainer} contentContainerStyle={styles.scrollContent}>
         {/* Check mark icon */}
@@ -422,7 +406,7 @@ export default function WorkoutStartScreen({ route, navigation }) {
         <View style={styles.completedHeader}>
           <Text style={styles.completedTitle}>Workout Completed!</Text>
           <Text style={styles.workoutType}>
-            {sessionType || 'HIIT'} • {totalRoundsCompleted} of {maxRounds} Rounds
+            {sessionType || 'HIIT'}
           </Text>
           <Text style={styles.completedDate}>
             {new Date().toLocaleDateString('en-US', { 
@@ -489,22 +473,54 @@ export default function WorkoutStartScreen({ route, navigation }) {
         {/* Workout Summary */}
         <View style={styles.energySection}>
           <Text style={styles.sectionTitle}>Workout Summary</Text>
-          <View style={styles.summaryContainer}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Total Time</Text>
-              <Text style={styles.summaryValue}>{formatActualTime(plannedWorkoutDuration)}</Text>
+          
+          {/* Exercise Cards */}
+          {exercises.map((exercise, index) => (
+            <View key={index} style={styles.exerciseSummaryCard}>
+              <View style={styles.exerciseSummaryInfo}>
+                {exercise.gif_url ? (
+                  <Image
+                    source={{ uri: exercise.gif_url }}
+                    style={styles.exerciseSummaryGif}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text style={styles.exerciseSummaryIcon}>💪</Text>
+                )}
+                <View style={styles.exerciseSummaryDetails}>
+                  <Text style={styles.exerciseSummaryName}>{exercise.name}</Text>
+                  <View style={styles.exerciseSummaryStats}>
+                    <Text style={styles.exerciseSummaryStat}>
+                      {exercise.duration}s
+                    </Text>
+                    <Text style={styles.exerciseSummaryStat}>
+                      Rest: {exercise.rest}s
+                    </Text>
+                    <Text style={styles.exerciseSummaryStat}>
+                      Rounds: {exercise.rounds || 1}
+                    </Text>
+                  </View>
+                </View>
+              </View>
             </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Rounds Completed</Text>
-              <Text style={styles.summaryValue}>{totalRoundsCompleted} / {maxRounds}</Text>
+          ))}
+          
+          {/* Overall Stats */}
+          <View style={styles.overallStats}>
+            <View style={styles.overallStatItem}>
+              <Text style={styles.overallStatIcon}>⏱️</Text>
+              <Text style={styles.overallStatValue}>{formatActualTime(plannedWorkoutDuration)}</Text>
+              <Text style={styles.overallStatLabel}>Total Time</Text>
             </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Exercises Done</Text>
-              <Text style={styles.summaryValue}>{totalExercisesCompleted}</Text>
+            <View style={styles.overallStatItem}>
+              <Text style={styles.overallStatIcon}>🔥</Text>
+              <Text style={styles.overallStatValue}>{Math.round(actualCalories)}</Text>
+              <Text style={styles.overallStatLabel}>Calories</Text>
             </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Calories Burned</Text>
-              <Text style={styles.summaryValue}>{actualCalories} kcal</Text>
+            <View style={styles.overallStatItem}>
+              <Text style={styles.overallStatIcon}>💪</Text>
+              <Text style={styles.overallStatValue}>{totalExercisesCompleted}</Text>
+              <Text style={styles.overallStatLabel}>Exercises</Text>
             </View>
           </View>
         </View>
@@ -541,18 +557,12 @@ export default function WorkoutStartScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Share Button */}
-        <TouchableOpacity style={styles.shareButton}>
-          <Text style={styles.shareIcon}>📤</Text>
-          <Text style={styles.shareButtonText}>Share Workout</Text>
-        </TouchableOpacity>
 
         {/* Bottom Action Buttons */}
         <View style={styles.actionButtons}>
           <TouchableOpacity 
             style={[styles.planNextButton, { backgroundColor: COLORS.primary }]} 
             onPress={() => {
-              console.log('Done button clicked!');
               saveCardioDetails();
             }}
             activeOpacity={0.7}
@@ -560,287 +570,331 @@ export default function WorkoutStartScreen({ route, navigation }) {
             <Text style={[styles.planNextButtonText, { color: COLORS.white }]}>Done</Text>
           </TouchableOpacity>
           
-          {/* Test button */}
-          <TouchableOpacity 
-            style={[styles.planNextButton, { backgroundColor: COLORS.success, marginTop: 10 }]} 
-            onPress={() => {
-              console.log('Test button clicked!');
-              Alert.alert('Test', 'Test button works!');
-            }}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.planNextButtonText, { color: COLORS.white }]}>Test</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     );
   }
 
-  const handleAddTime = () => {
-    setTimeRemaining(time => time + 20);
-  };
 
   return (
-    <View style={[styles.container, isResting && styles.restContainer]}>
-      {/* Exercise Info */}
-      <View style={styles.exerciseInfo}>
-        <Text style={[styles.exerciseName, isResting && styles.restText]}>
-          {isResting ? 'REST' : getCurrentExercise().name}
-        </Text>
-        <Text style={[styles.exerciseSubtitle, isResting && styles.restSubtitle]}>
-          {isResting ? 'Take a break' : `Round ${currentRound} of ${getCurrentExercise().rounds || 1}`}
-        </Text>
-        {isResting && getNextExercise() && (
-          <Text style={[styles.nextExerciseText, isResting && styles.restNextExerciseText]}>
-            Next exercise: {getNextExercise().name}
-          </Text>
-        )}
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        {/* Segmented Progress Bar */}
+        <View style={styles.progressContainer}>
+          <View style={styles.segmentedProgressBar}>
+            {exercises.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.progressSegment,
+                  {
+                    backgroundColor: index < currentExerciseIndex 
+                      ? COLORS.darkPurple // Completed exercises
+                      : index === currentExerciseIndex 
+                      ? COLORS.darkPurple // Current exercise
+                      : COLORS.lightPurple, // Upcoming exercises
+                  }
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+
+      {/* Rest Header - Only show during rest */}
+      {isResting && (
+        <View style={styles.restHeader}>
+          <Text style={styles.restTitle}>REST</Text>
+          <Text style={styles.restSubtitle}>Rest Time</Text>
+        </View>
+      )}
+
+      {/* Exercise Demonstration Area - Only show during active exercise */}
+      {!isResting && (
+        <>
+          <View style={styles.exerciseDemoContainer}>
+            <View style={styles.exerciseCard}>
+              {getCurrentExercise().gif_url ? (
+                <Image
+                  source={{ uri: getCurrentExercise().gif_url }}
+                  style={styles.exerciseImage}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={styles.exercisePlaceholder}>
+                  <Ionicons name="fitness" size={80} color={COLORS.primary} />
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Exercise Info */}
+          <View style={styles.exerciseInfo}>
+            <Text style={styles.exerciseName}>{getCurrentExercise().name}</Text>
+            <View style={styles.intensityPill}>
+              <Text style={styles.intensityText}>
+                {`${intensity >= 75 ? 'High' : intensity >= 50 ? 'Medium' : 'Low'} Intensity`}
+              </Text>
+            </View>
+          </View>
+        </>
+      )}
+
+      {/* Timer Section - Centered */}
+      <View style={[styles.timerSection, isResting && styles.timerSectionRest]}>
+        <Animated.View style={[styles.timerContainer, { transform: [{ scale: pulseAnim }] }]}>
+          <View style={styles.timerCircle}>
+            <Text style={styles.timerText}>{formatTime(timeRemaining)}</Text>
+            <Text style={styles.timerLabel}>REMAINING</Text>
+          </View>
+        </Animated.View>
+        
+        <Text style={styles.roundText}>Round {currentRound} of {getCurrentExercise().rounds || 1}</Text>
       </View>
-      
-      {/* Exercise GIF */}
-      {isResting && getNextExercise() ? (
-        <View style={styles.restGifContainer}>
-          {getNextExercise().gif_url ? (
-            <Image
-              key={`next-gif-${currentExerciseIndex}-${currentRound}`}
-              source={{ uri: getNextExercise().gif_url }}
-              style={styles.restExerciseGif}
-              resizeMode="contain"
-              fadeDuration={0}
-              progressiveRenderingEnabled={false}
-              cachePolicy="memory-disk"
-            />
-          ) : (
-            <View style={styles.noGifPlaceholder}>
-              <Text style={styles.noGifText}>No GIF Available</Text>
+
+      {/* Next Exercise Preview - Only show if there's a next exercise */}
+      {getNextExercise() && (
+        <View style={styles.nextExerciseContainer}>
+          <View style={styles.nextExerciseCard}>
+            <View style={styles.nextExerciseImage}>
+              {getNextExercise().gif_url ? (
+                <Image
+                  source={{ uri: getNextExercise().gif_url }}
+                  style={styles.nextExerciseThumbnail}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Ionicons name="fitness" size={24} color={COLORS.primary} />
+              )}
             </View>
-          )}
-        </View>
-      ) : !isResting && (
-        <View style={styles.gifContainer}>
-          {getCurrentExercise().gif_url ? (
-            <Image
-              key={`gif-${currentExerciseIndex}-${currentRound}`}
-              source={{ uri: getCurrentExercise().gif_url }}
-              style={styles.exerciseGif}
-              resizeMode="contain"
-              fadeDuration={0}
-              progressiveRenderingEnabled={false}
-              cachePolicy="memory-disk"
-            />
-          ) : (
-            <View style={styles.noGifPlaceholder}>
-              <Text style={styles.noGifText}>No GIF Available</Text>
+            <View style={styles.nextExerciseInfo}>
+              <Text style={styles.nextExerciseLabel}>Next Up</Text>
+              <Text style={styles.nextExerciseName}>{getNextExercise().name}</Text>
             </View>
-          )}
+          </View>
         </View>
       )}
 
-      {/* Timer */}
-      <Animated.View style={[styles.timerContainer, { transform: [{ scale: pulseAnim }] }]}>
-        <Text style={[styles.timer, isResting && styles.restTimer]}>{formatTime(timeRemaining)}</Text>
-      </Animated.View>
-
-      {/* Controls */}
-      {isResting ? (
-        <View style={styles.restControls}>
-          <TouchableOpacity style={styles.addTimeButton} onPress={handleAddTime}>
-            <Text style={styles.addTimeButtonText}>+20s</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-            <Text style={styles.skipButtonText}>Skip</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.controls}>
-          <TouchableOpacity style={styles.controlButton} onPress={handlePlayPause}>
-            <Ionicons 
-              name={isPlaying ? "pause" : "play"} 
-              size={24} 
-              color={COLORS.white} 
-            />
-            <Text style={styles.controlButtonText}>
-              {isPlaying ? 'Pause' : 'Play'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.controlButton} onPress={handleSkip}>
-            <Ionicons name="play-forward" size={24} color={COLORS.white} />
-            <Text style={styles.controlButtonText}>Skip</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.controlButton} onPress={handleStop}>
-            <Ionicons name="stop" size={24} color={COLORS.white} />
-            <Text style={styles.controlButtonText}>Stop</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.controlButton, { backgroundColor: COLORS.success }]} onPress={completeWorkout}>
-            <Ionicons name="checkmark" size={24} color={COLORS.white} />
-            <Text style={styles.controlButtonText}>Complete</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
+      {/* Bottom Controls - Only 3 buttons: Stop, Pause, Skip */}
+      <View style={styles.bottomControls}>
+        <TouchableOpacity style={styles.controlButton} onPress={handleStop}>
+          <Ionicons name="close" size={24} color={COLORS.white} />
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.controlButton} onPress={handlePlayPause}>
+          <Ionicons 
+            name={isPlaying ? "pause" : "play"} 
+            size={24} 
+            color={COLORS.white} 
+          />
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.controlButton} onPress={handleSkip}>
+          <Ionicons name="play-skip-forward" size={24} color={COLORS.white} />
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.white,
+  },
+  progressContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 20,
+  },
+  segmentedProgressBar: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 20,
+    alignItems: 'center',
+    gap: 4,
+  },
+  progressSegment: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+  },
+  exerciseDemoContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    marginBottom: 20,
+  },
+  exerciseCard: {
+    width: width * 0.9,
+    height: width * 0.5,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  exerciseImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    resizeMode: 'contain',
+  },
+  exercisePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   exerciseInfo: {
     alignItems: 'center',
-    marginTop: 60,
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    marginBottom: 10,
+    marginTop: 5,
   },
   exerciseName: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: COLORS.dark,
+    fontSize: 28,
+    fontWeight: '700',
+    color: COLORS.lightPurple,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  exerciseSubtitle: {
-    fontSize: 18,
-    color: COLORS.gray,
-    textAlign: 'center',
+  intensityPill: {
+    // backgroundColor: COLORS.mediumPurple,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  nextExerciseText: {
-    fontSize: 14,
-    color: COLORS.gray,
-    textAlign: 'center',
-    marginTop: 8,
-    fontStyle: 'italic',
+  intensityText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.darkPurple,
   },
-  
-  // Rest page styles
-  restContainer: {
-    backgroundColor: COLORS.primary,
+  timerSection: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 20,
   },
-  restText: {
-    color: COLORS.white,
+  timerSectionRest: {
+    flex: 1,
+    justifyContent: 'center',
+    marginTop: 0,
+    marginBottom: -20,
+  },
+  restHeader: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+  restTitle: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: COLORS.darkPurple,
+    marginBottom: 8,
   },
   restSubtitle: {
-    color: COLORS.white,
-  },
-  restTimer: {
-    color: COLORS.white,
-  },
-  restNextExerciseText: {
-    color: COLORS.white,
-  },
-  restGifContainer: {
-    width: '80%',
-    height: 200,
-    marginBottom: 20,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: COLORS.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-  },
-  restExerciseGif: {
-    width: '100%',
-    height: '100%',
-  },
-  restControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 40,
-    paddingHorizontal: 40,
-  },
-  addTimeButton: {
-    backgroundColor: COLORS.white,
-    paddingVertical: 18,
-    paddingHorizontal: 38,
-    borderRadius: 25,
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  addTimeButtonText: {
-    color: COLORS.primary,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-  },
-  skipButton: {
-    backgroundColor: COLORS.white,
-    paddingVertical: 18,
-    paddingHorizontal: 38,
-    borderRadius: 25,
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  skipButtonText: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  
-  gifContainer: {
-    width: '100%',
-    height: 300,
-    marginBottom: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  
-  exerciseGif: {
-    width: '100%',
-    height: '100%',
-  },
-  
-  noGifPlaceholder: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.lightGray,
-    borderRadius: 16,
-  },
-  
-  noGifText: {
-    fontSize: 16,
     color: COLORS.gray,
-    fontStyle: 'italic',
   },
   timerContainer: {
-    alignItems: 'center',
+    marginBottom: 20,
+  },
+  timerCircle: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
     justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth:16,
+    borderColor: COLORS.mediumPurple,
+  },
+  timerText: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: COLORS.darkPurple,
+    marginBottom: 4,
+  },
+  timerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1,
+  },
+  roundText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.darkPurple,
+  },
+  nextExerciseContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 10,
+    marginTop: 0,
+  },
+  nextExerciseCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.mediumPurple,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  nextExerciseImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.darkPurple,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  nextExerciseThumbnail: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  nextExerciseInfo: {
     flex: 1,
   },
-  timer: {
-    fontSize: 72,
-    fontWeight: 'bold',
-    color: COLORS.dark,
-    textAlign: 'center',
+  nextExerciseLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginBottom: 2,
   },
-  controls: {
+  nextExerciseName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.white,
+    flex: 1,
+    flexWrap: 'wrap',
+  },
+  bottomControls: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    paddingTop: 10,
+    gap: 40,
+    marginBottom: 5,
   },
   controlButton: {
-    alignItems: 'center',
-    padding: 15,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: COLORS.primary,
-    minWidth: 80,
-  },
-  controlButtonText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   
   // Completion screen styles
   completedContainer: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: '#FFFFFF',
   },
   scrollContent: {
     padding: 20,
@@ -871,26 +925,28 @@ const styles = StyleSheet.create({
   completedTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: COLORS.dark,
+    color: '#1F2937',
     textAlign: 'center',
     marginBottom: 8,
   },
   workoutType: {
     fontSize: 16,
-    color: COLORS.textSecondary,
+    color: '#6B7280',
     textAlign: 'center',
     marginBottom: 5,
   },
   completedDate: {
     fontSize: 14,
-    color: COLORS.grayLight,
+    color: '#6B7280',
     textAlign: 'center',
   },
   statsContainer: {
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: '#F9FAFB',
     borderRadius: 15,
     padding: 20,
     marginBottom: 25,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   statRow: {
     flexDirection: 'row',
@@ -918,13 +974,13 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: '#6B7280',
     marginBottom: 4,
   },
   statValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.dark,
+    color: '#1F2937',
   },
   bpmText: {
     fontSize: 14,
@@ -943,29 +999,18 @@ const styles = StyleSheet.create({
   scoreLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.dark,
+    color: '#1F2937',
   },
   scoreValue: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: 4,
+    color: '#7C3AED',
   },
   energySection: {
     marginBottom: 25,
   },
   summaryContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: '#F9FAFB',
     borderRadius: 12,
     padding: 16,
     shadowColor: '#000',
@@ -984,34 +1029,34 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: COLORS.gray,
+    color: '#6B7280',
     fontWeight: '500',
   },
   summaryValue: {
     fontSize: 14,
-    color: COLORS.dark,
+    color: '#1F2937',
     fontWeight: '600',
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.dark,
+    color: '#1F2937',
     marginBottom: 15,
   },
   feelingsSection: {
     marginBottom: 25,
   },
   feelingsInput: {
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: '#F9FAFB',
     borderRadius: 12,
     padding: 15,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#E5E7EB',
     minHeight: 80,
   },
   inputPlaceholder: {
-    color: COLORS.grayLight,
+    color: '#6B7280',
     fontSize: 14,
   },
   emojiOptions: {
@@ -1048,27 +1093,6 @@ const styles = StyleSheet.create({
     color: '#92400e',
     fontWeight: '500',
   },
-  shareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    marginBottom: 20,
-    gap: 8,
-  },
-  shareIcon: {
-    fontSize: 16,
-  },
-  shareButtonText: {
-    color: COLORS.dark,
-    fontSize: 16,
-    fontWeight: '500',
-  },
   actionButtons: {
     flexDirection: 'row',
     gap: 15,
@@ -1076,17 +1100,89 @@ const styles = StyleSheet.create({
   },
   planNextButton: {
     flex: 1,
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: COLORS.primary,
     paddingVertical: 18,
     paddingHorizontal: 20,
     borderRadius: 25,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: COLORS.lightPurple,
   },
   planNextButtonText: {
-    color: COLORS.dark,
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: '600',
+  },
+  
+  // Exercise Summary Card Styles
+  exerciseSummaryCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  exerciseSummaryInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  exerciseSummaryGif: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 16,
+  },
+  exerciseSummaryIcon: {
+    fontSize: 28,
+    marginRight: 16,
+  },
+  exerciseSummaryDetails: {
+    flex: 1,
+  },
+  exerciseSummaryName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  exerciseSummaryStats: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  exerciseSummaryStat: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  
+  // Overall Stats Styles
+  overallStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  overallStatItem: {
+    alignItems: 'center',
+  },
+  overallStatIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  overallStatValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  overallStatLabel: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '500',
   },
 });

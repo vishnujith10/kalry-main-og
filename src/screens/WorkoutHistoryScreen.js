@@ -1,16 +1,185 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import supabase from '../lib/supabase';
+
+// Group workouts by date helper function
+const groupWorkoutsByDate = (routineWorkouts, cardioWorkouts) => {
+  const grouped = {};
+  
+  // Dates to exclude
+  const excludedDates = [
+    'September 26, 2025',
+    'September 13, 2025', 
+    'September 11, 2025'
+  ];
+  
+  // Process routine workouts (from daily_routine_exercises)
+  routineWorkouts.forEach(workout => {
+    const date = new Date(workout.created_at);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    let dateKey;
+    if (date.toDateString() === today.toDateString()) {
+      dateKey = 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      dateKey = 'Yesterday';
+    } else {
+      dateKey = date.toLocaleDateString('en-US', { 
+        month: 'long', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+    }
+
+    // Skip excluded dates
+    if (excludedDates.includes(dateKey)) {
+      return;
+    }
+
+    if (!grouped[dateKey]) {
+      grouped[dateKey] = [];
+    }
+
+    // Process each exercise in the workout
+    workout.daily_routine_exercises.forEach(exercise => {
+      const exerciseData = {
+        id: exercise.id,
+        name: exercise.exercise_name,
+        icon: getExerciseIcon(exercise.exercise_name),
+        iconType: 'MaterialIcons',
+        duration: formatDuration(exercise.duration),
+        calories: `${exercise.total_kcal || 0} kcal`,
+        time: date.toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        }),
+        color: '#4A90E2',
+        sets: exercise.total_sets,
+        reps: exercise.total_reps,
+        weight: exercise.total_weight,
+        workoutNotes: workout.notes || 'Workout',
+        type: 'routine',
+        created_at: workout.created_at
+      };
+
+      grouped[dateKey].push(exerciseData);
+    });
+  });
+
+  // Process cardio workouts (from saved_cardio_sessions)
+  cardioWorkouts.forEach(cardio => {
+    const date = new Date(cardio.created_at);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    let dateKey;
+    if (date.toDateString() === today.toDateString()) {
+      dateKey = 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      dateKey = 'Yesterday';
+    } else {
+      dateKey = date.toLocaleDateString('en-US', { 
+        month: 'long', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+    }
+
+    // Skip excluded dates
+    if (excludedDates.includes(dateKey)) {
+      return;
+    }
+
+    if (!grouped[dateKey]) {
+      grouped[dateKey] = [];
+    }
+
+    const cardioData = {
+      id: cardio.id,
+      name: cardio.name,
+      icon: getExerciseIcon(cardio.name),
+      iconType: 'MaterialIcons',
+      duration: formatDuration(cardio.estimated_time),
+      calories: `${cardio.estimated_calories || 0} kcal`,
+      time: date.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      }),
+      color: '#7c3aed', // Purple color for cardio
+      sets: cardio.total_rounds,
+      reps: null,
+      weight: null,
+      workoutNotes: cardio.notes || 'Cardio',
+      type: 'cardio',
+      created_at: cardio.created_at
+    };
+
+    grouped[dateKey].push(cardioData);
+  });
+
+  // Sort workouts within each date by time (most recent first)
+  Object.keys(grouped).forEach(dateKey => {
+    grouped[dateKey].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  });
+
+  // Convert to array format and sort dates (most recent first)
+  return Object.keys(grouped)
+    .sort((a, b) => {
+      // Custom sort to handle 'Today', 'Yesterday', and actual dates
+      if (a === 'Today') return -1;
+      if (b === 'Today') return 1;
+      if (a === 'Yesterday') return -1;
+      if (b === 'Yesterday') return 1;
+      
+      // For actual dates, parse and compare
+      const dateA = new Date(a);
+      const dateB = new Date(b);
+      return dateB - dateA;
+    })
+    .map(date => ({
+      date,
+      workouts: grouped[date]
+    }));
+};
+
+// Get appropriate icon for exercise
+const getExerciseIcon = (exerciseName) => {
+  const name = exerciseName.toLowerCase();
+  if (name.includes('run') || name.includes('jog')) return 'running';
+  if (name.includes('cycle') || name.includes('bike')) return 'directions-bike';
+  if (name.includes('swim')) return 'pool';
+  if (name.includes('push') || name.includes('press')) return 'fitness-center';
+  if (name.includes('squat') || name.includes('leg')) return 'fitness-center';
+  if (name.includes('cardio')) return 'favorite';
+  return 'fitness-center';
+};
+
+// Format duration from seconds to readable format
+const formatDuration = (seconds) => {
+  if (!seconds) return '0 min';
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes === 0) return `${remainingSeconds}s`;
+  if (remainingSeconds === 0) return `${minutes} min`;
+  return `${minutes}m ${remainingSeconds}s`;
+};
 
 // Add FooterBar component
 const FooterBar = ({ navigation, activeTab }) => {
@@ -18,15 +187,15 @@ const FooterBar = ({ navigation, activeTab }) => {
     {
       key: 'Home',
       label: 'Home',
-      icon: <Ionicons name="home-outline" size={24} color={activeTab === 'Home' ? '#7B61FF' : '#232B3A'} />,
-      route: 'Exercise',
+      icon: <Ionicons name="home-outline" size={24} color={activeTab === 'MainDashboard' ? '#7B61FF' : '#232B3A'} />,
+      route: 'MainDashboard',
     },
     
     {
-      key: 'Workouts',
+      key: 'Exercise',
       label: 'Workouts',
-      icon: <Ionicons name="barbell-outline" size={24} color={activeTab === 'Workouts' ? '#7B61FF' : '#232B3A'} />,
-      route: 'Create',
+      icon: <Ionicons name="barbell-outline" size={24} color={activeTab === 'Exercise' ? '#7B61FF' : '#232B3A'} />,
+      route: 'Exercise',
     },
     {
       key: 'Progress',
@@ -38,7 +207,7 @@ const FooterBar = ({ navigation, activeTab }) => {
       key: 'Profile',
       label: 'Profile',
       icon: <Ionicons name="person-outline" size={24} color={activeTab === 'Profile' ? '#7B61FF' : '#232B3A'} />,
-      route: 'Workouts',
+      route: 'Profile',
     },
   ];
 
@@ -78,70 +247,189 @@ const WorkoutHistoryScreen = () => {
   const navigation = useNavigation();
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [selectedTimeFilter, setSelectedTimeFilter] = useState('Last 7 Days');
-  const [selectedSort, setSelectedSort] = useState('Most Recent');
+  const [workoutData, setWorkoutData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showPreviousMonth, setShowPreviousMonth] = useState(false);
+  const [previousMonthData, setPreviousMonthData] = useState([]);
 
-  const filters = ['All', 'Running', 'Cycling', 'Strength', 'More'];
-  
-  const workoutData = [
-    {
-      date: 'Today',
-      workouts: [
-        {
-          id: 1,
-          name: 'Morning Run',
-          icon: 'running',
-          iconType: 'MaterialIcons',
-          distance: '5.2 km',
-          duration: '30 min',
-          calories: '450 kcal',
-          time: '08:15 AM',
-          color: '#4A90E2'
+  const filters = ['All', 'Cardio', 'Routines'];
+  const timeFilters = ['Last 7 Days', 'Last 30 Days', 'All Time'];
+
+  // Fetch workout history from both daily_routine_exercises and saved_cardio_sessions
+  useEffect(() => {
+    const fetchWorkoutHistory = async () => {
+      try {
+        setLoading(true);
+        
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setWorkoutData([]);
+          setLoading(false);
+          return;
         }
-      ]
-    },
-    {
-      date: 'Yesterday',
-      workouts: [
-        {
-          id: 2,
-          name: 'Full Body Strength',
-          icon: 'fitness-center',
-          iconType: 'MaterialIcons',
-          duration: '45 min',
-          calories: '350 kcal',
-          time: '06:30 PM',
-          color: '#4A90E2'
-        },
-        {
-          id: 3,
-          name: 'Evening Cycle',
-          icon: 'directions-bike',
-          iconType: 'MaterialIcons',
-          distance: '12.5 km',
-          duration: '40 min',
-          calories: '550 kcal',
-          time: '08:00 PM',
-          color: '#4A90E2'
+
+        // Get date range based on selected time filter
+        const now = new Date();
+        let startDate, endDate;
+        
+        if (selectedTimeFilter === 'Last 7 Days') {
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          endDate = now;
+        } else if (selectedTimeFilter === 'Last 30 Days') {
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          endDate = now;
+        } else { // All Time
+          startDate = new Date(0); // Very old date
+          endDate = now;
         }
-      ]
-    },
-    {
-      date: 'October 23, 2023',
-      workouts: [
-        {
-          id: 4,
-          name: 'Lunch Swim',
-          icon: 'pool',
-          iconType: 'MaterialIcons',
-          distance: '1500 m',
-          duration: '35 min',
-          calories: '300 kcal',
-          time: '12:30 PM',
-          color: '#4A90E2'
+
+        // Fetch routine workouts with their exercises based on time filter
+        const { data: routineWorkouts, error: routineError } = await supabase
+          .from('workouts')
+          .select(`
+            id,
+            date,
+            duration,
+            total_kcal,
+            notes,
+            created_at,
+            daily_routine_exercises (
+              id,
+              exercise_name,
+              duration,
+              total_sets,
+              total_reps,
+              total_weight,
+              total_kcal,
+              image_url,
+              order
+            )
+          `)
+          .eq('user_id', user.id)
+          .gte('created_at', startDate.toISOString())
+          .lte('created_at', endDate.toISOString())
+          .order('created_at', { ascending: false });
+
+        // Fetch cardio workouts based on time filter
+        const { data: cardioWorkouts, error: cardioError } = await supabase
+          .from('saved_cardio_sessions')
+          .select(`
+            id,
+            name,
+            total_rounds,
+            rest_between_rounds,
+            sound_alerts,
+            sound_option,
+            auto_repeat,
+            notes,
+            estimated_time,
+            estimated_calories,
+            created_at
+          `)
+          .eq('user_id', user.id)
+          .gte('created_at', startDate.toISOString())
+          .lte('created_at', endDate.toISOString())
+          .order('created_at', { ascending: false });
+
+        if (routineError) {
+          console.error('Error fetching routine workouts:', routineError);
         }
-      ]
+
+        if (cardioError) {
+          console.error('Error fetching cardio workouts:', cardioError);
+        }
+
+        // Group workouts by date (combining both routine and cardio)
+        const groupedWorkouts = groupWorkoutsByDate(routineWorkouts || [], cardioWorkouts || []);
+        setWorkoutData(groupedWorkouts);
+      } catch (error) {
+        console.error('Error fetching workout history:', error);
+        setWorkoutData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWorkoutHistory();
+  }, [selectedTimeFilter]);
+
+  // Fetch previous month's data
+  const fetchPreviousMonthData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get previous month range (for previous month button)
+      const now = new Date();
+      const startOfPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endOfPreviousMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+      // Fetch routine workouts for previous month
+      const { data: routineWorkouts, error: routineError } = await supabase
+        .from('workouts')
+        .select(`
+          id,
+          date,
+          duration,
+          total_kcal,
+          notes,
+          created_at,
+          daily_routine_exercises (
+            id,
+            exercise_name,
+            duration,
+            total_sets,
+            total_reps,
+            total_weight,
+            total_kcal,
+            image_url,
+            order
+          )
+        `)
+        .eq('user_id', user.id)
+        .gte('created_at', startOfPreviousMonth.toISOString())
+        .lte('created_at', endOfPreviousMonth.toISOString())
+        .order('created_at', { ascending: false });
+
+      // Fetch cardio workouts for previous month
+      const { data: cardioWorkouts, error: cardioError } = await supabase
+        .from('saved_cardio_sessions')
+        .select(`
+          id,
+          name,
+          total_rounds,
+          rest_between_rounds,
+          sound_alerts,
+          sound_option,
+          auto_repeat,
+          notes,
+          estimated_time,
+          estimated_calories,
+          created_at
+        `)
+        .eq('user_id', user.id)
+        .gte('created_at', startOfPreviousMonth.toISOString())
+        .lte('created_at', endOfPreviousMonth.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (routineError) {
+        console.error('Error fetching previous month routine workouts:', routineError);
+      }
+
+      if (cardioError) {
+        console.error('Error fetching previous month cardio workouts:', cardioError);
+      }
+
+      // Group workouts by date (combining both routine and cardio)
+      const groupedWorkouts = groupWorkoutsByDate(routineWorkouts || [], cardioWorkouts || []);
+      setPreviousMonthData(groupedWorkouts);
+      setShowPreviousMonth(true);
+    } catch (error) {
+      console.error('Error fetching previous month data:', error);
     }
-  ];
+  };
+
 
   const renderIcon = (iconName, iconType, color) => {
     if (iconType === 'MaterialIcons') {
@@ -159,7 +447,14 @@ const WorkoutHistoryScreen = () => {
       <View style={styles.workoutDetails}>
         <Text style={styles.workoutName}>{workout.name}</Text>
         <Text style={styles.workoutSubtitle}>
-          {workout.distance ? `${workout.distance} • ` : ''}{workout.duration}
+          {workout.type === 'cardio' ? (
+            `${workout.sets} rounds • ${workout.duration}`
+          ) : (
+            `${workout.sets ? workout.sets + ' sets • ' : ''}${workout.duration}${workout.reps ? ` • ${workout.reps} reps` : ''}${workout.weight ? ` • ${workout.weight}kg` : ''}`
+          )}
+        </Text>
+        <Text style={[styles.workoutType, { color: workout.color }]}>
+          {workout.type === 'cardio' ? 'Cardio' : 'Routine'}
         </Text>
       </View>
       
@@ -174,7 +469,7 @@ const WorkoutHistoryScreen = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
-      {/* Header */}
+        {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="#000" />
@@ -183,7 +478,7 @@ const WorkoutHistoryScreen = () => {
         <TouchableOpacity style={styles.themeButton}>
           <Ionicons name="moon-outline" size={24} color="#000" />
         </TouchableOpacity>
-      </View>
+        </View>
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
         {/* Filter Tabs */}
@@ -194,7 +489,7 @@ const WorkoutHistoryScreen = () => {
             contentContainerStyle={styles.filterScrollContainer}
           >
             {filters.map((filter) => (
-              <TouchableOpacity
+            <TouchableOpacity
                 key={filter}
                 style={[
                   styles.filterTab,
@@ -210,32 +505,128 @@ const WorkoutHistoryScreen = () => {
                 >
                   {filter}
                 </Text>
+            </TouchableOpacity>
+          ))}
+          </ScrollView>
+        </View>
+
+        {/* Time Filter */}
+        <View style={styles.controlsContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.timeFilterScrollContainer}
+          >
+            {timeFilters.map((timeFilter) => (
+              <TouchableOpacity
+                key={timeFilter}
+                style={[
+                  styles.timeFilterTab,
+                  selectedTimeFilter === timeFilter && styles.activeTimeFilterTab
+                ]}
+                onPress={() => setSelectedTimeFilter(timeFilter)}
+              >
+                <Ionicons 
+                  name="calendar-outline" 
+                  size={16} 
+                  color={selectedTimeFilter === timeFilter ? '#4A90E2' : '#666'} 
+                />
+                <Text
+                  style={[
+                    styles.timeFilterText,
+                    selectedTimeFilter === timeFilter && styles.activeTimeFilterText
+                  ]}
+                >
+                  {timeFilter}
+                </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
 
-        {/* Time and Sort Filters */}
-        <View style={styles.controlsContainer}>
-          <TouchableOpacity style={styles.controlButton}>
-            <Ionicons name="calendar-outline" size={16} color="#666" />
-            <Text style={styles.controlText}>{selectedTimeFilter}</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.controlButton}>
-            <MaterialIcons name="swap-vert" size={16} color="#666" />
-            <Text style={styles.controlText}>{selectedSort}</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Workout List */}
         <View style={styles.workoutList}>
-          {workoutData.map((section) => (
-            <View key={section.date} style={styles.dateSection}>
-              <Text style={styles.dateHeader}>{section.date}</Text>
-              {section.workouts.map(renderWorkoutItem)}
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#4A90E2" />
+              <Text style={styles.loadingText}>Loading workout history...</Text>
             </View>
-          ))}
+          ) : workoutData.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <MaterialIcons name="fitness-center" size={64} color="#ccc" />
+              <Text style={styles.emptyTitle}>No workouts yet</Text>
+              <Text style={styles.emptySubtitle}>Start your fitness journey by creating your first workout!</Text>
+            </View>
+          ) : (
+            <>
+              {/* Current Month Data */}
+              {workoutData.map((section) => (
+                <View key={section.date} style={styles.dateSection}>
+                  <Text style={styles.dateHeader}>{section.date}</Text>
+                  {section.workouts
+                    .filter(workout => {
+                      if (selectedFilter === 'All') return true;
+                      if (selectedFilter === 'Cardio') return workout.type === 'cardio';
+                      if (selectedFilter === 'Routines') return workout.type === 'routine';
+                      return true;
+                    })
+                    .map(renderWorkoutItem)}
+              </View>
+              ))}
+              
+              {/* Previous Month Button */}
+              {!showPreviousMonth && workoutData.length > 0 && (
+                <TouchableOpacity
+                  style={styles.previousMonthButton}
+                  onPress={fetchPreviousMonthData}
+                >
+                  <Ionicons name="chevron-down" size={20} color="#4A90E2" />
+                  <Text style={styles.previousMonthText}>Previous Month</Text>
+                </TouchableOpacity>
+              )}
+              
+              {/* Previous Month Data */}
+              {showPreviousMonth && previousMonthData.length > 0 && (
+                <>
+                  <View style={styles.previousMonthHeader}>
+                    <Text style={styles.previousMonthTitle}>Previous Month</Text>
+                <TouchableOpacity
+                      onPress={() => setShowPreviousMonth(false)}
+                      style={styles.hideButton}
+                >
+                      <Ionicons name="chevron-down" size={20} color="#666" />
+                </TouchableOpacity>
+              </View>
+                  {previousMonthData.map((section) => (
+                    <View key={`prev-${section.date}`} style={styles.dateSection}>
+                      <Text style={styles.dateHeader}>{section.date}</Text>
+                      {section.workouts
+                        .filter(workout => {
+                          if (selectedFilter === 'All') return true;
+                          if (selectedFilter === 'Cardio') return workout.type === 'cardio';
+                          if (selectedFilter === 'Routines') return workout.type === 'routine';
+                          return true;
+                        })
+                        .map(renderWorkoutItem)}
+                    </View>
+                  ))}
+                </>
+              )}
+              
+              {/* Show message if no previous month data */}
+              {showPreviousMonth && previousMonthData.length === 0 && (
+                <View style={styles.noPreviousDataContainer}>
+                  <Text style={styles.noPreviousDataText}>No workouts in previous month</Text>
+                  <TouchableOpacity 
+                    onPress={() => setShowPreviousMonth(false)}
+                    style={styles.hideButton}
+                  >
+                    <Ionicons name="chevron-up" size={20} color="#666" />
+                  </TouchableOpacity>
+            </View>
+              )}
+            </>
+          )}
         </View>
       </ScrollView>
 
@@ -297,24 +688,33 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   controlsContainer: {
-    flexDirection: 'row',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    gap: 15,
   },
-  controlButton: {
+  timeFilterScrollContainer: {
+    paddingHorizontal: 0,
+  },
+  timeFilterTab: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 8,
     backgroundColor: '#F5F5F5',
     borderRadius: 20,
+    marginRight: 10,
     gap: 5,
   },
-  controlText: {
+  activeTimeFilterTab: {
+    backgroundColor: '#E3F2FD',
+  },
+  timeFilterText: {
     fontSize: 14,
     color: '#666',
     fontWeight: '500',
+  },
+  activeTimeFilterText: {
+    color: '#4A90E2',
+    fontWeight: '600',
   },
   workoutList: {
     paddingHorizontal: 20,
@@ -366,6 +766,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  workoutType: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
   workoutStats: {
     alignItems: 'flex-end',
   },
@@ -378,6 +783,93 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 14,
     color: '#666',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  previousMonthButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginVertical: 20,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  previousMonthText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4A90E2',
+    marginLeft: 8,
+  },
+  previousMonthHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    marginVertical: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  previousMonthTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  hideButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  noPreviousDataContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    marginVertical: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  noPreviousDataText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontStyle: 'italic',
   },
 });
 
@@ -439,6 +931,6 @@ const footerStyles = StyleSheet.create({
     backgroundColor: '#7B61FF',
     borderRadius: 2,
   },
-});
+}); 
 
 export default WorkoutHistoryScreen;
