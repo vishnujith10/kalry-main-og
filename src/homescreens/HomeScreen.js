@@ -2,24 +2,212 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import React, { useContext, useEffect, useState } from "react";
 import {
-    Alert,
-    Dimensions,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Dimensions,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { ProgressChart } from "react-native-chart-kit";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from "../context/OnboardingContext";
 import supabase from "../lib/supabase";
 import { createFoodLog, deleteFoodLog, getFoodLogs } from "../utils/api";
 import useTodaySteps from "../utils/useTodaySteps";
-import CalorieFooter from "./CalorieFooter";
 
 const screenWidth = Dimensions.get("window").width;
+
+// Add FooterBar component (same as MainDashboard)
+const FooterBar = ({ navigation, activeTab }) => {
+  const tabs = [
+    {
+      key: 'Home',
+      label: 'Home',
+      icon: <Ionicons name="home-outline" size={24} color={activeTab === 'Home' ? '#7B61FF' : '#232B3A'} />,
+      route: 'MainDashboard',
+    },
+    
+    {
+      key: 'Meals',
+      label: 'Meals',
+      icon: <Ionicons name="restaurant-outline" size={24} color={activeTab === 'Meals' ? '#7B61FF' : '#232B3A'} />,
+      route: 'Home',
+    },
+    {
+      key: 'Workout',
+      label: 'Workout',
+      icon: <Ionicons name="barbell-outline" size={24} color={activeTab === 'Workout' ? '#7B61FF' : '#232B3A'} />,
+      route: 'Exercise',
+    },
+    {
+      key: 'Profile',
+      label: 'Profile',
+      icon: <Ionicons name="person-outline" size={24} color={activeTab === 'Profile' ? '#7B61FF' : '#232B3A'} />,
+      route: 'Profile',
+    },
+  ];
+
+  return (
+    <View style={footerStyles.container}>
+      <View style={footerStyles.ovalFooter}>
+        {tabs.map(tab => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[
+              footerStyles.tab,
+              tab.key === activeTab && footerStyles.activeTab
+            ]}
+            onPress={() => navigation.navigate(tab.route)}
+            activeOpacity={0.7}
+          >
+            {React.cloneElement(tab.icon, {
+              color: tab.key === activeTab ? '#7B61FF' : '#232B3A',
+            })}
+            <Text
+              style={[
+                footerStyles.label,
+                tab.key === activeTab && footerStyles.activeLabel
+              ]}
+            >
+              {tab.label}
+            </Text>
+            {tab.key === activeTab && <View style={footerStyles.activeIndicator} />}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+};
+
+// Simple Plus Icon Component with Camera Above
+const AnimatedPlusIcon = ({ navigation }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Simple shared values
+  const voiceOpacity = useSharedValue(0);
+  const textOpacity = useSharedValue(0);
+  const voiceTranslateY = useSharedValue(0);
+  const textTranslateY = useSharedValue(0);
+
+  const handlePlusPress = () => {
+    if (!isExpanded) {
+      // Simple expand animation
+      voiceTranslateY.value = withSpring(-60);
+      textTranslateY.value = withSpring(-120);
+      voiceOpacity.value = withTiming(1, { duration: 200 });
+      textOpacity.value = withTiming(1, { duration: 200 });
+      setIsExpanded(true);
+    } else {
+      // Simple collapse animation
+      voiceTranslateY.value = withSpring(0);
+      textTranslateY.value = withSpring(0);
+      voiceOpacity.value = withTiming(0, { duration: 200 });
+      textOpacity.value = withTiming(0, { duration: 200 });
+      setIsExpanded(false);
+    }
+  };
+
+  const handleVoicePress = () => {
+    // Close and navigate
+    voiceTranslateY.value = withSpring(0);
+    textTranslateY.value = withSpring(0);
+    voiceOpacity.value = withTiming(0, { duration: 150 });
+    textOpacity.value = withTiming(0, { duration: 150 });
+    setIsExpanded(false);
+    
+    setTimeout(() => {
+      navigation.navigate('VoiceCalorieScreen', { mealType: 'Quick Log' });
+    }, 150);
+  };
+
+  const handleTextPress = () => {
+    // Close and navigate
+    voiceTranslateY.value = withSpring(0);
+    textTranslateY.value = withSpring(0);
+    voiceOpacity.value = withTiming(0, { duration: 150 });
+    textOpacity.value = withTiming(0, { duration: 150 });
+    setIsExpanded(false);
+    
+    setTimeout(() => {
+      navigation.navigate('QuickLogScreen', { mealType: 'Quick Log' });
+    }, 150);
+  };
+
+  const handleCameraPress = () => {
+    navigation.navigate('CustomCameraScreen');
+  };
+
+  // Simple animated styles
+  const voiceAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: voiceTranslateY.value }],
+      opacity: voiceOpacity.value,
+    };
+  });
+
+  const textAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: textTranslateY.value }],
+      opacity: textOpacity.value,
+    };
+  });
+
+  return (
+    <View style={plusStyles.container}>
+      {/* Voice Icon */}
+      <Animated.View style={[plusStyles.expandedIcon, voiceAnimatedStyle]}>
+        <TouchableOpacity
+          style={[plusStyles.iconButton, { backgroundColor: '#7B61FF' }]}
+          onPress={handleVoicePress}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="mic" size={24} color="#fff" />
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Text Icon */}
+      <Animated.View style={[plusStyles.expandedIcon, textAnimatedStyle]}>
+        <TouchableOpacity
+          style={[plusStyles.iconButton, { backgroundColor: '#A084E8' }]}
+          onPress={handleTextPress}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="pencil" size={24} color="#fff" />
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Camera Icon (above plus) - only show when expanded */}
+      {isExpanded && (
+        <TouchableOpacity
+          style={plusStyles.cameraButton}
+          onPress={handleCameraPress}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="camera" size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      {/* Main Plus Icon */}
+      <TouchableOpacity
+        style={plusStyles.plusButton}
+        onPress={handlePlusPress}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 function getCurrentWeekDates() {
   const today = new Date();
@@ -825,7 +1013,12 @@ const HomeScreen = ({ navigation }) => {
           )}
         </View>
       </ScrollView>
-      <CalorieFooter navigation={navigation} activeTab="Home" />
+      
+      {/* Footer Bar */}
+      <FooterBar navigation={navigation} activeTab="Meals" />
+      
+      {/* Animated Plus Icon with Camera Above */}
+      <AnimatedPlusIcon navigation={navigation} />
     </SafeAreaView>
   );
 };
@@ -1129,7 +1322,130 @@ const styles = StyleSheet.create({
     marginTop: 20,
     width: "100%",
   },
-  buttonText: { color: "white", fontWeight: "bold" },
+  buttonText: { color: "white", fontWeight: "bold"   },
+});
+
+// Footer styles (same as MainDashboard)
+const footerStyles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: Platform.OS === 'ios' ? 20 : 16,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  ovalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 35,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    shadowColor: '#7B61FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 16,
+    // Add backdrop filter effect for iOS
+    ...(Platform.OS === 'ios' && {
+      backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    }),
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    position: 'relative',
+  },
+  activeTab: {
+    // Additional styling for active tab if needed
+  },
+  label: {
+    fontSize: 12,
+    marginTop: 4,
+    color: '#232B3A',
+    letterSpacing: 0.1,
+    fontWeight: '500',
+  },
+  activeLabel: {
+    color: '#7B61FF',
+    fontWeight: '600',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: -12,
+    width: 30,
+    height: 3,
+    backgroundColor: '#7B61FF',
+    borderRadius: 2,
+  },
+});
+
+// Plus icon styles (vertical alignment)
+const plusStyles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    right: 20,
+    bottom: Platform.OS === 'ios' ? 100 : 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom:20,
+    paddingTop:20,
+    zIndex: 200,
+  },
+  plusButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#7B61FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#7B61FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+    
+  },
+  cameraButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#1abc9c',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    shadowColor: '#1abc9c',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  expandedIcon: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 48,
+    height: 48,
+    paddingBottom: 50,
+  },
+  iconButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
 });
 
 export default HomeScreen;

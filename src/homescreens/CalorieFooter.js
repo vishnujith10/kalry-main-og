@@ -170,6 +170,10 @@ const CalorieFooter = ({ navigation, activeTab }) => {
           <View style={styles.innerRow}>
             {tabs.map((tab, idx) => {
               if (tab.key === 'Plus') {
+                // Hide plus button when home screen is active
+                if (activeTab === 'MainDashboard') {
+                  return null;
+                }
                 return (
                   <Animated.View
                     key={tab.key}
