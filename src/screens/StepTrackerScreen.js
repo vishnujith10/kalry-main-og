@@ -1,6 +1,6 @@
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { Button, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Button, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import supabase from '../lib/supabase';
 import { getDailyGoal, setDailyGoal } from '../utils/goalStorage';
 import useTodaySteps from '../utils/useTodaySteps';
@@ -36,7 +36,7 @@ const connectedApps = [
 ];
 
 
-const StepTrackerScreen = () => {
+const StepTrackerScreen = ({ navigation }) => {
   const [userId, setUserId] = useState(null);
   const [goal, setGoal] = useState(10000);
   const [showGoalModal, setShowGoalModal] = useState(false);
@@ -137,15 +137,21 @@ const StepTrackerScreen = () => {
   const percent = Math.round((stepsToday / goal) * 100);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#F8F7FC' }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-      {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-        <Text style={{ fontFamily: 'Lexend-Bold', fontSize: 24, color: '#222', flex: 1 }}>Today's Steps</Text>
-        <TouchableOpacity>
-          <Ionicons name="settings-outline" size={24} color="#7C3AED" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F8F7FC' }}>
+      {/* Custom Header */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <Ionicons name="chevron-back" size={28} color="#1F2937" />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Step Tracker</Text>
+        <View style={{ width: 40 }} />
       </View>
-      <Text style={{ fontFamily: 'Manrope-Regular', fontSize: 16, color: '#444', marginBottom: 18 }}>Keep moving forward!</Text>
+      
+      <ScrollView style={{ flex: 1, backgroundColor: '#F8F7FC' }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+        <Text style={{ fontFamily: 'Manrope-Regular', fontSize: 16, color: '#444', marginBottom: 18 }}>Keep moving forward!</Text>
       {/* Removed debug: Show if pedometer is available */}
       {/* Removed warning about step sensor not available */}
       {Platform.OS === 'android' && (
@@ -411,12 +417,36 @@ const StepTrackerScreen = () => {
           <Text style={styles.addButtonText}>+ Connect New App</Text>
         </TouchableOpacity>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const CIRCLE_SIZE = 180;
 const styles = StyleSheet.create({
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#F8F7FC',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    fontFamily: 'Lexend-Bold',
+    flex: 1,
+    textAlign: 'center',
+  },
+  backButton: {
+    width: 40,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
   circleOuter: {
     width: CIRCLE_SIZE,
     height: CIRCLE_SIZE,

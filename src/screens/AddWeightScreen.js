@@ -1,27 +1,38 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { OnboardingContext } from '../context/OnboardingContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
 
 const EMOJIS = ['😊', '😐', '😔', '😭', '😭'];
-const UNITS = ['kg', 'lbs'];
 
 const AddWeightScreen = ({ navigation }) => {
-  const { onboardingData } = useContext(OnboardingContext);
   const [newWeight, setNewWeight] = useState('');
-  const [weightUnit, setWeightUnit] = useState('kg');
   const [newPhoto, setNewPhoto] = useState(null);
   const [newNote, setNewNote] = useState('');
   const [newEmoji, setNewEmoji] = useState(EMOJIS[0]);
   const [uploading, setUploading] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [userWeightUnit, setUserWeightUnit] = useState('kg');
 
   useEffect(() => {
     const getUserId = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setUserId(session?.user?.id || null);
+      const uid = session?.user?.id || null;
+      setUserId(uid);
+      
+      // Fetch user's weight unit from profile
+      if (uid) {
+        const { data: profile } = await supabase
+          .from('user_profile')
+          .select('weight_unit')
+          .eq('id', uid)
+          .single();
+        if (profile?.weight_unit) {
+          setUserWeightUnit(profile.weight_unit);
+        }
+      }
     };
     getUserId();
   }, []);
@@ -64,7 +75,8 @@ const AddWeightScreen = ({ navigation }) => {
     }
     const today = new Date().toISOString().slice(0, 10);
     let weightValue = parseFloat(cleanedWeight);
-    if (weightUnit === 'lbs') weightValue = (weightValue / 2.20462).toFixed(2);
+    // Convert to kg if user's unit is lbs
+    if (userWeightUnit === 'lbs') weightValue = (weightValue / 2.20462).toFixed(2);
     const { data: insertData, error: insertError } = await supabase.from('weight_logs').insert([
       {
         user_id: userId,
@@ -86,8 +98,7 @@ const AddWeightScreen = ({ navigation }) => {
     const { error: profileError } = await supabase
       .from('user_profile')
       .update({ 
-        weight: weightValue,
-        weight_unit: weightUnit 
+        weight: weightValue
       })
       .eq('id', userId);
 
@@ -101,34 +112,28 @@ const AddWeightScreen = ({ navigation }) => {
   }
 
   return (
-    <View style={styles.modalFullBg}>
-      <View style={styles.modalHeaderRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="close" size={32} color="#222" />
+    <SafeAreaView style={styles.modalFullBg}>
+      {/* Custom Header */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity 
+          onPress={() => navigation.navigate('WeightTrackerScreen')}
+          style={styles.backButton}
+        >
+          <Ionicons name="chevron-back" size={28} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.modalTitle}>Add New Weight</Text>
-        <View style={{ width: 32 }} />
+        <Text style={styles.headerTitle}>Add New Weight</Text>
+        <View style={{ width: 40 }} />
       </View>
+      
       <ScrollView contentContainerStyle={{ padding: 24 }} showsVerticalScrollIndicator={false}>
         <TextInput
           style={styles.weightInput}
-          placeholder="Enter your weight"
+          placeholder={`Enter your weight (${userWeightUnit})`}
           placeholderTextColor="#7B61FF99"
           keyboardType="decimal-pad"
           value={newWeight}
           onChangeText={text => setNewWeight(text.replace(/[^0-9.,]/g, ''))}
         />
-        <View style={styles.unitToggleRow}>
-          {UNITS.map(unit => (
-            <TouchableOpacity
-              key={unit}
-              style={[styles.unitToggleBtn, weightUnit === unit && styles.unitToggleBtnActive]}
-              onPress={() => setWeightUnit(unit)}
-            >
-              <Text style={[styles.unitToggleText, weightUnit === unit && styles.unitToggleTextActive]}>{unit}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
         <Text style={styles.sectionLabel}>Add a progress photo</Text>
         <View style={styles.photoUploadBoxDashed}>
           {newPhoto ? (
@@ -163,20 +168,36 @@ const AddWeightScreen = ({ navigation }) => {
       <TouchableOpacity style={styles.saveBtnFull} onPress={handleAddWeight} disabled={uploading}>
         <Text style={styles.saveBtnTextFull}>{uploading ? 'Saving...' : 'Save'}</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   modalFullBg: { flex: 1, backgroundColor: '#FAF9FC' },
-  modalHeaderRow: { flexDirection: 'row', alignItems: 'center', padding: 16, justifyContent: 'space-between' },
-  modalTitle: { fontSize: 24, fontFamily: 'Lexend-Bold', color: '#111', textAlign: 'center', flex: 1 },
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FAF9FC',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    fontFamily: 'Lexend-Bold',
+    flex: 1,
+    textAlign: 'center',
+  },
+  backButton: {
+    width: 40,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
   weightInput: { borderWidth: 0, backgroundColor: '#ECE7F7', borderRadius: 16, padding: 18, fontFamily: 'Manrope-Regular', fontSize: 18, color: '#7B61FF', width: '100%', marginBottom: 16 },
-  unitToggleRow: { flexDirection: 'row', marginBottom: 18 },
-  unitToggleBtn: { borderWidth: 1, borderColor: '#D1C7F7', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24, marginRight: 12, backgroundColor: '#FAF9FC' },
-  unitToggleBtnActive: { backgroundColor: '#ECE7F7', borderColor: '#7B61FF' },
-  unitToggleText: { fontSize: 16, fontFamily: 'Manrope-Bold', color: '#7B61FF' },
-  unitToggleTextActive: { color: '#7B61FF' },
   sectionLabel: { fontSize: 18, fontFamily: 'Lexend-Bold', color: '#111', marginBottom: 8, marginTop: 18 },
   photoUploadBoxDashed: { borderWidth: 2, borderColor: '#D1C7F7', borderStyle: 'dashed', borderRadius: 16, padding: 24, marginBottom: 10, backgroundColor: '#F8F6FC', alignItems: 'center' },
   uploadBoxInner: { flex: 1, justifyContent: 'center', alignItems: 'center' },

@@ -144,9 +144,9 @@ export default function App() {
             <Stack.Screen name="Goal" component={GoalScreen} />
             <Stack.Screen name="SleepTrackerScreen" component={SleepTrackerScreen} options={{ headerShown: false }} />
             <Stack.Screen name="WeightTrackerScreen" component={WeightTrackerScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="AddWeightScreen" component={AddWeightScreen} options={{ headerShown: true, title: 'Add New Weight' }} />
+            <Stack.Screen name="AddWeightScreen" component={AddWeightScreen} options={{ headerShown: false }} />
             <Stack.Screen name="HydrationTrackerScreen" component={HydrationTrackerScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="StepTrackerScreen" component={StepTrackerScreen} options={{ headerShown: true, title: 'Step Tracker' }} />
+            <Stack.Screen name="StepTrackerScreen" component={StepTrackerScreen} options={{ headerShown: false }} />
             <Stack.Screen name="SavedMealsScreen" component={SavedMealsScreen} options={{ headerShown: false }} />
             <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
             <Stack.Screen name="Create" component={CreateWorkoutScreen} />
