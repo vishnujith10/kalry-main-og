@@ -81,6 +81,21 @@ const AddWeightScreen = ({ navigation }) => {
       Alert.alert('Error', insertError.message);
       return;
     }
+
+    // Update user_profile table with the new weight
+    const { error: profileError } = await supabase
+      .from('user_profile')
+      .update({ 
+        weight: weightValue,
+        weight_unit: weightUnit 
+      })
+      .eq('id', userId);
+
+    if (profileError) {
+      console.log('Profile update error:', profileError);
+      // Don't show error to user as the weight log was saved successfully
+    }
+
     setUploading(false);
     navigation.goBack();
   }

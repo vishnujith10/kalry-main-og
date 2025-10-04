@@ -1,103 +1,102 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useContext, useEffect, useState } from 'react';
-import { Alert, FlatList, Alert as RNAlert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { OnboardingContext } from '../context/OnboardingContext';
-import supabase from '../lib/supabase';
+import { Ionicons } from "@expo/vector-icons";
+import React, { useContext, useEffect, useState } from "react";
+import {
+  Alert,
+  Dimensions,
+  FlatList,
+  Alert as RNAlert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
+import { LineChart } from "react-native-chart-kit";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { OnboardingContext } from "../context/OnboardingContext";
+import supabase from "../lib/supabase";
 
-const PRIMARY = '#7B61FF';
-const CARD_BG = '#F8F6FC';
-const ACCENT_GREEN = '#1abc9c';
-const ACCENT_RED = '#e74c3c';
-const GRAY = '#888';
-const WHITE = '#fff';
+
+const PRIMARY = "#7B61FF";
+const CARD_BG = "#F8F6FC";
+const ACCENT_GREEN = "#1abc9c";
+const ACCENT_RED = "#e74c3c";
+const GRAY = "#888";
+const WHITE = "#fff";
+
 
 function formatDate(dateStr) {
   const d = new Date(dateStr);
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
+
 
 const WeightTrackerScreen = ({ navigation }) => {
   const { onboardingData, setOnboardingData } = useContext(OnboardingContext);
   const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showProgressMsg, setShowProgressMsg] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
+
 
   // Get userId from Supabase Auth
   const [userId, setUserId] = useState(null);
   useEffect(() => {
     const getUserId = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       setUserId(session?.user?.id || null);
     };
     getUserId();
   }, []);
 
-  // Fetch logs
+
+  // Fetch user profile and logs
   useEffect(() => {
     if (!userId) return;
-    const fetchLogs = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('weight_logs')
-        .select('*')
-        .eq('user_id', userId)
-        .order('date', { ascending: false });
-      if (!error && data) setLogs(data);
-      setLoading(false);
-    };
-    fetchLogs();
-  }, [userId, refreshing]);
-
-  // No need for AsyncStorage - units are now saved in database during signup
-
-  // Fetch user profile (for current weight and units)
-  const fetchUserProfile = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user?.id) {
-      const { data: profile } = await supabase
-        .from('user_profile')
-        .select('weight, target_weight, weight_unit')
-        .eq('id', session.user.id)
+    const fetchData = async () => {
+      // Fetch user profile
+      const { data: profile, error: profileError } = await supabase
+        .from("user_profile")
+        .select("weight, target_weight, weight_unit")
+        .eq("id", userId)
         .single();
-      if (profile) {
+      
+      if (!profileError && profile) {
+        setUserProfile(profile);
         setOnboardingData((prev) => ({
           ...prev,
           weight: profile.weight || prev.weight,
           target_weight: profile.target_weight || prev.target_weight,
-          selectedWeightUnit: profile.weight_unit || prev.selectedWeightUnit || 'kg',
+          selectedWeightUnit: profile.weight_unit || prev.selectedWeightUnit || "kg",
         }));
       }
-    }
-  };
+      
+      // Fetch weight logs
+      const { data: logsData, error: logsError } = await supabase
+        .from("weight_logs")
+        .select("*")
+        .eq("user_id", userId)
+        .order("date", { ascending: false });
+      
+      if (!logsError && logsData) setLogs(logsData);
+    };
+    fetchData();
+  }, [userId, refreshing, setOnboardingData]);
+
 
   // Refresh after adding new weight
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchUserProfile();
-      setRefreshing((r) => !r); // triggers logs refetch
-      setShowProgressMsg(true);
-      setTimeout(() => setShowProgressMsg(false), 2000);
+    const unsubscribe = navigation.addListener("focus", () => {
+      setRefreshing((r) => !r); // triggers data refetch
     });
     return unsubscribe;
   }, [navigation]);
 
-  // --- Progress Bar and Weight Logic ---
-  const targetWeight = Number(onboardingData?.target_weight) || 75;
-  const weightUnit = onboardingData?.selectedWeightUnit || 'kg';
-  // Original weight: from user profile (onboardingData.weight)
-  const originalWeight = Number(onboardingData?.weight) || 0;
-  // Current weight: most recent log's weight, or original if no logs
-  const currentWeight = logs.length > 0 ? Number(logs[0].weight) : originalWeight;
-  // Progress bar calculation
-  let progress = 0;
-  if (originalWeight !== targetWeight) {
-    progress = (originalWeight - currentWeight) / (originalWeight - targetWeight);
-    progress = Math.max(0, Math.min(1, progress));
-  }
-  // To go
-  const toGo = Math.abs(currentWeight - targetWeight).toFixed(1);
+
+  // --- Weight Logic ---
+  const weightUnit = userProfile?.weight_unit || onboardingData?.selectedWeightUnit || "kg";
+  // Current weight: from user profile, or most recent log's weight, or 0 if no data
+  const currentWeight = userProfile?.weight || (logs.length > 0 ? Number(logs[0].weight) : 0);
   // Weekly change: find log closest to 7 days ago, or use originalWeight if no log
   let weeklyChange = 0;
   if (logs.length > 0) {
@@ -117,22 +116,153 @@ const WeightTrackerScreen = ({ navigation }) => {
   } else {
     weeklyChange = 0;
   }
-  const lastUpdated = logs[0] ? formatDate(logs[0].date) : '--';
+
+
+  // Chart data and configuration
+  const screenWidth = Dimensions.get('window').width - 32;
+  
+  // Helper function to get week number in month
+  const getWeekOfMonth = (date) => {
+    const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const dayOfMonth = date.getDate();
+    const weekNum = Math.ceil((dayOfMonth + startOfMonth.getDay()) / 7);
+    return weekNum;
+  };
+
+  // Generate current month's weekly data
+  const generateWeeklyData = () => {
+    const today = new Date();
+    const weeks = [];
+    const dataPoints = [];
+    
+    // Use current weight as the baseline
+    const baseWeight = currentWeight || 0;
+    
+    // Get current month info
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const monthName = today.toLocaleDateString(undefined, { month: 'short' });
+    
+    // Calculate number of weeks in current month (usually 4-5 weeks)
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+    const weeksInMonth = getWeekOfMonth(lastDayOfMonth);
+    
+    // Get current week number
+    const currentWeekNum = getWeekOfMonth(today);
+    
+    // Generate data for each week in the current month
+    for (let weekNum = 1; weekNum <= weeksInMonth; weekNum++) {
+      // Find first day of this week in the month
+      let weekDate = null;
+      for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
+        const date = new Date(currentYear, currentMonth, day);
+        if (getWeekOfMonth(date) === weekNum) {
+          weekDate = date;
+          break;
+        }
+      }
+      
+      if (weekDate) {
+        // Find if there's a weight log for this week
+        const weekStart = new Date(weekDate);
+        weekStart.setDate(weekDate.getDate() - weekDate.getDay()); // Start of week (Sunday)
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6); // End of week (Saturday)
+        
+        // Find log in this week
+        const logInWeek = logs.find(log => {
+          const logDate = new Date(log.date);
+          return logDate >= weekStart && logDate <= weekEnd;
+        });
+        
+        let weightValue;
+        if (logInWeek) {
+          // Use the logged weight for this week
+          const weight = Number(logInWeek.weight);
+          weightValue = weightUnit === 'lbs' ? Number((weight * 2.20462).toFixed(1)) : weight;
+        } else if (weekNum <= currentWeekNum) {
+          // For weeks up to current week, use base weight (from profile or latest log)
+          weightValue = baseWeight;
+        } else {
+          // Future weeks show 0
+          weightValue = 0;
+        }
+        
+        // Add month name only for the first week, then just week numbers
+        if (weekNum === 1) {
+          weeks.push(`${monthName} W${weekNum}`);
+        } else {
+          weeks.push(`W${weekNum}`);
+        }
+        dataPoints.push(weightValue);
+      }
+    }
+    
+    return { weeks, dataPoints };
+  };
+
+  // Get weight entries for chart
+  let chartWeightData = [];
+  let chartLabels = [];
+  
+  if (logs.length > 0 || currentWeight > 0) {
+    const { weeks, dataPoints } = generateWeeklyData();
+    chartLabels = weeks;
+    chartWeightData = dataPoints;
+    console.log('Chart Labels:', chartLabels);
+    console.log('Chart Data:', chartWeightData);
+    console.log('Current Weight:', currentWeight);
+    console.log('Logs:', logs);
+  } else {
+    // No data at all - show empty chart
+    chartWeightData = [0];
+    chartLabels = [''];
+  }
+  
+  const chartData = {
+    labels: chartLabels,
+    datasets: [
+      {
+        data: chartWeightData.length > 0 ? chartWeightData : [0],
+        color: (opacity = 1) => `rgba(123, 97, 255, ${opacity})`,
+        strokeWidth: 2,
+      },
+    ],
+  };
+
+  const chartConfig = {
+    backgroundColor: '#F8FAFC',
+    backgroundGradientFrom: '#F8FAFC',
+    backgroundGradientTo: '#F8FAFC',
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(123, 97, 255, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(102, 102, 102, ${opacity})`,
+    propsForDots: { r: '4', strokeWidth: '2', stroke: '#7B61FF' },
+    propsForBackgroundLines: {
+      strokeDasharray: '',
+      stroke: '#E5E7EB',
+      strokeWidth: 1,
+    },
+  };
+
 
   // Delete log handler
   const handleDeleteLog = async (logId) => {
     RNAlert.alert(
-      'Delete Entry',
-      'Are you sure you want to delete this weight entry?',
+      "Delete Entry",
+      "Are you sure you want to delete this weight entry?",
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Delete',
-          style: 'destructive',
+          text: "Delete",
+          style: "destructive",
           onPress: async () => {
-            const { error } = await supabase.from('weight_logs').delete().eq('id', logId);
+            const { error } = await supabase
+              .from("weight_logs")
+              .delete()
+              .eq("id", logId);
             if (error) {
-              Alert.alert('Error', error.message);
+              Alert.alert("Error", error.message);
             } else {
               setRefreshing((r) => !r);
             }
@@ -142,67 +272,126 @@ const WeightTrackerScreen = ({ navigation }) => {
     );
   };
 
+
   const renderHeader = () => (
     <>
-      <Text style={styles.header}>Track Your Weight</Text>
-      <Text style={styles.subheader}>See how far you&apos;ve come, at your pace.</Text>
-      {/* Current Weight Card */}
-      <View style={styles.currentCard}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-          <Ionicons name="barbell-outline" size={20} color={PRIMARY} style={{ marginRight: 8 }} />
-          <Text style={styles.currentLabel}>Current Weight</Text>
-          <View style={{ flex: 1 }} />
-          <Text style={styles.emoji}>{logs[0]?.emoji || '😊'}</Text>
+      <Text style={styles.subheader}>
+        See how far you&apos;ve come, at your pace.
+      </Text>
+      {/* Today's Weight Card */}
+      <View style={styles.todaysWeightCard}>
+        <Text style={styles.todaysWeightLabel}>Current Weight</Text>
+        <View style={styles.weightDisplay}>
+          <Text style={styles.weightValue}>
+            {currentWeight ? Number(currentWeight).toFixed(0) : "--"}
+          </Text>
+          <Text style={styles.weightUnit}>{weightUnit}</Text>
         </View>
-        <Text style={styles.currentWeight}>{currentWeight ? `${Number(currentWeight).toFixed(1)} ${weightUnit}` : '--'}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-          <MaterialCommunityIcons name={weeklyChange < 0 ? 'arrow-down' : 'arrow-up'} size={18} color={weeklyChange < 0 ? ACCENT_GREEN : ACCENT_RED} />
-          <Text style={[styles.weeklyChange, { color: weeklyChange < 0 ? ACCENT_GREEN : ACCENT_RED }]}>{weeklyChange > 0 ? '+' : ''}{weeklyChange} {weightUnit} this week</Text>
+        <Text
+          style={[
+            styles.weightChange,
+            { color: weeklyChange < 0 ? ACCENT_GREEN : ACCENT_RED },
+          ]}
+        >
+          {weeklyChange < 0 ? "-" : "+"}
+          {Math.abs(weeklyChange)} {weightUnit} since last week
+        </Text>
         </View>
-        <Text style={styles.lastUpdated}>Last updated: {lastUpdated}</Text>
+
+
+        {/* Progress Chart */}
+        <View style={styles.chartCard}>
+          <View style={styles.chartHeader}>
+            <Text style={styles.chartTitle}>Progress</Text>
+            <View style={styles.chartFilter}>
+              <Text style={styles.chartFilterText}>Last 30 Days</Text>
+              <Ionicons name="chevron-down" size={16} color="#7B61FF" />
       </View>
-      {/* Progress Bar Card */}
-      <View style={styles.goalCard}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-          <Text style={styles.barWeightLabel}>{Number(originalWeight).toFixed(1)} {weightUnit}</Text>
-          <Text style={styles.goalLabel}>Goal</Text>
-          <Text style={styles.barWeightLabel}>{targetWeight} {weightUnit}</Text>
+            
         </View>
-        <View style={styles.progressBarBg}>
-          <View style={[styles.progressBarFill, { width: `${progress * 100}%` }]} />
+            <View>
+             <LineChart
+               data={chartData}
+               width={screenWidth - 64}
+               height={220}
+               yAxisSuffix={` ${weightUnit}`}
+               chartConfig={chartConfig}
+               bezier
+               withInnerLines={true}
+               withOuterLines={false}
+               fromZero={true}
+               segments={5}
+               style={{ 
+                 alignSelf: 'center', 
+                 borderRadius: 16, 
+                 shadowColor: '#000', 
+                 shadowOffset: { width: 0, height: 2 }, 
+                 shadowOpacity: 0.1, 
+                 shadowRadius: 4, 
+                 elevation: 3 
+               }}
+             />
         </View>
-        <Text style={styles.toGoText}>{toGo} {weightUnit} to go</Text>
-        {showProgressMsg && <Text style={styles.goalProgressText}>You&apos;re making great progress!</Text>}
       </View>
-      <Text style={styles.historyHeader}>History</Text>
     </>
   );
 
+
   return (
     <SafeAreaView style={styles.container}>
+      {/* Custom Header */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Weight Tracker</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+      
       <FlatList
         data={logs}
-        keyExtractor={item => item.id?.toString() || item.date}
+        keyExtractor={(item) => item.id?.toString() || item.date}
         renderItem={({ item }) => (
           <View style={styles.historyItem}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Text style={styles.historyDate}>{formatDate(item.date)}</Text>
-                <Text style={styles.historyEmoji}>{item.emoji || '😊'}</Text>
+                <Text style={styles.historyEmoji}>{item.emoji || "😊"}</Text>
               </View>
-              <Text style={styles.historyWeight}>{Number(item.weight).toFixed(1)} {weightUnit}</Text>
-              <TouchableOpacity onPress={() => handleDeleteLog(item.id)} style={{ marginLeft: 10 }}>
+              <Text style={styles.historyWeight}>
+                {Number(item.weight).toFixed(1)} {weightUnit}
+              </Text>
+              <TouchableOpacity
+                onPress={() => handleDeleteLog(item.id)}
+                style={{ marginLeft: 10 }}
+              >
                 <Ionicons name="trash" size={20} color={ACCENT_RED} />
               </TouchableOpacity>
             </View>
-            {item.note ? <Text style={styles.historyNote}>{item.note}</Text> : null}
+            {item.note ? (
+              <Text style={styles.historyNote}>{item.note}</Text>
+            ) : null}
           </View>
         )}
-        ListEmptyComponent={<Text style={styles.emptyHistory}>No weight entries yet.</Text>}
+        ListEmptyComponent={
+          <Text style={styles.emptyHistory}>No weight entries yet.</Text>
+        }
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.scrollContent}
       />
-      <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('AddWeightScreen')}>
+      <TouchableOpacity
+        style={styles.addBtn}
+        onPress={() => navigation.navigate("AddWeightScreen")}
+      >
         <Ionicons name="add" size={24} color={WHITE} />
         <Text style={styles.addBtnText}>Add New Weight</Text>
       </TouchableOpacity>
@@ -210,33 +399,184 @@ const WeightTrackerScreen = ({ navigation }) => {
   );
 };
 
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: WHITE },
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: WHITE,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    fontFamily: 'Lexend-Bold',
+    flex: 1,
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    width: 40, // Same width as back button to center the title
+  },
   scrollContent: { padding: 20, paddingBottom: 100 },
-  header: { fontSize: 28, fontWeight: 'bold', color: PRIMARY, marginTop: 10, marginBottom: 2, fontFamily: 'Lexend-Bold' },
-  subheader: { fontSize: 16, color: GRAY, marginBottom: 18, fontFamily: 'Manrope-Regular' },
-  currentCard: { backgroundColor: CARD_BG, borderRadius: 18, padding: 20, marginBottom: 18, shadowColor: PRIMARY, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2 },
-  currentLabel: { fontSize: 15, color: PRIMARY, fontFamily: 'Manrope-Bold' },
-  emoji: { fontSize: 28, marginLeft: 8 },
-  currentWeight: { fontSize: 38, fontWeight: 'bold', color: PRIMARY, fontFamily: 'Lexend-Bold', marginBottom: 2 },
-  weeklyChange: { fontSize: 16, marginLeft: 6, fontFamily: 'Manrope-Regular' },
-  lastUpdated: { fontSize: 13, color: GRAY, marginTop: 6, fontFamily: 'Manrope-Regular' },
-  goalCard: { backgroundColor: WHITE, borderRadius: 16, padding: 16, marginBottom: 18, borderWidth: 1, borderColor: CARD_BG },
-  goalLabel: { fontSize: 16, color: PRIMARY, fontFamily: 'Manrope-Bold' },
-  barWeightLabel: { fontSize: 14, color: GRAY, fontFamily: 'Manrope-Bold', width: 60, textAlign: 'center' },
-  progressBarBg: { flex: 1, height: 8, backgroundColor: CARD_BG, borderRadius: 8, marginHorizontal: 8, overflow: 'hidden' },
-  progressBarFill: { height: 8, backgroundColor: PRIMARY, borderRadius: 8 },
-  toGoText: { fontSize: 15, color: PRIMARY, fontFamily: 'Lexend-Bold', textAlign: 'center', marginTop: 6 },
-  goalProgressText: { fontSize: 15, color: ACCENT_GREEN, fontFamily: 'Manrope-Bold', textAlign: 'center', marginTop: 4 },
-  historyHeader: { fontSize: 20, fontWeight: 'bold', color: PRIMARY, marginBottom: 8, fontFamily: 'Lexend-Bold' },
-  historyItem: { backgroundColor: WHITE, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: CARD_BG },
-  historyDate: { fontSize: 16, color: PRIMARY, fontFamily: 'Manrope-Bold', marginRight: 8 },
-  historyWeight: { fontSize: 18, color: PRIMARY, fontFamily: 'Lexend-Bold', marginLeft: 8 },
+  header: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: PRIMARY,
+    marginTop: 10,
+    marginBottom: 2,
+    fontFamily: "Lexend-Bold",
+  },
+  subheader: {
+    fontSize: 16,
+    color: GRAY,
+    marginBottom: 18,
+    fontFamily: "Manrope-Regular",
+  },
+  todaysWeightCard: {
+    backgroundColor: WHITE,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  todaysWeightLabel: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+    fontFamily: "Lexend-Bold",
+  },
+  weightDisplay: {
+    flexDirection: "row",
+    alignItems: "baseline",
+  },
+  weightValue: {
+    fontSize: 48,
+    fontWeight: "800",
+    color: "#1F2937",
+    fontFamily: "Lexend-Bold",
+  },
+  weightUnit: {
+    fontSize: 20,
+    fontWeight: "400",
+    color: "#1F2937",
+    marginLeft: 4,
+    fontFamily: "Manrope-Regular",
+  },
+  weightChange: {
+    fontSize: 16,
+    color: ACCENT_GREEN,
+    fontFamily: "Manrope-Regular",
+  },
+  historyHeader: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: PRIMARY,
+    marginBottom: 8,
+    fontFamily: "Lexend-Bold",
+  },
+  historyItem: {
+    backgroundColor: WHITE,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: CARD_BG,
+  },
+  historyDate: {
+    fontSize: 16,
+    color: PRIMARY,
+    fontFamily: "Manrope-Bold",
+    marginRight: 8,
+  },
+  historyWeight: {
+    fontSize: 18,
+    color: PRIMARY,
+    fontFamily: "Lexend-Bold",
+    marginLeft: 8,
+  },
   historyEmoji: { fontSize: 20, marginLeft: 4 },
-  historyNote: { fontSize: 14, color: GRAY, marginTop: 2, fontFamily: 'Manrope-Regular' },
-  emptyHistory: { color: GRAY, fontSize: 16, textAlign: 'center', marginTop: 20 },
-  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: PRIMARY, borderRadius: 32, paddingVertical: 18, margin: 20, position: 'absolute', left: 0, right: 0, bottom: 0 },
-  addBtnText: { color: WHITE, fontFamily: 'Lexend-Bold', fontSize: 20, marginLeft: 8 },
+  historyNote: {
+    fontSize: 14,
+    color: GRAY,
+    marginTop: 2,
+    fontFamily: "Manrope-Regular",
+  },
+  emptyHistory: {
+    color: GRAY,
+    fontSize: 16,
+    textAlign: "center",
+    marginTop: 20,
+  },
+  addBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: PRIMARY,
+    borderRadius: 32,
+    paddingVertical: 18,
+    margin: 20,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  addBtnText: {
+    color: WHITE,
+    fontFamily: "Lexend-Bold",
+    fontSize: 20,
+    marginLeft: 8,
+  },
+  chartCard: {
+    backgroundColor: WHITE,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  chartHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1F2937",
+    fontFamily: "Lexend-Bold",
+  },
+  chartFilter: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3E8FF",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  chartFilterText: {
+    fontSize: 14,
+    color: "#7B61FF",
+    fontFamily: "Manrope-Regular",
+    marginRight: 4,
+  },
 });
+
 
 export default WeightTrackerScreen; 
