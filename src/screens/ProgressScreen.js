@@ -342,9 +342,14 @@ export default function ProgressScreen() {
         console.log('🔍 Previous period comparison:', {
           currentTotal: total,
           prevTotal,
+          deltaPct: prevTotal === 0 ? (total > 0 ? 100 : 0) : ((total - prevTotal) / prevTotal) * 100,
           prevRange: {
             start: prevRange.start.toISOString(),
             end: prevRange.end.toISOString()
+          },
+          currentRange: {
+            start: start.toISOString(),
+            end: end.toISOString()
           }
         });
         
@@ -359,9 +364,28 @@ export default function ProgressScreen() {
   // Helper function to calculate previous period range
   function calculatePreviousRange(currentRange, currentStart) {
     if (currentRange.key === 'this_week') {
+      // This week vs last week
       return getRangeDates({ key: 'last_week', days: 7 });
     } else if (currentRange.key === 'last_week') {
-      return getRangeDates({ key: 'this_week', days: 7 });
+      // Last week vs the week before last week
+      const now = new Date();
+      const today = new Date(now);
+      const currentDayOfWeek = today.getDay();
+      const daysSinceMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+      
+      // Get Monday of this week first
+      const thisWeekMonday = new Date(today);
+      thisWeekMonday.setDate(today.getDate() - daysSinceMonday);
+      
+      // Go back 14 days to get the week before last week's Monday
+      const twoWeeksAgoMonday = new Date(thisWeekMonday);
+      twoWeeksAgoMonday.setDate(thisWeekMonday.getDate() - 14);
+      
+      // Get the week before last week's Sunday
+      const twoWeeksAgoSunday = new Date(twoWeeksAgoMonday);
+      twoWeeksAgoSunday.setDate(twoWeeksAgoMonday.getDate() + 6);
+      
+      return { start: startOfDay(twoWeeksAgoMonday), end: endOfDay(twoWeeksAgoSunday) };
     } else {
       // For month and 90-day ranges, go back by the same number of days
       const days = currentRange.days || 30;
@@ -592,13 +616,6 @@ export default function ProgressScreen() {
               </Text>
             )}
           </View>
-        </View>
-
-        <View style={styles.longCard}>
-          <Ionicons name="flame-outline" size={18} color="#7B61FF" />
-          <Text style={{ color: '#333', fontWeight: '700', marginLeft: 8 }}>
-            Logging Streak: {totals.streak} day{totals.streak === 1 ? '' : 's'}
-          </Text>
         </View>
 
         {deltaPct != null && (
