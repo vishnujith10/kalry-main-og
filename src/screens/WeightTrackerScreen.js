@@ -317,8 +317,8 @@ const WeightTrackerScreen = ({ navigation }) => {
                yAxisSuffix={` ${weightUnit}`}
                chartConfig={chartConfig}
                bezier
-               withInnerLines={true}
-               withOuterLines={false}
+               withInnerLines={false}
+               withOuterLines={true}
                fromZero={true}
                segments={5}
                style={{ 
