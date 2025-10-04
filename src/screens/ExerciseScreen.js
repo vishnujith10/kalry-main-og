@@ -126,7 +126,7 @@ export default function ExerciseScreen() {
   ];
 
   useEffect(() => {
-    fetch('http://192.168.1.4:3000/api/exercise')
+    fetch('http://192.168.1.10:3000/api/exercise')
       .then(async res => {
         if (!res.ok) {
           // Try to get error details from the response body

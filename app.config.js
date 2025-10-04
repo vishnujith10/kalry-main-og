@@ -1,6 +1,13 @@
 import 'dotenv/config';
 export default {
   expo: {
+    "android": { "permissions": ["RECORD_AUDIO"] },
+    "ios": {
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "We use the mic to transcribe your voice.",
+        "NSSpeechRecognitionUsageDescription": "We transcribe your speech to text."
+      }
+    },
     name: "kalry",
     slug: "kalry",
     owner: "vishnu242552",

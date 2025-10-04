@@ -438,33 +438,18 @@ export default function ProgressScreen() {
   }, [activeRange, activeMetric]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#0F0F15' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} edges={['top', 'bottom']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.navigate('Home')} style={{ padding: 8 }}>
+          <Ionicons name="chevron-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Deep Insights</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {/* Add top spacing for status bar */}
-        <View style={{ height: 20 }} />
-        
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, marginTop: 10 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => navigation.navigate('Home')} style={{ padding: 8 }}>
-              <Ionicons name="chevron-back" size={24} color="#fff" />
-            </TouchableOpacity>
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700', marginLeft: 4 }}>Deep Insights</Text>
-          </View>
-          {/* <TouchableOpacity 
-            onPress={() => {
-              console.log('🔄 Manual refresh triggered');
-              setLoading(true);
-              setTimeout(() => {
-                setActiveRange({...activeRange});
-              }, 100);
-            }}
-            style={{ padding: 8 }}
-          >
-            <Ionicons name="refresh" size={24} color="#7B61FF" />
-          </TouchableOpacity> */}
-        </View>
-
-        <Text style={{ color: '#DAD7FE', fontSize: 18, fontWeight: '700', marginBottom: 8 }}>Calories & Food Rituals</Text>
+        <Text style={{ color: '#333', fontSize: 18, fontWeight: '700', marginBottom: 8 }}>Calories & Food Rituals</Text>
 
         <View style={styles.rangeRow}>
           {RANGES.map(r => (
@@ -480,7 +465,7 @@ export default function ProgressScreen() {
           ))}
         </View>
 
-        <Text style={{ color: '#A7A6C5', marginTop: 12 }}>
+        <Text style={{ color: '#666', marginTop: 12 }}>
           {mainDisplayLabel}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 }}>
@@ -490,10 +475,10 @@ export default function ProgressScreen() {
             </View>
           ) : (
             <>
-              <Text style={{ color: '#fff', fontSize: 34, fontWeight: '800' }}>
+              <Text style={{ color: '#333', fontSize: 34, fontWeight: '800' }}>
                 {mainDisplayValue}
               </Text>
-              <Text style={{ color: '#A7A6C5', marginLeft: 6, marginBottom: 4 }}>
+              <Text style={{ color: '#666', marginLeft: 6, marginBottom: 4 }}>
                 {metricLabel}
               </Text>
             </>
@@ -515,7 +500,7 @@ export default function ProgressScreen() {
           ))}
         </View>
 
-        <View style={{ backgroundColor: '#161624', borderRadius: 16, paddingVertical: 8, marginTop: 12 }}>
+        <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, paddingVertical: 8, marginTop: 12, borderWidth: 1, borderColor: '#E2E8F0' }}>
           <LineChart
             data={{ 
               labels, 
@@ -537,12 +522,12 @@ export default function ProgressScreen() {
             height={220}
             yAxisSuffix=""
             chartConfig={{
-              backgroundColor: '#161624',
-              backgroundGradientFrom: '#161624',
-              backgroundGradientTo: '#161624',
+              backgroundColor: '#F8FAFC',
+              backgroundGradientFrom: '#F8FAFC',
+              backgroundGradientTo: '#F8FAFC',
               decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(215, 214, 255, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(215, 214, 255, ${opacity})`,
+              color: (opacity = 1) => `rgba(51, 51, 51, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(102, 102, 102, ${opacity})`,
               propsForDots: { r: '3', strokeWidth: '1', stroke: '#7B61FF' },
             }}
             bezier
@@ -593,7 +578,7 @@ export default function ProgressScreen() {
             <Text style={styles.statTitle}>Best Day</Text>
             <Text style={styles.statValue}>{Math.round(totals.best || 0)} {metricLabel}</Text>
             {totals.bestDate && (
-              <Text style={{ color: '#A7A6C5', marginTop: 4 }}>
+              <Text style={{ color: '#666', marginTop: 4 }}>
                 {(totals.bestDate.getMonth() + 1) + '/' + totals.bestDate.getDate()}
               </Text>
             )}
@@ -602,7 +587,7 @@ export default function ProgressScreen() {
             <Text style={styles.statTitle}>Worst Day</Text>
             <Text style={styles.statValue}>{Math.round(totals.worst || 0)} {metricLabel}</Text>
             {totals.worstDate && (
-              <Text style={{ color: '#A7A6C5', marginTop: 4 }}>
+              <Text style={{ color: '#666', marginTop: 4 }}>
                 {(totals.worstDate.getMonth() + 1) + '/' + totals.worstDate.getDate()}
               </Text>
             )}
@@ -611,7 +596,7 @@ export default function ProgressScreen() {
 
         <View style={styles.longCard}>
           <Ionicons name="flame-outline" size={18} color="#7B61FF" />
-          <Text style={{ color: '#fff', fontWeight: '700', marginLeft: 8 }}>
+          <Text style={{ color: '#333', fontWeight: '700', marginLeft: 8 }}>
             Logging Streak: {totals.streak} day{totals.streak === 1 ? '' : 's'}
           </Text>
         </View>
@@ -623,7 +608,7 @@ export default function ProgressScreen() {
               size={18} 
               color={deltaPct >= 0 ? '#22C55E' : '#EF4444'} 
             />
-            <Text style={{ color: '#fff', fontWeight: '700', marginLeft: 8 }}>
+            <Text style={{ color: '#333', fontWeight: '700', marginLeft: 8 }}>
               {activeRange.label} vs previous: {deltaPct >= 0 ? '+' : ''}{deltaPct.toFixed(1)}%
             </Text>
           </View>
@@ -636,7 +621,7 @@ export default function ProgressScreen() {
             <Text style={styles.noDataSubtext}>Start logging your meals to see your progress here</Text>
           </View>
         ) : (
-          <Text style={{ color: '#A7A6C5', marginTop: 16 }}>
+          <Text style={{ color: '#666', marginTop: 16 }}>
             Your calorie intake is based on your logged meals for the selected period.
           </Text>
         )}
@@ -646,13 +631,33 @@ export default function ProgressScreen() {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+  },
+  headerTitle: {
+    color: '#333',
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    flex: 1,
+  },
   rangeRow: {
     flexDirection: 'row',
-    backgroundColor: '#161624',
+    backgroundColor: '#F8FAFC',
     borderRadius: 12,
     padding: 6,
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   rangeBtn: {
     flex: 1,
@@ -661,27 +666,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rangeBtnActive: {
-    backgroundColor: '#2A2942',
+    backgroundColor: '#7B61FF',
   },
-  rangeText: { color: '#BEBCE5', fontWeight: '600' },
+  rangeText: { color: '#666', fontWeight: '600' },
   rangeTextActive: { color: '#fff', fontWeight: '800' },
   statCard: {
     flex: 1,
-    backgroundColor: '#161624',
+    backgroundColor: '#F8FAFC',
     borderRadius: 16,
     padding: 16,
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  statTitle: { color: '#BEBCE5', marginBottom: 6 },
-  statValue: { color: '#fff', fontSize: 24, fontWeight: '800' },
+  statTitle: { color: '#666', marginBottom: 6 },
+  statValue: { color: '#333', fontSize: 24, fontWeight: '800' },
   metricRow: {
     flexDirection: 'row',
-    backgroundColor: '#161624',
+    backgroundColor: '#F8FAFC',
     borderRadius: 12,
     padding: 6,
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   metricBtn: {
     flex: 1,
@@ -689,46 +698,48 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
-  metricBtnActive: { backgroundColor: '#2A2942' },
-  metricText: { color: '#BEBCE5', fontWeight: '600', fontSize: 13 },
+  metricBtnActive: { backgroundColor: '#7B61FF' },
+  metricText: { color: '#666', fontWeight: '600', fontSize: 13 },
   metricTextActive: { color: '#fff', fontWeight: '800' },
   longCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161624',
+    backgroundColor: '#F8FAFC',
     borderRadius: 16,
     padding: 16,
     marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   noDataCard: {
-    backgroundColor: '#161624',
+    backgroundColor: '#F8FAFC',
     borderRadius: 16,
     padding: 20,
     marginTop: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#2A2942',
+    borderColor: '#E2E8F0',
   },
   noDataText: {
-    color: '#fff',
+    color: '#333',
     fontSize: 16,
     fontWeight: '600',
     marginTop: 8,
     textAlign: 'center',
   },
   noDataSubtext: {
-    color: '#A7A6C5',
+    color: '#666',
     fontSize: 14,
     marginTop: 4,
     textAlign: 'center',
   },
   dataSummaryCard: {
-    backgroundColor: '#161624',
+    backgroundColor: '#F8FAFC',
     borderRadius: 16,
     padding: 16,
     marginTop: 12,
     borderWidth: 1,
-    borderColor: '#2A2942',
+    borderColor: '#E2E8F0',
   },
   dataSummaryTitle: {
     color: '#7B61FF',
@@ -738,7 +749,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   dataSummaryText: {
-    color: '#A7A6C5',
+    color: '#666',
     fontSize: 13,
     marginBottom: 4,
     textAlign: 'center',

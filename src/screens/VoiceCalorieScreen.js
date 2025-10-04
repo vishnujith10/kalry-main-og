@@ -5,15 +5,15 @@ import * as FileSystem from "expo-file-system/legacy";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  PermissionsAndroid,
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    PermissionsAndroid,
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import supabase from "../lib/supabase";
@@ -41,22 +41,16 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [nutritionData, setNutritionData] = useState(null);
   const [transcribedText, setTranscribedText] = useState("");
+  const [lastRecordingUri, setLastRecordingUri] = useState(null);
+  const micPulse = useRef(new Animated.Value(0)).current;
   const [showListening, setShowListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [audioLevels, setAudioLevels] = useState(
     Array.from({ length: 20 }, () => 0)
   );
   const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
   const genAI = new GoogleGenerativeAI(apiKey);
 
-  // Animation values for waveform
-  const waveformAnimations = useRef(
-    Array.from({ length: 20 }, () => new Animated.Value(0))
-  ).current;
-  const dotAnimations = useRef(
-    Array.from({ length: 8 }, () => new Animated.Value(0))
-  ).current;
-  const audioLevelInterval = useRef(null);
+  // Recording animation removed
 
   useEffect(() => {
     return () => {
@@ -69,79 +63,10 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
           recordingRef.current = null;
         }
       }
-      stopAnimations();
     };
   }, []);
 
-  // Animation functions
-  const startDotAnimation = () => {
-    const animations = dotAnimations.map((anim, index) => {
-      return Animated.loop(
-        Animated.sequence([
-          Animated.timing(anim, {
-            toValue: 1,
-            duration: 800,
-            delay: index * 150,
-            useNativeDriver: false,
-          }),
-          Animated.timing(anim, {
-            toValue: 0.3,
-            duration: 800,
-            useNativeDriver: false,
-          }),
-        ])
-      );
-    });
-    Animated.parallel(animations).start();
-  };
-
-  const startWaveformAnimation = () => {
-    // Start real-time audio level simulation
-    audioLevelInterval.current = setInterval(() => {
-      // Create more dynamic and realistic audio levels
-      const newLevels = audioLevels.map((_, index) => {
-        // Create a wave-like pattern that moves across the bars
-        const time = Date.now() * 0.005; // Time factor for wave movement
-        const position = index / 19; // Position factor (0 to 1)
-
-        // Base wave pattern
-        const wave = Math.sin(time + position * Math.PI * 2) * 0.3;
-
-        // Add some randomness for natural variation
-        const random = (Math.random() - 0.5) * 0.4;
-
-        // Combine wave and randomness, ensure it stays within bounds
-        const level = Math.max(0.1, Math.min(1, 0.3 + wave + random));
-
-        return level;
-      });
-
-      setAudioLevels(newLevels);
-
-      // Animate each bar to its new level with different speeds
-      newLevels.forEach((level, index) => {
-        Animated.timing(waveformAnimations[index], {
-          toValue: level,
-          duration: 50 + Math.random() * 100, // Varying animation speeds
-          useNativeDriver: false,
-        }).start();
-      });
-    }, 80); // Update every 80ms for smoother animation
-  };
-
-  const stopAnimations = () => {
-    // Clear the audio level interval
-    if (audioLevelInterval.current) {
-      clearInterval(audioLevelInterval.current);
-      audioLevelInterval.current = null;
-    }
-
-    dotAnimations.forEach((anim) => anim.stopAnimation());
-    waveformAnimations.forEach((anim) => anim.stopAnimation());
-    dotAnimations.forEach((anim) => anim.setValue(0));
-    waveformAnimations.forEach((anim) => anim.setValue(0));
-    setAudioLevels(Array.from({ length: 20 }, () => 0));
-  };
+  // Recording animation removed
 
   const startRecording = async () => {
     try {
@@ -169,20 +94,16 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
       recordingRef.current = recording;
       setIsRecording(true);
       setShowListening(true);
+      // Start mic pulse animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(micPulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+          Animated.timing(micPulse, { toValue: 0, duration: 700, useNativeDriver: true }),
+        ])
+      ).start();
       setNutritionData(null);
       setTranscribedText("");
-
-      // Start dot animation initially
-      startDotAnimation();
-
-      // Switch to waveform animation after 500ms
-      setTimeout(() => {
-        if (isRecording) {
-          setIsSpeaking(true);
-          stopAnimations();
-          startWaveformAnimation();
-        }
-      }, 500);
+      // No waveform animation; only mic pulse
     } catch (err) {
       console.log('startRecording error (VoiceCalorieScreen):', err);
       Alert.alert("Recording Error", "Could not start recording.");
@@ -191,14 +112,18 @@ const VoiceCalorieScreen = ({ navigation, route }) => {
 
   const stopRecording = async () => {
     setIsRecording(false);
-    setIsSpeaking(false);
-    stopAnimations();
+    // No recording animation
+    // Stop mic pulse
+    micPulse.stopAnimation(() => {
+      micPulse.setValue(0);
+    });
     if (!recordingRef.current) return;
     try {
       await recordingRef.current.stopAndUnloadAsync();
       const uri = recordingRef.current.getURI();
       recordingRef.current = null;
-      if (uri) handleVoiceToCalorie(uri);
+      // Store URI; conversion is triggered explicitly via Convert button
+      if (uri) setLastRecordingUri(uri);
     } catch (error) {
       // ignore
     }
@@ -346,20 +271,29 @@ The JSON object must have this structure:
       // If all models failed, show error
       throw lastError || new Error("All AI models are currently unavailable.");
     } catch (error) {
-      let errorMessage = "Could not analyze the audio.";
+      const msg = String(error?.message || "").toLowerCase();
+      // User-friendly fallback when speech wasn't recognized
       if (
-        error.message.includes("503") ||
-        error.message.includes("overloaded")
+        msg.includes("no food items detected") ||
+        msg.includes("invalid json") ||
+        msg.includes("no json object") ||
+        msg.includes("empty") ||
+        msg.includes("silence") ||
+        msg.includes("404") ||
+        msg.includes("not found") ||
+        msg.includes("models/") ||
+        msg.includes("generatecontent") ||
+        msg.includes("api version") ||
+        msg.includes("all ai models are currently unavailable")
       ) {
-        errorMessage =
-          "AI service is temporarily overloaded. Please try again in a few moments.";
-      } else if (error.message.includes("API key")) {
-        errorMessage =
-          "AI service configuration error. Please check your settings.";
+        Alert.alert("Please speak more clearly", "We couldn't recognize the audio. Try moving closer to the mic and speaking a bit louder.");
+      } else if (msg.includes("503") || msg.includes("overloaded")) {
+        Alert.alert("AI busy", "Service is temporarily overloaded. Please try again in a few moments.");
+      } else if (msg.includes("api key")) {
+        Alert.alert("Configuration issue", "AI service configuration error. Please check your settings.");
       } else {
-        errorMessage += " " + error.message;
+        Alert.alert("Please speak more clearly", "We couldn't recognize the audio. Try moving closer to the mic and speaking a bit louder.");
       }
-      Alert.alert("AI Error", errorMessage);
       setShowListening(false);
     } finally {
       setIsLoading(false);
@@ -423,8 +357,7 @@ The JSON object must have this structure:
                 }
               }
               setIsRecording(false);
-              setIsSpeaking(false);
-              stopAnimations();
+              // No recording animation
               navigation.navigate("Home");
             },
           },
@@ -448,6 +381,73 @@ The JSON object must have this structure:
       <View style={styles.content}>
         {/* Top spacer for centering content */}
         <View style={styles.topSpacer} />
+
+        {/* Mic visual with ripple + pulse when recording */}
+        <View style={styles.micVisualWrap}>
+          <View style={styles.micStack}>
+            {/* Outer ripple 1 */}
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.micRipple,
+                {
+                  transform: [
+                    {
+                      scale: micPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.7] }),
+                    },
+                  ],
+                  opacity: micPulse.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0] }),
+                },
+              ]}
+            />
+            {/* Outer ripple 2 (staggered) */}
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.micRipple,
+                {
+                  transform: [
+                    {
+                      scale: micPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] }),
+                    },
+                  ],
+                  opacity: micPulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] }),
+                },
+              ]}
+            />
+            {/* Core circle with pulse */}
+            <Animated.View
+              style={{
+                transform: [
+                  {
+                    scale: micPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }),
+                  },
+                ],
+                shadowColor: '#7B61FF',
+                shadowOpacity: micPulse.interpolate({ inputRange: [0,1], outputRange: [0.15, 0.35]}),
+                shadowRadius: 16,
+                shadowOffset: { width: 0, height: 0 },
+                elevation: 6,
+              }}
+            >
+              <LinearGradient colors={["#EDE7FF", "#E6FAFF"]} style={styles.micOuterCircle}>
+                <View style={styles.micInnerCircle}>
+                  <Ionicons name="mic" size={40} color="#7B61FF" />
+                </View>
+              </LinearGradient>
+            </Animated.View>
+          </View>
+        </View>
+
+        {/* Dummy real-time transcription box (non-functional) */}
+        <View style={styles.transcriptionCard}>
+          <Text style={styles.transcriptionLabel}>Real-time transcription...</Text>
+          <View style={styles.transcriptionBubble}>
+            <Text style={styles.transcriptionText}>
+              "I had a large bowl of oatmeal with a handful of blueberries, a tablespoon of chia seeds, and a drizzle of honey, plus a black coffee."
+            </Text>
+          </View>
+        </View>
 
         {/* Results - stays in center when showing */}
         {nutritionData && !isLoading && (
@@ -537,54 +537,7 @@ The JSON object must have this structure:
           </View>
         )}
 
-        {/* Audio Animation */}
-        {isRecording && !isLoading && (
-          <View style={styles.animationContainer}>
-            {!isSpeaking ? (
-              // Dot animation when not speaking
-              <View style={styles.dotContainer}>
-                {dotAnimations.map((anim, index) => (
-                  <Animated.View
-                    key={index}
-                    style={[
-                      styles.dot,
-                      {
-                        opacity: anim,
-                        transform: [
-                          {
-                            scale: anim.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [0.5, 1.5],
-                            }),
-                          },
-                        ],
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-            ) : (
-              // Waveform animation when speaking
-              <View style={styles.waveformContainer}>
-                {waveformAnimations.map((anim, index) => (
-                  <Animated.View
-                    key={index}
-                    style={[
-                      styles.waveformBar,
-                      {
-                        height: anim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [4, 60], // Increased max height for more dramatic effect
-                        }),
-                        backgroundColor: `hsl(${240 + index * 8}, 70%, 60%)`,
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        )}
+        {/* Recording animation removed as requested */}
 
         {/* Instructions section at top */}
         <View style={styles.instructionsSection}>
@@ -611,37 +564,34 @@ The JSON object must have this structure:
           )}
         </View>
 
-        {/* Bottom section with mic button */}
-        <View style={styles.bottomSection}>
-          {/* Mic button */}
-          {!isRecording && !nutritionData && !isLoading && (
-            <TouchableOpacity
-              onPress={startRecording}
-              style={styles.gradientMicWrap}
-            >
-              <LinearGradient
-                colors={["#7B61FF", "#43E0FF"]}
-                style={styles.gradientMic}
-              >
-                <Ionicons name="mic" size={44} color="#fff" />
-              </LinearGradient>
-            </TouchableOpacity>
-          )}
-          {/* Stop button */}
-          {isRecording && !nutritionData && !isLoading && (
-            <TouchableOpacity
-              onPress={stopRecording}
-              style={styles.gradientMicWrap}
-            >
-              <LinearGradient
-                colors={["#7B61FF", "#43E0FF"]}
-                style={styles.gradientMic}
-              >
-                <Ionicons name="stop" size={44} color="#fff" />
-              </LinearGradient>
-            </TouchableOpacity>
-          )}
+        {/* Action buttons row above bottom */}
+        <View style={[styles.actionRow, styles.actionRowFixed]}>
+          <TouchableOpacity
+            style={[styles.startBtn, isRecording && { opacity: 0.6 }]}
+            onPress={startRecording}
+            disabled={isRecording || isLoading}
+          >
+            <Ionicons name="play" size={18} color="#6E54FF" style={{ marginRight: 8 }} />
+            <Text style={styles.startBtnText}>Start</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.stopBtn, !isRecording && { opacity: 0.6 }]}
+            onPress={stopRecording}
+            disabled={!isRecording || isLoading}
+          >
+            <Ionicons name="stop" size={16} color="#E26B5E" style={{ marginRight: 8 }} />
+            <Text style={styles.stopBtnText}>Stop</Text>
+          </TouchableOpacity>
         </View>
+
+        {/* Convert button fixed at screen bottom */}
+        <TouchableOpacity
+          style={[styles.convertBtn, styles.convertFixed, (!lastRecordingUri || isLoading) && { opacity: 0.6 }]}
+          onPress={() => lastRecordingUri && handleVoiceToCalorie(lastRecordingUri)}
+          disabled={!lastRecordingUri || isLoading}
+        >
+          <Text style={styles.convertBtnText}>Convert to Calories  →</Text>
+        </TouchableOpacity>
       </View>
       {/* Fixed footer for action buttons */}
       {nutritionData && !isLoading && (
@@ -689,22 +639,32 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     paddingHorizontal: 24,
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     width: "100%",
   },
-  topSpacer: { flex: 1 },
+  topSpacer: { height: 12 },
+  micVisualWrap: { marginTop: 58, marginBottom: 16 },
+  micOuterCircle: { width: 180, height: 180, borderRadius: 90, alignItems: "center", justifyContent: "center" },
+  micInnerCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 8, borderColor: "#F1EAFE" },
+  micStack: { alignItems: "center", justifyContent: "center" },
+  micRipple: { position: "absolute", width: 200, height: 200, borderRadius: 100, backgroundColor: "#8B78FF20" },
+  transcriptionCard: { width: "100%", marginTop: 46, paddingHorizontal: 4 },
+  transcriptionLabel: { color: "#8B78FF", fontSize: 14, marginLeft: 10, marginBottom: 8 },
+  transcriptionBubble: { backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: "#EEEAFB", padding: 14, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8 },
+  transcriptionText: { color: "#222", fontSize: 16, lineHeight: 22 },
   centerContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   instructionsSection: {
     width: "100%",
     alignItems: "center",
     paddingTop: 40,
     paddingBottom: 20,
+    marginTop: 14,
   },
   bottomSection: {
     width: "100%",
     alignItems: "center",
-    paddingBottom: 40,
-    paddingTop: 20,
+    paddingBottom: 0,
+    paddingTop: 0,
   },
   animationContainer: {
     width: "100%",
@@ -749,6 +709,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  actionRow: { flexDirection: "row", width: "100%", justifyContent: "space-between", marginTop: 18 },
+  actionRowFixed: { position: "absolute", left: 24, right: 24, bottom: 110 },
+  startBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#EFEBFF", paddingVertical: 14, borderRadius: 24, paddingHorizontal: 22, width: "48%" },
+  startBtnText: { color: "#6E54FF", fontWeight: "bold", fontSize: 16 },
+  stopBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#FFEDEA", paddingVertical: 14, borderRadius: 24, paddingHorizontal: 22, width: "48%" },
+  stopBtnText: { color: "#E26B5E", fontWeight: "bold", fontSize: 16 },
+  convertBtn: { width: "100%", backgroundColor: "#7B61FF", borderRadius: 22, paddingVertical: 16, alignItems: "center", marginTop: 18 },
+  convertBtnText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  convertFixed: { position: "absolute", left: 24, right: 24, bottom: 20 },
   instructions: {
     color: "#888",
     marginTop: 8,
