@@ -219,6 +219,7 @@ const MainDashboardScreen = () => {
   const [mealsLogged, setMealsLogged] = useState(0);
   const [lastSleepDuration, setLastSleepDuration] = useState('--');
   const [recentMeals, setRecentMeals] = useState([]);
+  const [todayWorkouts, setTodayWorkouts] = useState(0);
 
   // --- Weight Journey State ---
   const [currentWeight, setCurrentWeight] = useState(null);
@@ -419,8 +420,8 @@ const MainDashboardScreen = () => {
     if (isNaN(h) || isNaN(m)) return 0;
     return h * 60 + m;
   }
-  // Sleep goal (hours)
-  const sleepGoal = 8;
+  // Sleep goal (hours) - will be fetched from database
+  const [sleepGoal, setSleepGoal] = useState(8);
   // Find today's sleep log for the user
   const todayStr = new Date().toISOString().slice(0,10);
   const [todaySleepLog, setTodaySleepLog] = useState(null);
@@ -471,10 +472,55 @@ const MainDashboardScreen = () => {
         const todayLog = (data || []).find(l => getDateOnly(l.date) === todayStr);
         console.log('todayLog found:', todayLog);
         setTodaySleepLog(todayLog || null);
+        
+        // Get sleep goal from the most recent log
+        if (data && data.length > 0) {
+          const mostRecentLog = data[0];
+          if (mostRecentLog.sleep_goal) {
+            setSleepGoal(mostRecentLog.sleep_goal);
+          }
+        }
+      };
+
+      const fetchTodayWorkouts = async () => {
+        if (!realUserId) return;
+        try {
+          const today = new Date();
+          const startOfDay = new Date(today);
+          startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay = new Date(today);
+          endOfDay.setHours(23, 59, 59, 999);
+
+          // Fetch cardio workouts from saved_cardio_sessions
+          const { data: cardioData, error: cardioError } = await supabase
+            .from('saved_cardio_sessions')
+            .select('*')
+            .eq('user_id', realUserId)
+            .gte('created_at', startOfDay.toISOString())
+            .lte('created_at', endOfDay.toISOString());
+
+          // Fetch routine workouts from workouts table
+          const { data: routineData, error: routineError } = await supabase
+            .from('workouts')
+            .select('*')
+            .eq('user_id', realUserId)
+            .gte('created_at', startOfDay.toISOString())
+            .lte('created_at', endOfDay.toISOString());
+
+          if (cardioError) console.error('Error fetching cardio workouts:', cardioError);
+          if (routineError) console.error('Error fetching routine workouts:', routineError);
+
+          const totalWorkouts = (cardioData?.length || 0) + (routineData?.length || 0);
+          setTodayWorkouts(totalWorkouts);
+          console.log('MainDashboard - Today workouts:', totalWorkouts, 'cardio:', cardioData?.length || 0, 'routine:', routineData?.length || 0);
+        } catch (error) {
+          console.error('Error fetching today workouts:', error);
+        }
       };
       
       fetchTodayFoodLogs();
       fetchRecentSleepLogs();
+      fetchTodayWorkouts();
     }, [realUserId, todayStr])
   );
   let todaySleepDuration = '--';
@@ -677,7 +723,7 @@ const MainDashboardScreen = () => {
                   <MaterialCommunityIcons name="airplane" size={20} color="#3B82F6" style={{ marginRight: 8, transform: [{ rotate: '-30deg' }] }} />
                   <Text style={styles.statLabelCustom}>Strength{`\n`}Today</Text>
                 </View>
-                <Text style={styles.statValueCustom}>5</Text>
+                <Text style={[styles.statValueCustom, { textAlign: 'center' }]}>{todayWorkouts}</Text>
                 <Text style={styles.statSubCustom}>workouts this Day</Text>
               </TouchableOpacity>
             </View>
@@ -786,7 +832,7 @@ const MainDashboardScreen = () => {
                 </View>
                 <View style={{ flexDirection: 'row', marginTop: 8, marginBottom: 8 }}>
                   <View style={{ borderWidth: 1, borderColor: '#7C3AED', borderRadius: 16, paddingHorizontal: 10, paddingVertical: 2 }}>
-                    <Text style={{ fontFamily: 'Lexend-Regular', fontSize: 12, color: '#7C3AED' }}>{todaySleepPercent}% Goal</Text>
+                    <Text style={{ fontFamily: 'Lexend-Regular', fontSize: 12, color: '#7C3AED' }}>{todaySleepPercent}% of {sleepGoal}h</Text>
                   </View>
                 </View>
                 <Text style={{ fontFamily: 'Lexend-Bold', fontSize: 28, color: '#222', marginTop: 2 }}>{todaySleepDuration}</Text>

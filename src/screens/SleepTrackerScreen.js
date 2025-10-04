@@ -10,11 +10,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Circle } from "react-native-svg";
 import { OnboardingContext } from "../context/OnboardingContext";
 import supabase from "../lib/supabase";
 import { getResponsivePadding } from '../utils/responsive';
@@ -92,6 +92,8 @@ const SleepTrackerScreen = () => {
   const [showAlreadyLoggedModal, setShowAlreadyLoggedModal] = useState(false);
   const [expandedMonths, setExpandedMonths] = useState(new Set());
   const [refreshTrigger, setRefreshTrigger] = useState(0); // Force recalculation
+  const [showSleepGoalModal, setShowSleepGoalModal] = useState(false);
+  const [tempSleepGoal, setTempSleepGoal] = useState(8);
 
   function computeHoursBetween(startHHMM, endHHMM) {
     if (!startHHMM || !endHHMM) return null;
@@ -292,6 +294,18 @@ const SleepTrackerScreen = () => {
       console.log("Error saving sleep goal:", err);
     }
   }
+
+  // Handle sleep goal update
+  const handleSleepGoalUpdate = async () => {
+    if (tempSleepGoal < 1 || tempSleepGoal > 24) {
+      Alert.alert("Invalid Goal", "Sleep goal must be between 1 and 24 hours");
+      return;
+    }
+    
+    setSleepGoal(tempSleepGoal);
+    await saveSleepGoal(tempSleepGoal);
+    setShowSleepGoalModal(false);
+  };
 
   async function handleAddSleep() {
     if (!realUserId || !startTime || !endTime) {
@@ -805,119 +819,90 @@ const SleepTrackerScreen = () => {
         contentContainerStyle={{ padding: 20, paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Quick Stats */}
-        <Text
+        {/* Last Night's Sleep Card */}
+        <View
           style={{
-            fontWeight: "800",
-            fontFamily: "Lexend-SemiBold",
-            fontSize: 20,
-            color: "#111827",
-            marginBottom: 10,
-            marginLeft: 4,
+            backgroundColor: "#FFFFFF",
+            borderRadius: 20,
+            padding: 10,
+            marginBottom: 20,
+            shadowColor: "#000",
+            shadowOpacity: 0.08,
+            shadowRadius: 16,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 5,
+            flexDirection: "row",
+            alignItems: "center",
           }}
         >
-          Quick Stats
-        </Text>
-        <View style={{ flexDirection: "row", marginBottom: 10 }}>
           <View
             style={{
-              flex: 1,
-              backgroundColor: "#fff",
-          borderRadius: 16,
-              padding: 16,
-              marginRight: 8,
-              shadowColor: "#000",
-          shadowOpacity: 0.05,
-          shadowRadius: 8,
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: "#F3E8FF",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 18,
             }}
           >
-            <Text style={{ color: "#6B7280", marginBottom: 6 }}>
-              Last Night
+            <Ionicons name="moon-outline" size={32} color="#8B5CF6" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text 
+              style={{ 
+                color: "#9CA3AF", 
+                fontSize: 15, 
+                
+                fontWeight: "500",
+                letterSpacing: 0.3,
+              }}
+            >
+              Last Night's Sleep
             </Text>
             <Text
-              style={{ fontWeight: "bold", fontSize: 24, color: "#111827" }}
+              style={{ 
+                fontWeight: "700", 
+                fontSize: 25, 
+                color: "#1F2937",
+                letterSpacing: -1,
+              }}
             >
               {todayDuration}
             </Text>
-              </View>
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: "#fff",
-              borderRadius: 16,
-              padding: 16,
-              marginLeft: 8,
-              shadowColor: "#000",
-              shadowOpacity: 0.05,
-              shadowRadius: 8,
-            }}
-          >
-            <Text style={{ color: "#6B7280", marginBottom: 6 }}>
-              Avg. Sleep
-            </Text>
-            <Text
-              style={{ fontWeight: "bold", fontSize: 24, color: "#111827" }}
+            <Text 
+              style={{ 
+                color: "#9CA3AF", 
+                fontSize: 14,
+                fontWeight: "500",
+              }}
             >
-              {averageSleep}
+              {(() => {
+                if (!todayLog || !todayLog.duration) return "No data";
+                
+                // Get yesterday's log
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayStr = yesterday.toISOString().slice(0, 10);
+                const yesterdayLog = sleepLogs.find(
+                  (l) => getDateOnly(l.date) === yesterdayStr && l.user_id === realUserId
+                );
+                
+                if (!yesterdayLog || !yesterdayLog.duration) return "No data loged yesterday";
+                
+                // Calculate percentages
+                const todayMins = parseIntervalToMinutes(todayLog.duration);
+                const yesterdayMins = parseIntervalToMinutes(yesterdayLog.duration);
+                
+                if (yesterdayMins === 0) return "No yesterday data";
+                
+                const percentage = Math.round(((todayMins - yesterdayMins) / yesterdayMins) * 100);
+                const sign = percentage >= 0 ? "+" : "";
+                
+                return `${sign}${percentage}% vs yesterday`;
+              })()}
             </Text>
           </View>
-        </View>
-        <View
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: 16,
-            padding: 16,
-            marginBottom: 18,
-            shadowColor: "#000",
-            shadowOpacity: 0.05,
-            shadowRadius: 8,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <View>
-            <Text style={{ color: "#6B7280", marginBottom: 6 }}>
-              Consistency
-            </Text>
-            <Text
-              style={{ fontWeight: "bold", fontSize: 24, color: "#111827" }}
-            >
-              {validConsistencyPercent}%
-            </Text>
-          </View>
-          {(() => {
-            const size = 60;
-            const stroke = 8;
-            const r = (size - stroke) / 2;
-            const c = 2 * Math.PI * r;
-            const off = c * (1 - validConsistencyPercent / 100);
-            console.log("Ring calculation - consistency:", validConsistencyPercent, "offset:", off, "circumference:", c);
-            return (
-              <Svg width={size} height={size}>
-              <Circle
-                  cx={size / 2}
-                  cy={size / 2}
-                  r={r}
-                stroke="#E5E7EB"
-                  strokeWidth={stroke}
-                fill="none"
-              />
-              <Circle
-                  cx={size / 2}
-                  cy={size / 2}
-                  r={r}
-                  stroke="#7C3AED"
-                  strokeWidth={stroke}
-                strokeLinecap="round"
-                  fill="none"
-                  strokeDasharray={`${c} ${c}`}
-                  strokeDashoffset={off}
-                  transform={`rotate(-90 ${size / 2} ${size / 2})`}
-              />
-            </Svg>
-            );
-          })()}
         </View>
 
         {/* Weekly Chart */}
@@ -1039,7 +1024,6 @@ const SleepTrackerScreen = () => {
           >
             Sleep Log
           </Text>
-          <View style={{ flexDirection: "row" }}>
           <TouchableOpacity
               onPress={() => setShowAllLogs(!showAllLogs)}
               style={{
@@ -1047,30 +1031,12 @@ const SleepTrackerScreen = () => {
                 paddingHorizontal: 12,
                 paddingVertical: 8,
                 borderRadius: 16,
-                marginRight: 8,
               }}
             >
               <Text style={{ color: "#111827", fontWeight: "700" }}>
                 {showAllLogs ? "Show recent" : "View all"}
               </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-              onPress={fetchSleepLogs}
-              style={{
-                backgroundColor: "#34D399",
-                paddingHorizontal: 14,
-                paddingVertical: 8,
-                borderRadius: 20,
-                shadowColor: "#000",
-                shadowOpacity: 0.08,
-                shadowRadius: 8,
-              }}
-            >
-              <Text style={{ color: "#fff", fontWeight: "700" }}>
-                Sync Data
-              </Text>
-          </TouchableOpacity>
-          </View>
         </View>
 
         {/* Sleep Log cards */}
@@ -1337,46 +1303,86 @@ const SleepTrackerScreen = () => {
             borderColor: "rgba(255, 255, 255, 0.2)",
           }}
         >
-          {/* Header */}
-          <View
+          {/* Sleep Goal Card */}
+          <TouchableOpacity
+            onPress={() => {
+              setTempSleepGoal(sleepGoal);
+              setShowSleepGoalModal(true);
+            }}
             style={{
+              backgroundColor: "#FAFAFB",
+              borderRadius: 16,
+              paddingVertical: 14,
+              paddingHorizontal: 16,
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
-              marginBottom: 14,
+              borderWidth: 1,
+              borderColor: "#E2E8F0",
+              shadowColor: "#000",
+              shadowOpacity: 0.03,
+              shadowRadius: 6,
+              shadowOffset: { width: 0, height: 2 },
+              marginBottom: 16,
             }}
+            activeOpacity={0.7}
           >
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <View
+              <LinearGradient
+                colors={["#8B5CF6", "#A78BFA"]}
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: "#EEF2FF",
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
                   alignItems: "center",
                   justifyContent: "center",
-                  marginRight: 10,
+                  marginRight: 12,
                 }}
               >
-                <Text style={{ fontSize: 16 }}>💤</Text>
-            </View>
-            <View>
+                <Text style={{ fontSize: 18 }}>💤</Text>
+              </LinearGradient>
+              <View>
                 <Text
                   style={{
-                    fontSize: 18,
-                    fontWeight: "800",
-                    color: "#0F172A",
-                letterSpacing: -0.5,
+                    fontSize: 15,
+                    fontWeight: "600",
+                    color: "#1E293B",
+                    marginBottom: 2,
                   }}
                 >
-                Sleep Goal
-              </Text>
-                <Text style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>
-                {todayPercent}% of {sleepGoal} hours
+                  Set Sleep Goal
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 12, 
+                    color: "#64748B",
+                  }}
+                >
+                  Personalize your target
+                </Text>
+              </View>
+            </View>
+            <View
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 12,
+                backgroundColor: "#F0F9FF",
+                borderWidth: 1,
+                borderColor: "#E0F2FE",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "700",
+                  color: "#0369A1",
+                }}
+              >
+                {todayPercent}% of {sleepGoal}h
               </Text>
             </View>
-          </View>
-          </View>
+          </TouchableOpacity>
 
           {/* Reminder Cards */}
           <View style={{ gap: 16 }}>
@@ -1536,45 +1542,6 @@ const SleepTrackerScreen = () => {
           </View>
         </View>
 
-        {/* Sleep Tips */}
-        <Text
-          style={{
-            fontWeight: "800",
-            fontSize: 18,
-            color: "#111827",
-            marginBottom: 8,
-            marginLeft: 4,
-          }}
-        >
-          Tip of the Day
-        </Text>
-        {(() => {
-          const daySeed = new Date().toISOString().slice(0, 10);
-          const key = daySeed + (realUserId || "");
-          let hash = 0;
-          for (let i = 0; i < key.length; i++) {
-            hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
-          }
-          const tipIdx = hash % SLEEP_TIPS.length;
-          const tip = SLEEP_TIPS[tipIdx];
-              return (
-                <View 
-                  style={{ 
-                backgroundColor: "#fff",
-                    borderRadius: 16, 
-                padding: 16,
-                marginBottom: 16,
-                shadowColor: "#000",
-                shadowOpacity: 0.05,
-                shadowRadius: 8,
-                flexDirection: "row",
-              }}
-            >
-              <Text style={{ marginRight: 10 }}>💡</Text>
-              <Text style={{ color: "#374151", flex: 1 }}>{tip}</Text>
-                </View>
-              );
-        })()}
 
         {/* Log Sleep Button */}
         <TouchableOpacity 
@@ -1917,6 +1884,84 @@ const SleepTrackerScreen = () => {
             }}
           />
         )}
+
+        {/* Sleep Goal Modal */}
+        <Modal visible={showSleepGoalModal} animationType="fade" transparent>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0,0,0,0.2)",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: "#fff",
+                borderRadius: 16,
+                padding: 20,
+                width: "80%",
+                maxWidth: 300,
+              }}
+            >
+              <Text
+                style={{ 
+                  fontWeight: "bold", 
+                  fontSize: 18, 
+                  marginBottom: 16,
+                  textAlign: "center"
+                }}
+              >
+                Set Sleep Goal
+              </Text>
+              
+              <TextInput
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#E2E8F0",
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 16,
+                  textAlign: "center",
+                  marginBottom: 20,
+                }}
+                value={tempSleepGoal.toString()}
+                onChangeText={(text) => setTempSleepGoal(parseFloat(text) || 0)}
+                keyboardType="numeric"
+                placeholder="8"
+                maxLength={4}
+              />
+              
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <TouchableOpacity
+                  style={{ 
+                    flex: 1,
+                    backgroundColor: "#F3F4F6",
+                    borderRadius: 8, 
+                    paddingVertical: 12, 
+                    alignItems: "center",
+                  }}
+                  onPress={() => setShowSleepGoalModal(false)}
+                >
+                  <Text style={{ color: "#374151", fontWeight: "600" }}>Cancel</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={{ 
+                    flex: 1,
+                    backgroundColor: "#4F46E5",
+                    borderRadius: 8, 
+                    paddingVertical: 12, 
+                    alignItems: "center",
+                  }}
+                  onPress={handleSleepGoalUpdate}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "600" }}>Set Goal</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
 
     </SafeAreaView>
