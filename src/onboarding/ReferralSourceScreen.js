@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useContext, useRef, useState } from 'react';
@@ -62,7 +62,7 @@ const ReferralSourceScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
         <View style={styles.backButtonCircle}>
-          <MaterialIcons name="arrow-back" size={24} color={TEXT_PRIMARY} />
+          <Ionicons name="chevron-back" size={24} color={TEXT_PRIMARY} />
         </View>
       </TouchableOpacity>
 
@@ -173,19 +173,7 @@ const styles = StyleSheet.create({
     left: 20,
     zIndex: 10,
   },
-  backButtonCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: CARD_BG,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
+ 
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 100,

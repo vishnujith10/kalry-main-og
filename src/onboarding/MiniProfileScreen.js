@@ -165,7 +165,7 @@ const MiniProfileScreen = () => {
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <View style={styles.backButtonCircle}>
-            <Ionicons name="arrow-back" size={24} color={TEXT_PRIMARY} />
+            <Ionicons name="chevron-back" size={24} color={TEXT_PRIMARY} />
           </View>
         </TouchableOpacity>
         <Text style={styles.heading}>Personal Setup</Text>
@@ -369,19 +369,7 @@ const styles = StyleSheet.create({
   backButton: {
     zIndex: 10,
   },
-  backButtonCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: CARD_BG,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
+  
   heading: {
     fontSize: 20,
     fontFamily: 'Lexend-Bold',
