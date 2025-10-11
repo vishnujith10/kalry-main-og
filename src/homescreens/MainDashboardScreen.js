@@ -6,8 +6,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from '../context/OnboardingContext';
 import supabase from '../lib/supabase';
 import { deleteFoodLog, getFoodLogs } from '../utils/api';
+import { getMainDashboardCache, invalidateMainDashboardCache, updateMainDashboardCacheOptimistic } from '../utils/cacheManager';
 import useTodaySteps from '../utils/useTodaySteps';
 import RecentMeals from './RecentMeals';
+
+// Use centralized cache
+const globalCache = getMainDashboardCache();
+
+// Export for backward compatibility
+export { invalidateMainDashboardCache, updateMainDashboardCacheOptimistic as updateMainDashboardCache };
 
 const COLORS = {
   primary: '#7B61FF',
@@ -124,7 +131,12 @@ const FooterBar = ({ navigation, activeTab }) => {
               footerStyles.tab,
               tab.key === activeTab && footerStyles.activeTab
             ]}
-            onPress={() => navigation.navigate(tab.route)}
+            onPress={() => {
+              // Don't navigate if already on active tab
+              if (tab.key === activeTab) return;
+              
+              navigation.navigate(tab.route);
+            }}
             activeOpacity={0.7}
           >
             {React.cloneElement(tab.icon, {
@@ -206,20 +218,25 @@ const footerStyles = StyleSheet.create({
   },
 });
 
-const MainDashboardScreen = () => {
+const MainDashboardScreen = ({ route }) => {
   const navigation = useNavigation();
   const { onboardingData, setOnboardingData } = useContext(OnboardingContext);
   const userName = onboardingData?.name || 'Aanya';
   const { stepsToday, distanceKm, calories: stepCalories, isPedometerAvailable } = useTodaySteps();
   const stepGoal = onboardingData?.step_goal || 10000;
-  const percent = Math.round((stepsToday / stepGoal) * 100);
+  
+  // Memoize expensive calculations (Instagram pattern)
+  const percent = React.useMemo(() => 
+    Math.round((stepsToday / stepGoal) * 100),
+    [stepsToday, stepGoal]
+  );
 
-  // State for real food log data
-  const [calories, setCalories] = useState(0);
-  const [mealsLogged, setMealsLogged] = useState(0);
+  // State for real food log data - Initialize with cached data if available (Instagram pattern)
+  const [calories, setCalories] = useState(() => globalCache.cachedData?.calories || 0);
+  const [mealsLogged, setMealsLogged] = useState(() => globalCache.cachedData?.mealsLogged || 0);
   const [lastSleepDuration, setLastSleepDuration] = useState('--');
-  const [recentMeals, setRecentMeals] = useState([]);
-  const [todayWorkouts, setTodayWorkouts] = useState(0);
+  const [recentMeals, setRecentMeals] = useState(() => globalCache.cachedData?.recentMeals || []);
+  const [todayWorkouts, setTodayWorkouts] = useState(() => globalCache.cachedData?.todayWorkouts || 0);
 
   // --- Weight Journey State ---
   const [currentWeight, setCurrentWeight] = useState(null);
@@ -227,12 +244,11 @@ const MainDashboardScreen = () => {
   const [progress, setProgress] = useState(0);
 
   const [realUserId, setRealUserId] = useState(null);
+  
   useEffect(() => {
     const getUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      console.log('MainDashboard - Session:', session);
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('MainDashboard - User ID:', user?.id);
       setRealUserId(user?.id);
     };
     getUser();
@@ -421,107 +437,112 @@ const MainDashboardScreen = () => {
     return h * 60 + m;
   }
   // Sleep goal (hours) - will be fetched from database
-  const [sleepGoal, setSleepGoal] = useState(8);
+  const [sleepGoal, setSleepGoal] = useState(() => globalCache.cachedData?.sleepGoal || 8);
   // Find today's sleep log for the user
   const todayStr = new Date().toISOString().slice(0,10);
-  const [todaySleepLog, setTodaySleepLog] = useState(null);
-  const [sleepLogs, setSleepLogs] = useState([]);
+  const [todaySleepLog, setTodaySleepLog] = useState(() => globalCache.cachedData?.todaySleepLog || null);
+  const [sleepLogs, setSleepLogs] = useState(() => globalCache.cachedData?.sleepLogs || []);
   useFocusEffect(
     React.useCallback(() => {
-      // Debug log for userId before fetching food logs
-      console.log('Dashboard realUserId for food logs:', realUserId);
-      
-      // Fetch food logs for today
-      const fetchTodayFoodLogs = async () => {
         if (!realUserId) return;
+      
+      const now = Date.now();
+      const timeSinceLastFetch = now - globalCache.lastFetchTime;
+      const isStale = timeSinceLastFetch > globalCache.STALE_TIME;
+      const isFresh = timeSinceLastFetch < globalCache.CACHE_DURATION;
+      
+      // SWR Pattern: Stale-While-Revalidate (like Instagram)
+      if (globalCache.cachedData && isFresh) {
+        // Data is fresh - use cache, no revalidation needed
+        // Always restore from cache when fresh (not just first time)
+        setRecentMeals(globalCache.cachedData.recentMeals || []);
+        setMealsLogged(globalCache.cachedData.mealsLogged || 0);
+        setCalories(globalCache.cachedData.calories || 0);
+        setSleepLogs(globalCache.cachedData.sleepLogs || []);
+        setTodaySleepLog(globalCache.cachedData.todaySleepLog || null);
+        if (globalCache.cachedData.sleepGoal) setSleepGoal(globalCache.cachedData.sleepGoal);
+        setTodayWorkouts(globalCache.cachedData.todayWorkouts || 0);
+        globalCache.cacheHits++;
+        return; // Fresh cache - no fetch needed
+      }
+      
+      if (globalCache.cachedData && isStale && !isFresh) {
+        // Data is stale but within cache duration - show stale, revalidate in background
+        // Always restore from cache (not just first time)
+        setRecentMeals(globalCache.cachedData.recentMeals || []);
+        setMealsLogged(globalCache.cachedData.mealsLogged || 0);
+        setCalories(globalCache.cachedData.calories || 0);
+        setSleepLogs(globalCache.cachedData.sleepLogs || []);
+        setTodaySleepLog(globalCache.cachedData.todaySleepLog || null);
+        if (globalCache.cachedData.sleepGoal) setSleepGoal(globalCache.cachedData.sleepGoal);
+        setTodayWorkouts(globalCache.cachedData.todayWorkouts || 0);
+        globalCache.cacheHits++;
+        // Continue to fetch fresh data in background (don't return)
+      }
+      
+      // Prevent concurrent fetches
+      if (globalCache.isFetching) return;
+      
+      globalCache.isFetching = true;
+      globalCache.cacheMisses++;
+      
+      const fetchAllData = async () => {
         try {
-          const logs = await getFoodLogs(realUserId);
-          // Filter logs for today
           const today = new Date();
-          const startOfDay = new Date(today);
-          startOfDay.setHours(0, 0, 0, 0);
-          const endOfDay = new Date(today);
-          endOfDay.setHours(23, 59, 59, 999);
-          const filteredLogs = logs.filter(log => {
-            const logDate = new Date(log.created_at);
+          const startOfDay = new Date(today).setHours(0, 0, 0, 0);
+          const endOfDay = new Date(today).setHours(23, 59, 59, 999);
+          const todayStr = today.toISOString().slice(0, 10);
+          
+          const [foodLogs, sleepData, cardioData, routineData] = await Promise.all([
+            getFoodLogs(realUserId),
+            supabase.from('sleep_logs').select('*').eq('user_id', realUserId).order('date', { ascending: false }).limit(7),
+            supabase.from('saved_cardio_sessions').select('id').eq('user_id', realUserId).gte('created_at', new Date(startOfDay).toISOString()).lte('created_at', new Date(endOfDay).toISOString()),
+            supabase.from('workouts').select('id').eq('user_id', realUserId).gte('created_at', new Date(startOfDay).toISOString()).lte('created_at', new Date(endOfDay).toISOString())
+          ]);
+          
+          // Process food logs
+          const filteredLogs = foodLogs.filter(log => {
+            const logDate = new Date(log.created_at).getTime();
             return logDate >= startOfDay && logDate <= endOfDay;
           });
           setRecentMeals(filteredLogs.slice(-5).reverse());
           setMealsLogged(filteredLogs.length);
           setCalories(filteredLogs.reduce((sum, log) => sum + (log.calories || 0), 0));
-          console.log('MainDashboard - Food logs fetched:', filteredLogs.length, 'meals,', filteredLogs.reduce((sum, log) => sum + (log.calories || 0), 0), 'calories');
-        } catch (error) {
-          console.error('Error fetching food logs:', error);
-        }
-      };
-      
-      const fetchRecentSleepLogs = async () => {
-        if (!realUserId) return;
-        console.log('MainDashboard - Sleep User ID:', realUserId);
-        const { data, error } = await supabase
-          .from('sleep_logs')
-          .select('*')
-          .eq('user_id', realUserId)
-          .order('date', { ascending: false })
-          .limit(7);
-        console.log('MainDashboard - Sleep data:', data);
-        console.log('MainDashboard - Sleep error:', error);
-        setSleepLogs(data || []);
-        console.log('Fetched sleepLogs:', data);
-        console.log('todayStr:', todayStr);
-        const todayLog = (data || []).find(l => getDateOnly(l.date) === todayStr);
-        console.log('todayLog found:', todayLog);
+          
+          // Process sleep logs
+          if (sleepData.data) {
+            setSleepLogs(sleepData.data);
+            const todayLog = sleepData.data.find(l => l.date?.slice(0, 10) === todayStr);
         setTodaySleepLog(todayLog || null);
-        
-        // Get sleep goal from the most recent log
-        if (data && data.length > 0) {
-          const mostRecentLog = data[0];
-          if (mostRecentLog.sleep_goal) {
-            setSleepGoal(mostRecentLog.sleep_goal);
+            if (sleepData.data[0]?.sleep_goal) setSleepGoal(sleepData.data[0].sleep_goal);
           }
-        }
-      };
-
-      const fetchTodayWorkouts = async () => {
-        if (!realUserId) return;
-        try {
-          const today = new Date();
-          const startOfDay = new Date(today);
-          startOfDay.setHours(0, 0, 0, 0);
-          const endOfDay = new Date(today);
-          endOfDay.setHours(23, 59, 59, 999);
-
-          // Fetch cardio workouts from saved_cardio_sessions
-          const { data: cardioData, error: cardioError } = await supabase
-            .from('saved_cardio_sessions')
-            .select('*')
-            .eq('user_id', realUserId)
-            .gte('created_at', startOfDay.toISOString())
-            .lte('created_at', endOfDay.toISOString());
-
-          // Fetch routine workouts from workouts table
-          const { data: routineData, error: routineError } = await supabase
-            .from('workouts')
-            .select('*')
-            .eq('user_id', realUserId)
-            .gte('created_at', startOfDay.toISOString())
-            .lte('created_at', endOfDay.toISOString());
-
-          if (cardioError) console.error('Error fetching cardio workouts:', cardioError);
-          if (routineError) console.error('Error fetching routine workouts:', routineError);
-
-          const totalWorkouts = (cardioData?.length || 0) + (routineData?.length || 0);
-          setTodayWorkouts(totalWorkouts);
-          console.log('MainDashboard - Today workouts:', totalWorkouts, 'cardio:', cardioData?.length || 0, 'routine:', routineData?.length || 0);
+          
+          // Process workouts
+          const workoutsCount = (cardioData.data?.length || 0) + (routineData.data?.length || 0);
+          setTodayWorkouts(workoutsCount);
+          
+          // Cache the data
+          globalCache.cachedData = {
+            recentMeals: filteredLogs.slice(-5).reverse(),
+            mealsLogged: filteredLogs.length,
+            calories: filteredLogs.reduce((sum, log) => sum + (log.calories || 0), 0),
+            sleepLogs: sleepData.data || [],
+            todaySleepLog: sleepData.data?.find(l => l.date?.slice(0, 10) === todayStr) || null,
+            sleepGoal: sleepData.data?.[0]?.sleep_goal || 8,
+            todayWorkouts: workoutsCount,
+          };
+          
+          // Update cache timestamp
+          globalCache.lastFetchTime = Date.now();
         } catch (error) {
-          console.error('Error fetching today workouts:', error);
+          // Silent error handling
+        } finally {
+          globalCache.isFetching = false;
         }
       };
       
-      fetchTodayFoodLogs();
-      fetchRecentSleepLogs();
-      fetchTodayWorkouts();
-    }, [realUserId, todayStr])
+      fetchAllData();
+    }, [realUserId])
   );
   let todaySleepDuration = '--';
   let todaySleepPercent = 0;
@@ -531,80 +552,69 @@ const MainDashboardScreen = () => {
     todaySleepPercent = sleepGoal > 0 ? Math.min(100, Math.round((mins / (sleepGoal * 60)) * 100)) : 0;
   }
 
-  const [currentIntake, setCurrentIntake] = useState(0);
-  const [dailyGoal, setDailyGoal] = useState(2.5);
-  const [intake1, setIntake1] = useState(250);
-  const [intake2, setIntake2] = useState(500);
-  const [hydrationLoading, setHydrationLoading] = useState(true);
-  const [hydrationRecordId, setHydrationRecordId] = useState(null); // Track current day's record ID
+  // Initialize hydration state with cached data (Instagram pattern)
+  const [currentIntake, setCurrentIntake] = useState(() => globalCache.cachedHydrationData?.currentIntake || 0);
+  const [dailyGoal, setDailyGoal] = useState(() => globalCache.cachedHydrationData?.dailyGoal || 2.5);
+  const [intake1, setIntake1] = useState(() => globalCache.cachedHydrationData?.intake1 || 250);
+  const [intake2, setIntake2] = useState(() => globalCache.cachedHydrationData?.intake2 || 500);
+  const [hydrationLoading, setHydrationLoading] = useState(() => !globalCache.cachedHydrationData);
+  const [hydrationRecordId, setHydrationRecordId] = useState(() => globalCache.cachedHydrationData?.hydrationRecordId || null);
 
-  useEffect(() => {
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!realUserId) return;
+      
+      // Check cache - skip fetch if data is fresh
+      const now = Date.now();
+      if (now - globalCache.lastHydrationFetch < globalCache.CACHE_DURATION && globalCache.cachedHydrationData) {
+        // Restore hydration state from cache
+        setCurrentIntake(globalCache.cachedHydrationData.currentIntake);
+        setDailyGoal(globalCache.cachedHydrationData.dailyGoal);
+        setIntake1(globalCache.cachedHydrationData.intake1);
+        setIntake2(globalCache.cachedHydrationData.intake2);
+        setHydrationRecordId(globalCache.cachedHydrationData.hydrationRecordId);
+        setHydrationLoading(false);
+        return; // Use cached data
+      }
+      
     const fetchHydration = async () => {
-      setHydrationLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      console.log('MainDashboard - Hydration User ID:', userId);
       const today = new Date().toISOString().slice(0, 10);
-      console.log('MainDashboard - Today:', today);
-      const { data, error } = await supabase
+        const { data } = await supabase
         .from('daily_water_intake')
         .select('*')
-        .eq('user_id', userId)
+          .eq('user_id', realUserId)
         .eq('date', today)
         .single();
-      console.log('MainDashboard - Hydration data:', data);
-      console.log('MainDashboard - Hydration error:', error);
+        
       if (data) {
         setCurrentIntake(data.current_intake_ml / 1000);
         setDailyGoal(data.daily_goal_ml / 1000);
         setIntake1(data.intake1_ml || 250);
         setIntake2(data.intake2_ml || 500);
-        setHydrationRecordId(data.id); // Set the record ID
-      } else {
-        // No record for today, create one
-        await createTodayHydrationRecord(userId, today);
-        setCurrentIntake(0);
-        setDailyGoal(2.5);
-        setIntake1(250);
-        setIntake2(500);
-      }
-      setHydrationLoading(false);
-    };
-    fetchHydration();
-  }, []);
-
-  // Refresh hydration data when screen comes into focus (e.g., when returning from HydrationTrackerScreen)
-  useFocusEffect(
-    React.useCallback(() => {
-      const fetchHydration = async () => {
-        setHydrationLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
-    const today = new Date().toISOString().slice(0, 10);
-        const { data, error } = await supabase
-      .from('daily_water_intake')
-          .select('*')
-      .eq('user_id', userId)
-          .eq('date', today)
-          .single();
-        if (data) {
-          setCurrentIntake(data.current_intake_ml / 1000);
-          setDailyGoal(data.daily_goal_ml / 1000);
-          setIntake1(data.intake1_ml || 250);
-          setIntake2(data.intake2_ml || 500);
-          setHydrationRecordId(data.id); // Set the record ID
+          setHydrationRecordId(data.id);
         } else {
-          // No record for today, create one
-          await createTodayHydrationRecord(userId, today);
+          await createTodayHydrationRecord(realUserId, today);
           setCurrentIntake(0);
           setDailyGoal(2.5);
           setIntake1(250);
           setIntake2(500);
-        }
-        setHydrationLoading(false);
-      };
-      fetchHydration();
-    }, [])
+      }
+      setHydrationLoading(false);
+        
+        // Cache hydration data
+        globalCache.cachedHydrationData = {
+          currentIntake: data ? data.current_intake_ml / 1000 : 0,
+          dailyGoal: data ? data.daily_goal_ml / 1000 : 2.5,
+          intake1: data?.intake1_ml || 250,
+          intake2: data?.intake2_ml || 500,
+          hydrationRecordId: data?.id || null,
+        };
+        
+        // Update cache timestamp
+        globalCache.lastHydrationFetch = Date.now();
+    };
+    fetchHydration();
+    }, [realUserId])
   );
 
   // Create today's hydration record if it doesn't exist
@@ -627,27 +637,31 @@ const MainDashboardScreen = () => {
 
       if (error) throw error;
       setHydrationRecordId(data.id);
-      console.log('Created today hydration record:', data.id);
     } catch (error) {
-      console.error('Error creating today hydration record:', error);
+      // Silent
     }
   };
 
   const handleAddWater = async (amount) => {
-    if (!hydrationRecordId) {
-      console.error('No hydration record ID available');
-      return;
-    }
+    if (!hydrationRecordId) return;
 
     // Convert amount from ml to L (same as HydrationTrackerScreen)
     const amountInL = amount / 1000;
     const newIntake = Math.min(currentIntake + amountInL, dailyGoal);
+    
+    // Optimistic update - update UI immediately
     setCurrentIntake(newIntake);
+    
+    // Update cache immediately for instant display on navigation
+    if (globalCache.cachedHydrationData) {
+      globalCache.cachedHydrationData.currentIntake = newIntake;
+      globalCache.lastHydrationFetch = Date.now();
+    }
     
     try {
       // Update by record ID (same as HydrationTrackerScreen)
       const { error } = await supabase
-        .from('daily_water_intake')
+      .from('daily_water_intake')
         .update({
           current_intake_ml: Math.round(newIntake * 1000), // Convert L to ml for database
           goal_status: newIntake >= dailyGoal ? 'achieved' : 'not achieved',
@@ -657,7 +671,7 @@ const MainDashboardScreen = () => {
 
       if (error) throw error;
     } catch (error) {
-      console.error('Error updating water intake:', error);
+      // Silent - but could rollback optimistic update here if needed
     }
   };
 
@@ -676,7 +690,7 @@ const MainDashboardScreen = () => {
             <Ionicons name="log-out" size={20} color={COLORS.primary} />
           </TouchableOpacity>
           <Text style={styles.greetingCardTitle}>Good Morning, {userName}</Text>
-          <Text style={styles.greetingCardVibe}>Today's vibe: {mood || 'Not tracked yet'} <Text style={{ fontSize: 16 }}>💙</Text></Text>
+          <Text style={styles.greetingCardVibe}>Today&apos;s vibe: {mood || 'Not tracked yet'} <Text style={{ fontSize: 16 }}>💙</Text></Text>
           {ritualStreak !== null ? (
             <View style={styles.streakRowBlue}>
               <Ionicons name="water" size={18} color="#3B82F6" style={{ marginRight: 6 }} />
@@ -730,7 +744,6 @@ const MainDashboardScreen = () => {
           </View>
 
           {/* Hydration Card */}
-          {console.log('Rendering hydration card - currentIntake:', currentIntake, 'dailyGoal:', dailyGoal, 'intake1:', intake1, 'intake2:', intake2, 'hydrationLoading:', hydrationLoading)}
           <View style={styles.shadowWrapper}>
             <View style={styles.hydrationCardCustom}>
               <TouchableOpacity style={styles.hydrationHeaderRow} onPress={() => navigation.navigate('HydrationTrackerScreen')}>
@@ -871,7 +884,7 @@ const MainDashboardScreen = () => {
             onPress={() => navigation.navigate('HabitsScreen')}
             activeOpacity={0.8}
           >
-            <Text style={styles.habitsTitleV2}>Today's Habits</Text>
+            <Text style={styles.habitsTitleV2}>Today&apos;s Habits</Text>
             <View style={styles.habitRowV2}>
               <Ionicons name="time-outline" size={22} color={COLORS.primary} style={{ marginRight: 14 }} />
               <Text style={styles.habitTextV2}>Wake at 6AM</Text>
@@ -1721,4 +1734,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MainDashboardScreen; 
+export default React.memo(MainDashboardScreen); 

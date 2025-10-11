@@ -381,6 +381,20 @@ const SleepTrackerScreen = () => {
       
       if (error) throw error;
       
+      // Optimistic update - update MainDashboard cache immediately
+      try {
+        const { updateMainDashboardSleepCache } = require('../utils/cacheManager');
+        updateMainDashboardSleepCache({
+          date: dateStr,
+          duration,
+          quality,
+          mood,
+          sleep_goal: sleepGoal,
+        });
+      } catch (error) {
+        // Silent - cacheManager might not exist yet
+      }
+      
       Alert.alert(
         "Success",
         editMode ? "Sleep log updated!" : "Sleep log added!"

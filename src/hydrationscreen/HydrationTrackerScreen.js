@@ -9,28 +9,36 @@ import Icon from 'react-native-vector-icons/Feather';
 import supabase from '../lib/supabase';
 import { getResponsiveFontSize, getResponsivePadding } from '../utils/responsive';
 
+// Global cache for HydrationTrackerScreen (Instagram pattern)
+const globalHydrationCache = {
+  lastFetchTime: 0,
+  CACHE_DURATION: 60000, // 60 seconds
+  cachedData: null,
+};
+
 const HydrationTrackerScreen = () => {
   const navigation = useNavigation();
-  const [currentIntake, setCurrentIntake] = useState(0);
-  const [dailyGoal, setDailyGoal] = useState(2.5);
+  // Initialize state with cached data (Instagram pattern)
+  const [currentIntake, setCurrentIntake] = useState(() => globalHydrationCache.cachedData?.currentIntake || 0);
+  const [dailyGoal, setDailyGoal] = useState(() => globalHydrationCache.cachedData?.dailyGoal || 2.5);
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [goalInput, setGoalInput] = useState('2.5');
   // New state for intake values and modal
-  const [intake1, setIntake1] = useState(250);
-  const [intake2, setIntake2] = useState(500);
+  const [intake1, setIntake1] = useState(() => globalHydrationCache.cachedData?.intake1 || 250);
+  const [intake2, setIntake2] = useState(() => globalHydrationCache.cachedData?.intake2 || 500);
   const [intakeModalVisible, setIntakeModalVisible] = useState(false);
   const [intakeInput1, setIntakeInput1] = useState('250');
   const [intakeInput2, setIntakeInput2] = useState('500');
   const [userId, setUserId] = useState(null);
-  const [recordId, setRecordId] = useState(null); // Track current day's record ID
+  const [recordId, setRecordId] = useState(() => globalHydrationCache.cachedData?.recordId || null);
   // Weekly data state
-  const [weeklyIntakeData, setWeeklyIntakeData] = useState({});
+  const [weeklyIntakeData, setWeeklyIntakeData] = useState(() => globalHydrationCache.cachedData?.weeklyIntakeData || {});
   // New state for tracking intake values per day
-  const [weeklyIntakeValues, setWeeklyIntakeValues] = useState({});
+  const [weeklyIntakeValues, setWeeklyIntakeValues] = useState(() => globalHydrationCache.cachedData?.weeklyIntakeValues || {});
   // New state for tracking goals per day
-  const [weeklyGoals, setWeeklyGoals] = useState({});
-  const [historicalGoals, setHistoricalGoals] = useState({});
+  const [weeklyGoals, setWeeklyGoals] = useState(() => globalHydrationCache.cachedData?.weeklyGoals || {});
+  const [historicalGoals, setHistoricalGoals] = useState(() => globalHydrationCache.cachedData?.historicalGoals || {});
   // Animated value for bar height
   const [barAnimation] = useState(new Animated.Value(0));
 
@@ -130,8 +138,6 @@ const HydrationTrackerScreen = () => {
     try {
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      console.log('HydrationTracker - User:', user);
-      console.log('HydrationTracker - User Error:', userError);
       
       if (userError || !user) {
         Alert.alert('Error', 'Please login first');
@@ -139,7 +145,6 @@ const HydrationTrackerScreen = () => {
       }
 
       setUserId(user.id);
-      console.log('HydrationTracker - User ID set:', user.id);
       // Clean up any existing duplicates first
       await cleanupDuplicateRecords(user.id, getCurrentDate());
       await loadTodayData(user.id);
@@ -190,6 +195,15 @@ const HydrationTrackerScreen = () => {
       // Store historical goals (don't update when today's goal changes)
       setHistoricalGoals(weeklyGoalsData);
       
+      // Update cache
+      globalHydrationCache.cachedData = {
+        ...globalHydrationCache.cachedData,
+        weeklyIntakeData: weeklyData,
+        weeklyIntakeValues: weeklyIntakeValuesData,
+        weeklyGoals: weeklyGoalsData,
+        historicalGoals: weeklyGoalsData,
+      };
+      
     } catch (error) {
       console.error('Error loading weekly data:', error);
     }
@@ -198,8 +212,6 @@ const HydrationTrackerScreen = () => {
   const loadTodayData = async (userId) => {
     try {
       const today = getCurrentDate();
-      console.log('HydrationTracker - Loading today data for user:', userId);
-      console.log('HydrationTracker - Today date:', today);
       
       // Check if record exists for today - get the most recent one if multiple exist
       const { data, error } = await supabase
@@ -211,35 +223,44 @@ const HydrationTrackerScreen = () => {
         .limit(1)
         .single();
 
-      console.log('HydrationTracker - Today data:', data);
-      console.log('HydrationTracker - Today error:', error);
-
       if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
         throw error;
       }
 
       if (data) {
         // Record exists, load the data
-        setCurrentIntake(data.current_intake_ml / 1000); // Convert ml to L
-        setDailyGoal(data.daily_goal_ml / 1000); // Convert ml to L
+        const intakeValue = data.current_intake_ml / 1000;
+        const goalValue = data.daily_goal_ml / 1000;
+        const intake1Value = data.intake1_ml || 250;
+        const intake2Value = data.intake2_ml || 500;
+        
+        setCurrentIntake(intakeValue);
+        setDailyGoal(goalValue);
         setRecordId(data.id);
-        // Load intake values if they exist
-        if (data.intake1_ml) setIntake1(data.intake1_ml);
-        if (data.intake2_ml) setIntake2(data.intake2_ml);
+        setIntake1(intake1Value);
+        setIntake2(intake2Value);
+        
+        // Update cache
+        globalHydrationCache.cachedData = {
+          ...globalHydrationCache.cachedData,
+          currentIntake: intakeValue,
+          dailyGoal: goalValue,
+          intake1: intake1Value,
+          intake2: intake2Value,
+          recordId: data.id,
+        };
+        globalHydrationCache.lastFetchTime = Date.now();
         
         // Check and update goal status if needed
         if (data.goal_status) {
           const currentStatus = data.goal_status;
-          const shouldBeStatus = (data.current_intake_ml / 1000) >= (data.daily_goal_ml / 1000) ? 'achieved' : 'not achieved';
+          const shouldBeStatus = intakeValue >= goalValue ? 'achieved' : 'not achieved';
           if (currentStatus !== shouldBeStatus) {
             await updateGoalStatus(shouldBeStatus);
           }
         }
-        
-        console.log('HydrationTracker - Today data loaded successfully');
       } else {
         // No record for today, create new one
-        console.log('HydrationTracker - No record for today, creating new one');
         await createTodayRecord(userId);
       }
     } catch (error) {
@@ -306,8 +327,6 @@ const HydrationTrackerScreen = () => {
           .in('id', idsToDelete);
 
         if (deleteError) throw deleteError;
-        
-        console.log(`Cleaned up ${recordsToDelete.length} duplicate records for ${date}`);
       }
     } catch (error) {
       console.error('Error cleaning up duplicate records:', error);
@@ -504,7 +523,28 @@ const HydrationTrackerScreen = () => {
 
   const addWater = async (amount) => {
     const newIntake = Math.min(currentIntake + amount, dailyGoal);
+    
+    // Optimistic update - update UI immediately
     setCurrentIntake(newIntake);
+    
+    // Update HydrationTrackerScreen cache immediately
+    if (globalHydrationCache.cachedData) {
+      globalHydrationCache.cachedData.currentIntake = newIntake;
+      globalHydrationCache.lastFetchTime = Date.now();
+    }
+    
+    // Also update MainDashboard's hydration cache for sync
+    try {
+      const { getMainDashboardCache } = require('../utils/cacheManager');
+      const mainCache = getMainDashboardCache();
+      if (mainCache.cachedHydrationData) {
+        mainCache.cachedHydrationData.currentIntake = newIntake;
+        mainCache.lastHydrationFetch = Date.now();
+      }
+    } catch (error) {
+      // Silent - cacheManager might not exist yet
+    }
+    
     await updateWaterIntake(newIntake);
     
     // Check if goal is achieved and update goal status
@@ -595,26 +635,37 @@ const HydrationTrackerScreen = () => {
     }
   };
 
-  // Animated Bar Component
-  const AnimatedBar = ({ data, index }) => {
-    const [animatedHeight] = useState(new Animated.Value(20)); // Start with circle height
-    const [animatedColor] = useState(new Animated.Value(0)); // 0 for gray, 1 for purple, 2 for green
+  // Animated Bar Component - Memoized to prevent re-renders (Instagram pattern)
+  const AnimatedBar = React.memo(({ data, index }) => {
+    // Initialize with final values (no animation on mount) - Instagram pattern
+    const initialHeight = getBarHeight(data.intake, data.isToday);
+    const initialColor = data.intake === 0 ? 0 : (data.goalAchieved ? 2 : 1);
+    
+    const [animatedHeight] = useState(new Animated.Value(initialHeight));
+    const [animatedColor] = useState(new Animated.Value(initialColor));
+    const [hasAnimated, setHasAnimated] = useState(false);
 
     useEffect(() => {
+      // Only animate on subsequent changes, not on mount
+      if (!hasAnimated) {
+        setHasAnimated(true);
+        return;
+      }
+
       const targetHeight = getBarHeight(data.intake, data.isToday);
       const targetColor = data.intake === 0 ? 0 : (data.goalAchieved ? 2 : 1);
 
       // Animate height
       Animated.timing(animatedHeight, {
         toValue: targetHeight,
-        duration: 500,
+        duration: 300, // Faster animation
         useNativeDriver: false,
       }).start();
 
       // Animate color
       Animated.timing(animatedColor, {
         toValue: targetColor,
-        duration: 300,
+        duration: 200, // Faster animation
         useNativeDriver: false,
       }).start();
     }, [data.intake, data.goalAchieved]);
@@ -632,7 +683,7 @@ const HydrationTrackerScreen = () => {
             {
               height: animatedHeight,
               backgroundColor: backgroundColor,
-              borderRadius: data.intake === 0 ? 15 : 15, // Always rounded for circle effect at 0
+              borderRadius: 15, // Always rounded for circle effect
             }
           ]}
         />
@@ -647,7 +698,15 @@ const HydrationTrackerScreen = () => {
         </Text>
       </View>
     );
-  };
+  }, (prevProps, nextProps) => {
+    // Custom comparison function - only re-render if these values change
+    return (
+      prevProps.data.intake === nextProps.data.intake &&
+      prevProps.data.goalAchieved === nextProps.data.goalAchieved &&
+      prevProps.data.isToday === nextProps.data.isToday &&
+      prevProps.data.day === nextProps.data.day
+    );
+  });
 
   return (
     <View style={styles.container}>
@@ -663,7 +722,6 @@ const HydrationTrackerScreen = () => {
       </SafeAreaView>
       
       <ScrollView style={styles.scrollContainer}>
-        {console.log('HydrationTracker rendering - currentIntake:', currentIntake, 'dailyGoal:', dailyGoal, 'intake1:', intake1, 'intake2:', intake2)}
         <View style={styles.innerContainer}>
         <View style={styles.waterContainer}>
           {/* Glass jar rim effect */}
@@ -1231,4 +1289,5 @@ textBackdrop: {
   },
 });
 
-export default HydrationTrackerScreen;
+// Wrap with React.memo to prevent unnecessary re-renders (Instagram pattern)
+export default React.memo(HydrationTrackerScreen);

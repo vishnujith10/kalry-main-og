@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import React, { useContext, useEffect, useState } from "react";
 import {
   Alert,
@@ -15,6 +16,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { OnboardingContext } from "../context/OnboardingContext";
 import supabase from "../lib/supabase";
 
+// Global cache for WeightTrackerScreen (Instagram pattern)
+const globalWeightCache = {
+  isFetching: false,
+  lastFetchTime: 0,
+  CACHE_DURATION: 60000, // 60 seconds
+  cachedData: null,
+};
 
 const PRIMARY = "#7B61FF";
 const CARD_BG = "#F8F6FC";
@@ -32,9 +40,10 @@ function formatDate(dateStr) {
 
 const WeightTrackerScreen = ({ navigation }) => {
   const { onboardingData, setOnboardingData } = useContext(OnboardingContext);
-  const [logs, setLogs] = useState([]);
+  // Initialize state with cached data (Instagram pattern)
+  const [logs, setLogs] = useState(() => globalWeightCache.cachedData?.logs || []);
   const [refreshing, setRefreshing] = useState(false);
-  const [userProfile, setUserProfile] = useState(null);
+  const [userProfile, setUserProfile] = useState(() => globalWeightCache.cachedData?.userProfile || null);
 
 
   // Get userId from Supabase Auth
@@ -50,38 +59,83 @@ const WeightTrackerScreen = ({ navigation }) => {
   }, []);
 
 
-  // Fetch user profile and logs
-  useEffect(() => {
-    if (!userId) return;
-    const fetchData = async () => {
-      // Fetch user profile
-      const { data: profile, error: profileError } = await supabase
-        .from("user_profile")
-        .select("weight, target_weight, weight_unit")
-        .eq("id", userId)
-        .single();
+  // Fetch user profile and logs with caching (Instagram pattern)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!userId) return;
       
-      if (!profileError && profile) {
-        setUserProfile(profile);
-        setOnboardingData((prev) => ({
-          ...prev,
-          weight: profile.weight || prev.weight,
-          target_weight: profile.target_weight || prev.target_weight,
-          selectedWeightUnit: profile.weight_unit || prev.selectedWeightUnit || "kg",
-        }));
+      const now = Date.now();
+      const timeSinceLastFetch = now - globalWeightCache.lastFetchTime;
+      
+      // Check cache - if fresh, restore from cache and skip fetch
+      if (timeSinceLastFetch < globalWeightCache.CACHE_DURATION && globalWeightCache.cachedData) {
+        // Only update state if it's different (prevent unnecessary re-renders)
+        if (JSON.stringify(globalWeightCache.cachedData.logs) !== JSON.stringify(logs)) {
+          setLogs(globalWeightCache.cachedData.logs || []);
+        }
+        if (JSON.stringify(globalWeightCache.cachedData.userProfile) !== JSON.stringify(userProfile)) {
+          setUserProfile(globalWeightCache.cachedData.userProfile || null);
+          if (globalWeightCache.cachedData.userProfile) {
+            setOnboardingData((prev) => ({
+              ...prev,
+              weight: globalWeightCache.cachedData.userProfile.weight || prev.weight,
+              target_weight: globalWeightCache.cachedData.userProfile.target_weight || prev.target_weight,
+              selectedWeightUnit: globalWeightCache.cachedData.userProfile.weight_unit || prev.selectedWeightUnit || "kg",
+            }));
+          }
+        }
+        return; // Use cached data
       }
       
-      // Fetch weight logs
-      const { data: logsData, error: logsError } = await supabase
-        .from("weight_logs")
-        .select("*")
-        .eq("user_id", userId)
-        .order("date", { ascending: false });
+      // Prevent concurrent fetches
+      if (globalWeightCache.isFetching) return;
+      globalWeightCache.isFetching = true;
       
-      if (!logsError && logsData) setLogs(logsData);
-    };
-    fetchData();
-  }, [userId, refreshing, setOnboardingData]);
+      const fetchData = async () => {
+        try {
+          // Fetch user profile
+          const { data: profile, error: profileError } = await supabase
+            .from("user_profile")
+            .select("weight, target_weight, weight_unit")
+            .eq("id", userId)
+            .single();
+          
+          if (!profileError && profile) {
+            setUserProfile(profile);
+            setOnboardingData((prev) => ({
+              ...prev,
+              weight: profile.weight || prev.weight,
+              target_weight: profile.target_weight || prev.target_weight,
+              selectedWeightUnit: profile.weight_unit || prev.selectedWeightUnit || "kg",
+            }));
+          }
+          
+          // Fetch weight logs
+          const { data: logsData, error: logsError } = await supabase
+            .from("weight_logs")
+            .select("*")
+            .eq("user_id", userId)
+            .order("date", { ascending: false });
+          
+          if (!logsError && logsData) {
+            setLogs(logsData);
+          }
+          
+          // Update cache
+          globalWeightCache.cachedData = {
+            logs: logsData || [],
+            userProfile: profile || null,
+          };
+          globalWeightCache.lastFetchTime = Date.now();
+        } catch (error) {
+          // Silent error handling
+        } finally {
+          globalWeightCache.isFetching = false;
+        }
+      };
+      fetchData();
+    }, [userId, refreshing, setOnboardingData])
+  );
 
 
   // Refresh after adding new weight
@@ -579,4 +633,8 @@ const styles = StyleSheet.create({
 });
 
 
-export default WeightTrackerScreen; 
+// Export cache for external access
+export { globalWeightCache };
+
+// Wrap with React.memo to prevent unnecessary re-renders (Instagram pattern)
+export default React.memo(WeightTrackerScreen); 

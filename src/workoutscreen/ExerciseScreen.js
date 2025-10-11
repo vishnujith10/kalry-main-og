@@ -67,7 +67,12 @@ const FooterBar = ({ navigation, activeTab }) => {
               footerStyles.tab,
               tab.key === activeTab && footerStyles.activeTab
             ]}
-            onPress={() => navigation.navigate(tab.route)}
+            onPress={() => {
+              // Don't navigate if already on active tab
+              if (tab.key === activeTab) return;
+              
+              navigation.navigate(tab.route);
+            }}
             activeOpacity={0.7}
           >
             {React.cloneElement(tab.icon, {
@@ -89,7 +94,7 @@ const FooterBar = ({ navigation, activeTab }) => {
   );
 };
 
-export default function ExerciseScreen() {
+const ExerciseScreen = () => {
   const [exercises, setExercises] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -745,3 +750,5 @@ const footerStyles = StyleSheet.create({
     borderRadius: 2,
   },
 });
+
+export default React.memo(ExerciseScreen);

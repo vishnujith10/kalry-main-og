@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import React, { useContext, useEffect, useState } from "react";
 import {
@@ -23,9 +24,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from "../context/OnboardingContext";
 import supabase from "../lib/supabase";
 import { createFoodLog, deleteFoodLog, getFoodLogs } from "../utils/api";
+import { getHomeScreenCache, invalidateHomeScreenCache, updateHomeScreenCacheOptimistic } from "../utils/cacheManager";
 import useTodaySteps from "../utils/useTodaySteps";
 
 const screenWidth = Dimensions.get("window").width;
+
+// Use centralized cache
+const globalHomeCache = getHomeScreenCache();
+
+// Export for backward compatibility
+export { invalidateHomeScreenCache, updateHomeScreenCacheOptimistic as updateHomeScreenCache };
 
 // Add FooterBar component (same as MainDashboard)
 const FooterBar = ({ navigation, activeTab }) => {
@@ -67,7 +75,12 @@ const FooterBar = ({ navigation, activeTab }) => {
               footerStyles.tab,
               tab.key === activeTab && footerStyles.activeTab
             ]}
-            onPress={() => navigation.navigate(tab.route)}
+            onPress={() => {
+              // Don't navigate if already on active tab
+              if (tab.key === activeTab) return;
+              
+              navigation.navigate(tab.route);
+            }}
             activeOpacity={0.7}
           >
             {React.cloneElement(tab.icon, {
@@ -236,15 +249,16 @@ const HomeScreen = ({ navigation }) => {
   const [weekDates, setWeekDates] = useState(getCurrentWeekDates());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [user, setUser] = useState({ id: null });
-  const [foodLogs, setFoodLogs] = useState([]);
-  const [totals, setTotals] = useState({
+  // Initialize with cached data if available (Instagram pattern)
+  const [foodLogs, setFoodLogs] = useState(() => globalHomeCache.cachedData?.foodLogs || []);
+  const [totals, setTotals] = useState(() => globalHomeCache.cachedData?.totals || {
     calories: 0,
     protein: 0,
     carbs: 0,
     fat: 0,
   });
   const [userName, setUserName] = useState(onboardingData?.name || "User");
-  const [recentMeals, setRecentMeals] = useState([]);
+  const [recentMeals, setRecentMeals] = useState(() => globalHomeCache.cachedData?.recentMeals || []);
   const [expandedMeal, setExpandedMeal] = useState(null);
   const { stepsToday, calories: stepCalories } = useTodaySteps();
   const { onboardingData } = useContext(OnboardingContext);
@@ -335,16 +349,52 @@ const HomeScreen = ({ navigation }) => {
   }, [onboardingData]);
 
   useEffect(() => {
-    if (user && user.id) {
-      fetchFoodLogs(selectedDate);
-    }
-  }, [user, selectedDate]);
-
-  useEffect(() => {
     setWeekDates(getCurrentWeekDates());
   }, []);
+  
+  // Use useFocusEffect with cache
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user && user.id && selectedDate) {
+        fetchFoodLogs(selectedDate);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id, selectedDate])
+  );
 
   const fetchFoodLogs = async (date) => {
+    const now = Date.now();
+    const timeSinceLastFetch = now - globalHomeCache.lastFetchTime;
+    const isStale = timeSinceLastFetch > globalHomeCache.STALE_TIME;
+    const isFresh = timeSinceLastFetch < globalHomeCache.CACHE_DURATION;
+    
+    // SWR Pattern: Stale-While-Revalidate (like Instagram)
+    if (globalHomeCache.cachedData && isFresh) {
+      // Data is fresh - use cache, no revalidation needed
+      // Always restore from cache when fresh (not just first time)
+      setFoodLogs(globalHomeCache.cachedData.foodLogs || []);
+      setTotals(globalHomeCache.cachedData.totals || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+      setRecentMeals(globalHomeCache.cachedData.recentMeals || []);
+      globalHomeCache.cacheHits++;
+      return; // Fresh cache - no fetch needed
+    }
+    
+    if (globalHomeCache.cachedData && isStale && !isFresh) {
+      // Data is stale but within cache duration - show stale, revalidate in background
+      // Always restore from cache (not just first time)
+      setFoodLogs(globalHomeCache.cachedData.foodLogs || []);
+      setTotals(globalHomeCache.cachedData.totals || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+      setRecentMeals(globalHomeCache.cachedData.recentMeals || []);
+      globalHomeCache.cacheHits++;
+      // Continue to fetch fresh data in background (don't return)
+    }
+    
+    // Prevent concurrent fetches
+    if (globalHomeCache.isFetching) return;
+    
+    globalHomeCache.isFetching = true;
+    globalHomeCache.cacheMisses++;
+    
     try {
       const logs = await getFoodLogs(user.id);
       const startOfDay = new Date(date);
@@ -356,7 +406,21 @@ const HomeScreen = ({ navigation }) => {
         return logDate >= startOfDay && logDate <= endOfDay;
       });
       setFoodLogs(filteredLogs);
-      calculateTotals(filteredLogs);
+      
+      // Calculate totals
+      const newTotals = filteredLogs.reduce(
+        (acc, log) => {
+          acc.calories += log.calories || 0;
+          acc.protein += log.protein || 0;
+          acc.carbs += log.carbs || 0;
+          acc.fat += log.fat || 0;
+          acc.fiber += log.fiber || 0;
+          return acc;
+        },
+        { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
+      );
+      setTotals(newTotals);
+      
       // Resolve signed URLs for recent meals
       const recent = filteredLogs.slice(-5).reverse();
       const withUrls = await Promise.all(recent.map(async (meal) => {
@@ -373,8 +437,20 @@ const HomeScreen = ({ navigation }) => {
         return meal;
       }));
       setRecentMeals(withUrls);
+      
+      // Cache the data
+      globalHomeCache.cachedData = {
+        foodLogs: filteredLogs,
+        totals: newTotals,
+        recentMeals: withUrls,
+      };
+      
+      // Update cache timestamp
+      globalHomeCache.lastFetchTime = Date.now();
     } catch (error) {
       console.error("Error fetching food logs:", error);
+    } finally {
+      globalHomeCache.isFetching = false;
     }
   };
 
@@ -616,7 +692,7 @@ const HomeScreen = ({ navigation }) => {
 
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
-            <Text style={styles.cardTitle}>Today's Summary</Text>
+            <Text style={styles.cardTitle}>Today&apos;s Summary</Text>
             <TouchableOpacity style={styles.dateChip}>
               <Ionicons name="calendar-outline" size={16} color="#7B61FF" />
               <Text style={styles.dateChipText}>
@@ -1461,4 +1537,4 @@ const plusStyles = StyleSheet.create({
   },
 });
 
-export default HomeScreen;
+export default React.memo(HomeScreen);

@@ -580,6 +580,12 @@ const VoicePostCalorieScreen = ({ route, navigation }) => {
       };
       const { error } = await supabase.from('user_food_logs').insert([logData]);
       if (error) throw error;
+      
+      // Optimistic cache update (Instagram pattern)
+      const { updateMainDashboardCacheOptimistic, updateHomeScreenCacheOptimistic } = require('../utils/cacheManager');
+      updateMainDashboardCacheOptimistic(logData);
+      updateHomeScreenCacheOptimistic(logData);
+      
       Alert.alert('Success', 'Food logged successfully!');
       navigation.navigate('Home');
     } catch (err) {

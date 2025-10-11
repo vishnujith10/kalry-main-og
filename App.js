@@ -114,7 +114,15 @@ export default function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <OnboardingProvider>
           <NavigationContainer>
-          <Stack.Navigator initialRouteName="AuthLoading" screenOptions={{ headerShown: false }}>
+          <Stack.Navigator 
+            initialRouteName="AuthLoading" 
+            screenOptions={{ 
+              headerShown: false,
+              animation: 'slide_from_left', // Left-to-right animation
+              animationDuration: 200, // Fast but smooth (Instagram uses ~200ms)
+            }}
+            detachInactiveScreens={false} // Keep screens mounted (like Instagram/Facebook)
+          >
             <Stack.Screen name="AuthLoading" component={AuthLoadingScreen} />
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />

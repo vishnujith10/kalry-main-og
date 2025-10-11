@@ -37,16 +37,21 @@ const LoginScreen = ({ navigation }) => {
     return emailRegex.test(email);
   };
 
+  // Note: We don't need to handle navigation in onAuthStateChange here
+  // because handleLogin already navigates after successful login.
+  // This prevents double navigation animation.
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
+      // Only handle OAuth redirects (Google/Apple), not password login
+      if (event === 'SIGNED_IN' && session && !email) {
+        // OAuth login (no email in state means it's from Google/Apple)
         navigation.replace('MainDashboard');
       }
     });
     return () => {
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [email]);
 
   const handleLogin = async () => {
     if (!email || !password) {

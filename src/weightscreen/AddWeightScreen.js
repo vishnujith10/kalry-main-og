@@ -107,6 +107,43 @@ const AddWeightScreen = ({ navigation }) => {
       // Don't show error to user as the weight log was saved successfully
     }
 
+    // Optimistic update - update WeightTrackerScreen cache immediately
+    try {
+      const { getMainDashboardCache } = require('../utils/cacheManager');
+      const mainCache = getMainDashboardCache();
+      if (mainCache.cachedData) {
+        // Update weight in MainDashboard cache for Weight Journey card
+        mainCache.cachedData.currentWeight = weightValue;
+        mainCache.lastFetchTime = Date.now();
+      }
+      
+      // Update WeightTrackerScreen cache
+      const newLog = {
+        user_id: userId,
+        date: today,
+        weight: weightValue,
+        note: newNote,
+        emoji: newEmoji,
+        photo_url,
+      };
+      
+      // Access the global cache from WeightTrackerScreen
+      const globalWeightCache = require('./WeightTrackerScreen').globalWeightCache;
+      if (globalWeightCache) {
+        globalWeightCache.cachedData = {
+          ...globalWeightCache.cachedData,
+          logs: [newLog, ...(globalWeightCache.cachedData?.logs || [])],
+          userProfile: {
+            ...globalWeightCache.cachedData?.userProfile,
+            weight: weightValue,
+          },
+        };
+        globalWeightCache.lastFetchTime = Date.now();
+      }
+    } catch (error) {
+      // Silent - cache might not exist yet
+    }
+
     setUploading(false);
     navigation.goBack();
   }

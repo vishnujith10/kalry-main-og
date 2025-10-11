@@ -55,7 +55,12 @@ const FooterBar = ({ navigation, activeTab }) => {
               footerStyles.tab,
               tab.key === activeTab && footerStyles.activeTab
             ]}
-            onPress={() => navigation.navigate(tab.route)}
+            onPress={() => {
+              // Don't navigate if already on active tab
+              if (tab.key === activeTab) return;
+              
+              navigation.navigate(tab.route);
+            }}
             activeOpacity={0.7}
           >
             {React.cloneElement(tab.icon, {
@@ -484,4 +489,4 @@ const footerStyles = StyleSheet.create({
   },
 });
 
-export default ProfileScreen;
+export default React.memo(ProfileScreen);

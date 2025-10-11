@@ -392,6 +392,12 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
         };
         await createFoodLog(logData);
         console.log('Food logged successfully with photo URL:', photoUrl);
+        
+        // Optimistic cache update (Instagram pattern) - update cache immediately
+        const { updateMainDashboardCacheOptimistic, updateHomeScreenCacheOptimistic } = require('../utils/cacheManager');
+        updateMainDashboardCacheOptimistic(logData);
+        updateHomeScreenCacheOptimistic(logData);
+        
         Alert.alert('Success', 'Food logged successfully!');
         navigation.navigate('Home'); 
     } catch (error) {

@@ -322,6 +322,12 @@ The JSON object must have this structure:
         return;
       }
       await createFoodLog(logData);
+      
+      // Optimistic cache update (Instagram pattern)
+      const { updateMainDashboardCacheOptimistic, updateHomeScreenCacheOptimistic } = require('../utils/cacheManager');
+      updateMainDashboardCacheOptimistic(logData);
+      updateHomeScreenCacheOptimistic(logData);
+      
       Alert.alert("Success", "Food logged successfully!", [
         { text: "OK", onPress: () => navigation.navigate("Home") },
       ]);

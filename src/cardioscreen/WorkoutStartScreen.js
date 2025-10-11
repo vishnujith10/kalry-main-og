@@ -380,6 +380,13 @@ export default function WorkoutStartScreen({ route, navigation }) {
       // Wait for all exercises to be saved
       await Promise.all(exercisePromises);
 
+      // Optimistic update - update MainDashboard cache immediately
+      try {
+        const { updateMainDashboardWorkoutCache } = require('../utils/cacheManager');
+        updateMainDashboardWorkoutCache();
+      } catch (error) {
+        // Silent - cacheManager might not exist yet
+      }
 
       Alert.alert(
         'Success',

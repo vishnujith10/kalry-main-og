@@ -1,20 +1,20 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  Dimensions,
-  Image,
-  Keyboard,
-  Modal,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View
+    Alert,
+    Animated,
+    Dimensions,
+    Image,
+    Keyboard,
+    Modal,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
@@ -493,6 +493,14 @@ export default function StartWorkoutScreen({ navigation, route }) {
         exercises: preparedExercises,
         isRoutine: true,
       });
+      
+      // Optimistic update - update MainDashboard cache immediately
+      try {
+        const { updateMainDashboardWorkoutCache } = require('../utils/cacheManager');
+        updateMainDashboardWorkoutCache();
+      } catch (error) {
+        // Silent - cacheManager might not exist yet
+      }
       
       Alert.alert(
         'Workout Completed!',
