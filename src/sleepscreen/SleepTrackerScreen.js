@@ -1,18 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import {
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingContext } from "../context/OnboardingContext";
@@ -21,6 +21,14 @@ import { getResponsivePadding } from '../utils/responsive';
 
 const SLEEP_QUALITIES = ["Excellent", "Good", "Fair", "Poor"];
 const MOODS = ["Relaxed", "Neutral", "Tired", "Stressed"];
+
+// Global cache for sleep data
+const globalSleepCache = {
+  cachedData: null,
+  timestamp: null,
+  isStale: false,
+  CACHE_DURATION: 5000, // 5 seconds
+};
 const SLEEP_TIPS = [
   "Avoid caffeine and alcohol before bed, and consider light exercise during the day to promote better sleep.",
   "Limit screen time an hour before bed — the blue light can trick your brain into thinking it's daytime.",
@@ -57,16 +65,12 @@ function getWeekDates() {
 const SleepTrackerScreen = () => {
   const navigation = useNavigation();
   const { onboardingData } = useContext(OnboardingContext);
-  const [sleepLogs, setSleepLogs] = useState([]);
+  
+  // Initialize with cached data
+  const [sleepLogs, setSleepLogs] = useState(() => globalSleepCache.cachedData || []);
   const [showAllLogs, setShowAllLogs] = useState(false);
   const [tipsExpanded, setTipsExpanded] = useState(false);
-
-  // Component mount effect - no need to reset sleepLogs
-  useEffect(() => {
-    console.log(
-      "Component mounted - sleepLogs will be populated by fetchSleepLogs"
-    );
-  }, []);
+  const [isFetching, setIsFetching] = useState(false);
 
   const [lastSleep, setLastSleep] = useState(null);
   const [startTime, setStartTime] = useState("");
@@ -128,24 +132,48 @@ const SleepTrackerScreen = () => {
     return today.toISOString().slice(0, 10);
   };
 
-  useEffect(() => {
-    if (realUserId) {
-      fetchSleepLogs();
-      fetchSleepGoal(); // Also fetch the saved sleep goal
-    }
-  }, [realUserId]);
+  // Cache-first data fetching with useFocusEffect
+  useFocusEffect(
+    useCallback(() => {
+      if (!realUserId) return;
 
-  // Monitor sleep logs changes for debugging
+      const now = Date.now();
+      const isCacheValid = globalSleepCache.timestamp && 
+        (now - globalSleepCache.timestamp) < globalSleepCache.CACHE_DURATION;
+
+      // If cache is fresh, use it and skip fetch
+      if (isCacheValid && globalSleepCache.cachedData) {
+        setSleepLogs(globalSleepCache.cachedData);
+        setLastSleep(globalSleepCache.cachedData?.[0] || null);
+        return;
+      }
+
+      // If cache is stale, use it immediately but fetch fresh data
+      if (globalSleepCache.cachedData && globalSleepCache.isStale) {
+        setSleepLogs(globalSleepCache.cachedData);
+        setLastSleep(globalSleepCache.cachedData?.[0] || null);
+      }
+
+      // Fetch fresh data
+      fetchSleepLogs();
+      fetchSleepGoal();
+    }, [realUserId])
+  );
+
+  // Monitor sleep logs changes for week data updates
   useEffect(() => {
-    console.log("=== SLEEP LOGS CHANGED ===");
-    console.log("Sleep logs updated, count:", sleepLogs.length);
-    console.log("Latest logs:", sleepLogs.slice(0, 3).map(log => ({
-      date: log.date,
-      duration: log.duration,
-      start_time: log.start_time,
-      end_time: log.end_time
-    })));
-    console.log("=== END SLEEP LOGS CHANGE ===");
+    if (sleepLogs.length > 0) {
+      // Prepare week data
+      const week = getWeekDates();
+      const weekMap = {};
+      sleepLogs.forEach((log) => {
+        const logDate = getDateOnly(log.date);
+        weekMap[logDate] = log; 
+      });
+      setWeekData(
+        week.map((d) => weekMap[d.toISOString().slice(0, 10)] || null)
+      );
+    }
   }, [sleepLogs, refreshTrigger]);
 
   // Auto-expand current month when "View all" is clicked
@@ -160,11 +188,12 @@ const SleepTrackerScreen = () => {
     }
   }, [showAllLogs, sleepLogs]);
 
-  // FIXED: Fetch data directly from Supabase instead of backend API
+  // Cache-first fetch function
   async function fetchSleepLogs() {
-    if (!realUserId) return;
+    if (!realUserId || isFetching) return;
+    
+    setIsFetching(true);
     try {
-      // Fetch directly from Supabase instead of backend API
       const { data, error } = await supabase
         .from("sleep_logs")
         .select("*")
@@ -176,8 +205,6 @@ const SleepTrackerScreen = () => {
         return;
       }
 
-      console.log("Raw fetched sleep logs from Supabase:", data);
-
       // Filter out any logs with invalid or empty duration
       const validData = (data || []).filter((log) => {
         if (!log || !log.duration) return false;
@@ -185,23 +212,34 @@ const SleepTrackerScreen = () => {
         return mins > 0;
       });
 
-      console.log("Filtered valid sleep logs:", validData);
+      // Update cache
+      globalSleepCache.cachedData = validData;
+      globalSleepCache.timestamp = Date.now();
+      globalSleepCache.isStale = false;
 
-      setSleepLogs(validData);
-      setLastSleep(validData?.[0] || null);
+      // Only update state if data has changed
+      const currentDataString = JSON.stringify(sleepLogs);
+      const newDataString = JSON.stringify(validData);
       
-      // Prepare week data
-      const week = getWeekDates();
-      const weekMap = {};
-      validData.forEach((log) => {
-        const logDate = getDateOnly(log.date);
-        weekMap[logDate] = log; 
-      });
-      setWeekData(
-        week.map((d) => weekMap[d.toISOString().slice(0, 10)] || null)
-      );
+      if (currentDataString !== newDataString) {
+        setSleepLogs(validData);
+        setLastSleep(validData?.[0] || null);
+        
+        // Prepare week data
+        const week = getWeekDates();
+        const weekMap = {};
+        validData.forEach((log) => {
+          const logDate = getDateOnly(log.date);
+          weekMap[logDate] = log; 
+        });
+        setWeekData(
+          week.map((d) => weekMap[d.toISOString().slice(0, 10)] || null)
+        );
+      }
     } catch (err) {
       console.log("Error fetching sleep logs:", err);
+    } finally {
+      setIsFetching(false);
     }
   }
 
@@ -224,10 +262,8 @@ const SleepTrackerScreen = () => {
       }
 
       if (recentLog && recentLog.length > 0 && recentLog[0].sleep_goal) {
-        console.log("Found saved sleep goal:", recentLog[0].sleep_goal);
         setSleepGoal(recentLog[0].sleep_goal);
       } else {
-        console.log("No saved sleep goal found, using default 8h");
         setSleepGoal(8);
       }
 
@@ -264,8 +300,6 @@ const SleepTrackerScreen = () => {
 
         if (updateError) {
           console.log("Error updating sleep goal:", updateError);
-        } else {
-          console.log("Sleep goal updated to:", newGoal);
         }
       } else {
         // Create a new log entry with the goal if no logs exist
@@ -286,8 +320,6 @@ const SleepTrackerScreen = () => {
 
         if (insertError) {
           console.log("Error creating sleep goal entry:", insertError);
-        } else {
-          console.log("Sleep goal entry created with goal:", newGoal);
         }
       }
     } catch (err) {
@@ -381,7 +413,37 @@ const SleepTrackerScreen = () => {
       
       if (error) throw error;
       
-      // Optimistic update - update MainDashboard cache immediately
+      // Optimistic update - update global cache immediately
+      const newLog = {
+        id: editingLogId || `temp_${Date.now()}`,
+        user_id: realUserId,
+        date: dateStr,
+        start_time: startTime,
+        end_time: endTime,
+        duration,
+        quality,
+        mood,
+        sleep_goal: sleepGoal,
+      };
+
+      // Update global cache optimistically
+      if (editMode && editingLogId) {
+        // Update existing log in cache
+        const updatedLogs = globalSleepCache.cachedData?.map(log => 
+          log.id === editingLogId ? { ...log, ...newLog } : log
+        ) || [];
+        globalSleepCache.cachedData = updatedLogs;
+      } else {
+        // Add new log to cache
+        const updatedLogs = [newLog, ...(globalSleepCache.cachedData || [])];
+        globalSleepCache.cachedData = updatedLogs;
+      }
+      
+      // Update local state immediately
+      setSleepLogs(globalSleepCache.cachedData);
+      setLastSleep(globalSleepCache.cachedData?.[0] || null);
+
+      // Update MainDashboard cache
       try {
         const { updateMainDashboardSleepCache } = require('../utils/cacheManager');
         updateMainDashboardSleepCache({
@@ -409,14 +471,11 @@ const SleepTrackerScreen = () => {
       setEditingLogId(null);
       setShowLogModal(false);
       
-      // *IMPORTANT*: Refresh the data immediately after saving
-      await fetchSleepLogs();
+      // Mark cache as stale to trigger refresh on next focus
+      globalSleepCache.isStale = true;
       
-      // Small delay to ensure database update is complete
-      setTimeout(() => {
-        // Force recalculation of consistency
-        setRefreshTrigger(prev => prev + 1);
-      }, 100);
+      // Force recalculation of consistency
+      setRefreshTrigger(prev => prev + 1);
     } catch (err) {
       Alert.alert("Error", err.message);
     }
@@ -560,12 +619,7 @@ const SleepTrackerScreen = () => {
 
   // Calculate average sleep duration from sleepLogs
   function getAverageSleepDuration(logs) {
-    console.log("=== AVERAGE SLEEP CALCULATION START ===");
-    console.log("Input logs:", logs);
-    console.log("Logs length:", logs?.length);
-
     if (!logs || logs.length === 0) {
-      console.log("No logs provided, returning --");
       return "--";
     }
 
@@ -575,9 +629,7 @@ const SleepTrackerScreen = () => {
     yesterday.setDate(today.getDate() - 1);
 
     const recentValidLogs = logs.filter((log) => {
-      console.log("Checking log:", log);
       if (!log || !log.duration) {
-        console.log("Log or duration is null/undefined");
         return false;
       }
 
@@ -587,53 +639,27 @@ const SleepTrackerScreen = () => {
       const isYesterday = logDate.toDateString() === yesterday.toDateString();
       const isRecent = isToday || isYesterday;
 
-      console.log(
-        "Log date:",
-        log.date,
-        "Is today:",
-        isToday,
-        "Is yesterday:",
-        isYesterday,
-        "Is recent (today/yesterday):",
-        isRecent
-      );
-
       if (!isRecent) {
-        console.log("Log is too old (not today or yesterday), skipping");
         return false;
       }
 
       const mins = parseIntervalToMinutes(log.duration);
-      console.log("Duration:", log.duration, "Parsed minutes:", mins);
       return mins > 0;
     });
 
-    console.log("Recent valid logs after filtering:", recentValidLogs);
-    console.log("Recent valid logs count:", recentValidLogs.length);
-
     if (recentValidLogs.length === 0) {
-      console.log("No recent valid logs found, returning --");
       return "--";
     }
 
     let totalMinutes = 0;
     recentValidLogs.forEach((log) => {
       const mins = parseIntervalToMinutes(log.duration);
-        totalMinutes += mins;
-      console.log("Adding minutes:", mins, "Total so far:", totalMinutes);
+      totalMinutes += mins;
     });
 
     const avg = Math.round(totalMinutes / recentValidLogs.length);
     const avgH = Math.floor(avg / 60);
     const avgM = avg % 60;
-
-    console.log("Final calculation:", {
-      totalMinutes,
-      recentValidLogsCount: recentValidLogs.length,
-      avg,
-      avgH,
-      avgM,
-    });
 
     let result;
     if (avgH > 0 && avgM > 0) result = `${avgH}h ${avgM}m`;
@@ -641,8 +667,6 @@ const SleepTrackerScreen = () => {
     else if (avgM > 0) result = `${avgM}m`;
     else result = "--";
 
-    console.log("Returning result:", result);
-    console.log("=== AVERAGE SLEEP CALCULATION END ===");
     return result;
   }
 
@@ -652,18 +676,6 @@ const SleepTrackerScreen = () => {
     (l) => getDateOnly(l.date) === todayStr && l.user_id === realUserId
   );
 
-  console.log("Today string:", todayStr);
-  console.log("Today log:", todayLog);
-  console.log("Today log duration:", todayLog?.duration);
-  console.log("Today log minutes:", todayLog?.duration ? parseIntervalToMinutes(todayLog.duration) : 0);
-  console.log(
-    "All sleep logs:",
-    sleepLogs.map((l) => ({
-      date: l.date,
-      user_id: l.user_id,
-      duration: l.duration,
-    }))
-  );
 
   let todayDuration = "--";
   let todayMinutes = 0;
@@ -680,27 +692,7 @@ const SleepTrackerScreen = () => {
     hitGoal = todayMinutes >= sleepGoal * 60;
   }
 
-  console.log("=== BEFORE AVERAGE CALCULATION ===");
-  console.log("sleepLogs state:", sleepLogs);
-  console.log("sleepLogs length:", sleepLogs.length);
-  console.log("sleepLogs type:", typeof sleepLogs);
-  console.log("sleepLogs is array:", Array.isArray(sleepLogs));
-
   const averageSleep = getAverageSleepDuration(sleepLogs);
-
-  // Debug logging for average sleep calculation
-  console.log(
-    "Sleep logs for average calculation:",
-    sleepLogs.map((log) => ({
-      id: log.id,
-      duration: log.duration,
-      date: log.date,
-      hasValidDuration:
-        log.duration && parseIntervalToMinutes(log.duration) > 0,
-    }))
-  );
-  console.log("Calculated average sleep:", averageSleep);
-  console.log("=== AFTER AVERAGE CALCULATION ===");
 
   // *FIXED*: Get latest log's bedtime and wake time
   let displayBedtime = "--:--";
@@ -736,29 +728,12 @@ const SleepTrackerScreen = () => {
     weekLogMap[getDateOnly(log.date)] = log; 
   });
 
-  // Debug logging for weekly chart
-  console.log("=== WEEKLY CHART DEBUG ===");
-  console.log("Today:", today.toDateString());
-  console.log("Monday of current week:", monday.toDateString());
-  console.log(
-    "Week date objects:",
-    weekDateObjs.map((d) => d.toDateString())
-  );
-  console.log(
-    "Sleep logs:",
-    sleepLogs.map((log) => ({ date: log.date, duration: log.duration }))
-  );
-  console.log("Week log map:", weekLogMap);
-  console.log("Sleep goal:", sleepGoal);
-  console.log("Refresh trigger:", refreshTrigger);
-  console.log("Sleep logs count:", sleepLogs.length);
 
   // Weekly consistency: percentage of days that met sleep goal
   const weekTotalMins = weekDateObjs.reduce((sum, d) => {
     const key = d.toISOString().slice(0, 10);
     const log = weekLogMap[key];
     const mins = log && log.duration ? parseIntervalToMinutes(log.duration) : 0;
-    console.log(`Day ${key}: ${mins} minutes (${log ? "has log" : "no log"})`);
     return sum + mins;
   }, 0);
   
@@ -767,7 +742,6 @@ const SleepTrackerScreen = () => {
     const key = d.toISOString().slice(0, 10);
     const log = weekLogMap[key];
     const hasLog = log && log.duration && parseIntervalToMinutes(log.duration) > 0;
-    console.log(`Day ${key}: hasLog=${hasLog}, duration=${log?.duration}, minutes=${log?.duration ? parseIntervalToMinutes(log.duration) : 0}`);
     return hasLog;
   }).length;
   
@@ -778,7 +752,6 @@ const SleepTrackerScreen = () => {
     const mins = parseIntervalToMinutes(log.duration);
     const goalMins = sleepGoal * 60;
     const metGoal = mins >= (goalMins * 0.7); // Lowered to 70% of goal to be more reasonable
-    console.log(`Day ${key}: ${mins} minutes vs ${goalMins} goal (70% = ${goalMins * 0.7}), metGoal=${metGoal}`);
     return metGoal;
   }).length;
   
@@ -797,8 +770,6 @@ const SleepTrackerScreen = () => {
       const mins = parseIntervalToMinutes(log.duration);
       const goalMins = sleepGoal * 60;
       const dayPercent = goalMins > 0 ? Math.min(100, Math.round((mins / goalMins) * 100)) : 0;
-      
-      console.log(`Day ${key}: ${mins} minutes / ${goalMins} goal = ${dayPercent}%`);
       return sum + dayPercent;
     }, 0);
     
@@ -808,15 +779,6 @@ const SleepTrackerScreen = () => {
   // Ensure the percentage is valid
   const validConsistencyPercent = isNaN(weekConsistencyPercent) ? 0 : Math.max(0, Math.min(100, weekConsistencyPercent));
 
-  console.log("=== CONSISTENCY CALCULATION DEBUG ===");
-  console.log("Sleep goal (hours):", sleepGoal);
-  console.log("Sleep goal (minutes):", sleepGoal * 60);
-  console.log("Week total minutes:", weekTotalMins);
-  console.log("Days with logs:", daysWithLogs);
-  console.log("Days met goal:", daysMetGoal);
-  console.log("Week consistency percent (average goal achieved):", weekConsistencyPercent);
-  console.log("Valid consistency percent:", validConsistencyPercent);
-  console.log("=== END CONSISTENCY DEBUG ===");
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

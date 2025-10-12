@@ -218,6 +218,7 @@ const WeightTrackerScreen = ({ navigation }) => {
       
       if (weekDate) {
         // Find if there's a weight log for this week
+        // Use a simpler approach: check if any log falls within this week
         const weekStart = new Date(weekDate);
         weekStart.setDate(weekDate.getDate() - weekDate.getDay()); // Start of week (Sunday)
         const weekEnd = new Date(weekStart);
@@ -226,7 +227,14 @@ const WeightTrackerScreen = ({ navigation }) => {
         // Find log in this week
         const logInWeek = logs.find(log => {
           const logDate = new Date(log.date);
-          return logDate >= weekStart && logDate <= weekEnd;
+          // Set time to start of day for accurate comparison
+          logDate.setHours(0, 0, 0, 0);
+          const weekStartCopy = new Date(weekStart);
+          weekStartCopy.setHours(0, 0, 0, 0);
+          const weekEndCopy = new Date(weekEnd);
+          weekEndCopy.setHours(23, 59, 59, 999);
+          
+          return logDate >= weekStartCopy && logDate <= weekEndCopy;
         });
         
         let weightValue;
@@ -234,11 +242,8 @@ const WeightTrackerScreen = ({ navigation }) => {
           // Use the logged weight for this week
           const weight = Number(logInWeek.weight);
           weightValue = weightUnit === 'lbs' ? Number((weight * 2.20462).toFixed(1)) : weight;
-        } else if (weekNum <= currentWeekNum) {
-          // For weeks up to current week, use base weight (from profile or latest log)
-          weightValue = baseWeight;
         } else {
-          // Future weeks show 0
+          // For weeks without data, show 0
           weightValue = 0;
         }
         
@@ -263,10 +268,6 @@ const WeightTrackerScreen = ({ navigation }) => {
     const { weeks, dataPoints } = generateWeeklyData();
     chartLabels = weeks;
     chartWeightData = dataPoints;
-    console.log('Chart Labels:', chartLabels);
-    console.log('Chart Data:', chartWeightData);
-    console.log('Current Weight:', currentWeight);
-    console.log('Logs:', logs);
   } else {
     // No data at all - show empty chart
     chartWeightData = [0];

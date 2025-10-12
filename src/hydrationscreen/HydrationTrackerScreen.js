@@ -461,65 +461,72 @@ const HydrationTrackerScreen = () => {
       label: 'Mon', 
       intake: todayIndex === 0 ? currentIntake : (weeklyIntakeData[0] || 0), 
       isToday: todayIndex === 0, 
-      goalAchieved: todayIndex === 0 ? isGoalAchieved : (weeklyIntakeData[0] || 0) >= (historicalGoals[0] || 2.5),
+      goalAchieved: todayIndex === 0 ? isGoalAchieved : (weeklyIntakeData[0] || 0) >= (weeklyGoals[0] || 2.5),
       intake1: todayIndex === 0 ? intake1 : (weeklyIntakeValues[0]?.intake1 || 250),
-      intake2: todayIndex === 0 ? intake2 : (weeklyIntakeValues[0]?.intake2 || 500)
+      intake2: todayIndex === 0 ? intake2 : (weeklyIntakeValues[0]?.intake2 || 500),
+      dayGoal: todayIndex === 0 ? dailyGoal : (weeklyGoals[0] || 2.5)
     },
     { 
       day: 'Tue', 
       label: 'Tue', 
       intake: todayIndex === 1 ? currentIntake : (weeklyIntakeData[1] || 0), 
       isToday: todayIndex === 1, 
-      goalAchieved: todayIndex === 1 ? isGoalAchieved : (weeklyIntakeData[1] || 0) >= (historicalGoals[1] || 2.5),
+      goalAchieved: todayIndex === 1 ? isGoalAchieved : (weeklyIntakeData[1] || 0) >= (weeklyGoals[1] || 2.5),
       intake1: todayIndex === 1 ? intake1 : (weeklyIntakeValues[1]?.intake1 || 250),
-      intake2: todayIndex === 1 ? intake2 : (weeklyIntakeValues[1]?.intake2 || 500)
+      intake2: todayIndex === 1 ? intake2 : (weeklyIntakeValues[1]?.intake2 || 500),
+      dayGoal: todayIndex === 1 ? dailyGoal : (weeklyGoals[1] || 2.5)
     },
     { 
       day: 'Wed', 
       label: 'Wed', 
       intake: todayIndex === 2 ? currentIntake : (weeklyIntakeData[2] || 0), 
       isToday: todayIndex === 2, 
-      goalAchieved: todayIndex === 2 ? isGoalAchieved : (weeklyIntakeData[2] || 0) >= (historicalGoals[2] || 2.5),
+      goalAchieved: todayIndex === 2 ? isGoalAchieved : (weeklyIntakeData[2] || 0) >= (weeklyGoals[2] || 2.5),
       intake1: todayIndex === 2 ? intake1 : (weeklyIntakeValues[2]?.intake1 || 250),
-      intake2: todayIndex === 2 ? intake2 : (weeklyIntakeValues[2]?.intake2 || 500)
+      intake2: todayIndex === 2 ? intake2 : (weeklyIntakeValues[2]?.intake2 || 500),
+      dayGoal: todayIndex === 2 ? dailyGoal : (weeklyGoals[2] || 2.5)
     },
     { 
       day: 'Thu', 
       label: 'Thu', 
       intake: todayIndex === 3 ? currentIntake : (weeklyIntakeData[3] || 0), 
       isToday: todayIndex === 3, 
-      goalAchieved: todayIndex === 3 ? isGoalAchieved : (weeklyIntakeData[3] || 0) >= (historicalGoals[3] || 2.5),
+      goalAchieved: todayIndex === 3 ? isGoalAchieved : (weeklyIntakeData[3] || 0) >= (weeklyGoals[3] || 2.5),
       intake1: todayIndex === 3 ? intake1 : (weeklyIntakeValues[3]?.intake1 || 250),
-      intake2: todayIndex === 3 ? intake2 : (weeklyIntakeValues[3]?.intake2 || 500)
+      intake2: todayIndex === 3 ? intake2 : (weeklyIntakeValues[3]?.intake2 || 500),
+      dayGoal: todayIndex === 3 ? dailyGoal : (weeklyGoals[3] || 2.5)
     },
     { 
       day: 'Fri', 
       label: 'Fri', 
       intake: todayIndex === 4 ? currentIntake : (weeklyIntakeData[4] || 0), 
       isToday: todayIndex === 4, 
-      goalAchieved: todayIndex === 4 ? isGoalAchieved : (weeklyIntakeData[4] || 0) >= (historicalGoals[4] || 2.5),
+      goalAchieved: todayIndex === 4 ? isGoalAchieved : (weeklyIntakeData[4] || 0) >= (weeklyGoals[4] || 2.5),
       intake1: todayIndex === 4 ? intake1 : (weeklyIntakeValues[4]?.intake1 || 250),
-      intake2: todayIndex === 4 ? intake2 : (weeklyIntakeValues[4]?.intake2 || 500)
+      intake2: todayIndex === 4 ? intake2 : (weeklyIntakeValues[4]?.intake2 || 500),
+      dayGoal: todayIndex === 4 ? dailyGoal : (weeklyGoals[4] || 2.5)
     },
     { 
       day: 'Sat', 
       label: 'Sat', 
       intake: todayIndex === 5 ? currentIntake : (weeklyIntakeData[5] || 0), 
       isToday: todayIndex === 5, 
-      goalAchieved: todayIndex === 5 ? isGoalAchieved : (weeklyIntakeData[5] || 0) >= (historicalGoals[5] || 2.5),
+      goalAchieved: todayIndex === 5 ? isGoalAchieved : (weeklyIntakeData[5] || 0) >= (weeklyGoals[5] || 2.5),
       intake1: todayIndex === 5 ? intake1 : (weeklyIntakeValues[5]?.intake1 || 250),
-      intake2: todayIndex === 5 ? intake2 : (weeklyIntakeValues[5]?.intake2 || 500)
+      intake2: todayIndex === 5 ? intake2 : (weeklyIntakeValues[5]?.intake2 || 500),
+      dayGoal: todayIndex === 5 ? dailyGoal : (weeklyGoals[5] || 2.5)
     },
     { 
       day: 'Sun', 
       label: 'Sun', 
       intake: todayIndex === 6 ? currentIntake : (weeklyIntakeData[6] || 0), 
       isToday: todayIndex === 6, 
-      goalAchieved: todayIndex === 6 ? isGoalAchieved : (weeklyIntakeData[6] || 0) >= (historicalGoals[6] || 2.5),
+      goalAchieved: todayIndex === 6 ? isGoalAchieved : (weeklyIntakeData[6] || 0) >= (weeklyGoals[6] || 2.5),
       intake1: todayIndex === 6 ? intake1 : (weeklyIntakeValues[6]?.intake1 || 250),
-      intake2: todayIndex === 6 ? intake2 : (weeklyIntakeValues[6]?.intake2 || 500)
+      intake2: todayIndex === 6 ? intake2 : (weeklyIntakeValues[6]?.intake2 || 500),
+      dayGoal: todayIndex === 6 ? dailyGoal : (weeklyGoals[6] || 2.5)
     }
-  ], [todayIndex, currentIntake, weeklyIntakeData, weeklyGoals, historicalGoals, isGoalAchieved, intake1, intake2, weeklyIntakeValues]);
+  ], [todayIndex, currentIntake, weeklyIntakeData, weeklyGoals, isGoalAchieved, intake1, intake2, weeklyIntakeValues]);
 
   const addWater = async (amount) => {
     const newIntake = Math.min(currentIntake + amount, dailyGoal);
@@ -553,7 +560,7 @@ const HydrationTrackerScreen = () => {
     }
   };
 
-  const getBarHeight = (intake, isToday) => {
+  const getBarHeight = (intake, isToday, dayGoal) => {
     const maxHeight = 120;
     const minHeight = 20; // Minimum height for circle appearance
     
@@ -561,7 +568,9 @@ const HydrationTrackerScreen = () => {
       return minHeight; // Show as circle when no intake
     }
     
-    const percentage = Math.min((intake / dailyGoal) * 100, 100);
+    // Use the specific day's goal instead of today's goal
+    const goalToUse = dayGoal || dailyGoal;
+    const percentage = Math.min((intake / goalToUse) * 100, 100);
     const calculatedHeight = Math.max((percentage / 100) * maxHeight, minHeight);
     
     return calculatedHeight;
@@ -638,7 +647,7 @@ const HydrationTrackerScreen = () => {
   // Animated Bar Component - Memoized to prevent re-renders (Instagram pattern)
   const AnimatedBar = React.memo(({ data, index }) => {
     // Initialize with final values (no animation on mount) - Instagram pattern
-    const initialHeight = getBarHeight(data.intake, data.isToday);
+    const initialHeight = getBarHeight(data.intake, data.isToday, data.dayGoal);
     const initialColor = data.intake === 0 ? 0 : (data.goalAchieved ? 2 : 1);
     
     const [animatedHeight] = useState(new Animated.Value(initialHeight));
@@ -652,7 +661,7 @@ const HydrationTrackerScreen = () => {
         return;
       }
 
-      const targetHeight = getBarHeight(data.intake, data.isToday);
+      const targetHeight = getBarHeight(data.intake, data.isToday, data.dayGoal);
       const targetColor = data.intake === 0 ? 0 : (data.goalAchieved ? 2 : 1);
 
       // Animate height

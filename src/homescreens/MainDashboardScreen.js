@@ -767,12 +767,17 @@ const MainDashboardScreen = ({ route }) => {
                       <MaterialCommunityIcons 
                         name="water-outline" 
                         size={28} 
-                        color={hydrationLoading || (currentIntake / dailyGoal) < 0.5 ? "#3B82F6" : "#fff"} 
+                        color={hydrationLoading || (currentIntake / dailyGoal) < 0.3 ? "#3B82F6" : "#fff"} 
                         style={styles.hydrationDropIcon} 
                       />
                       <Text style={[
                         styles.hydrationPercentage,
-                        { color: hydrationLoading || (currentIntake / dailyGoal) < 0.5 ? "#3B82F6" : "#fff" }
+                        { 
+                          color: hydrationLoading || (currentIntake / dailyGoal) < 0.3 ? "#3B82F6" : "#fff",
+                          textShadowColor: (currentIntake / dailyGoal) >= 0.3 ? "#000" : "transparent",
+                          textShadowOffset: { width: 0.5, height: 0.5 },
+                          textShadowRadius: 1,
+                        }
                       ]}>
                         {hydrationLoading ? '0%' : `${Math.min(100, Math.round((currentIntake / dailyGoal) * 100))}%`}
                       </Text>
@@ -923,34 +928,6 @@ const MainDashboardScreen = ({ route }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Habits Card */}
-          <TouchableOpacity
-            style={styles.habitsCardV2}
-            onPress={() => navigation.navigate('HabitsScreen')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.habitsTitleV2}>Today&apos;s Habits</Text>
-            <View style={styles.habitRowV2}>
-              <Ionicons name="time-outline" size={22} color={COLORS.primary} style={{ marginRight: 14 }} />
-              <Text style={styles.habitTextV2}>Wake at 6AM</Text>
-              <View style={styles.habitCheckFilledV2} />
-            </View>
-            <View style={styles.habitRowV2}>
-              <MaterialCommunityIcons name="view-grid-outline" size={22} color={COLORS.primary} style={{ marginRight: 14 }} />
-              <Text style={styles.habitTextV2}>Stretch 10min</Text>
-              <View style={styles.habitCheckEmptyV2} />
-            </View>
-            <View style={styles.habitRowV2}>
-              <Ionicons name="water-outline" size={22} color={COLORS.primary} style={{ marginRight: 14 }} />
-              <Text style={styles.habitTextV2}>Drink 2L</Text>
-              <View style={styles.habitCheckFilledV2} />
-            </View>
-            <View style={styles.habitRowV2}>
-              <MaterialCommunityIcons name="brain" size={22} color={COLORS.primary} style={{ marginRight: 14 }} />
-              <Text style={styles.habitTextV2}>Meditate</Text>
-              <View style={styles.habitCheckEmptyV2} />
-            </View>
-          </TouchableOpacity>
 
 
         </View>
