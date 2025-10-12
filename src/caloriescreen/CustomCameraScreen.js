@@ -10,6 +10,7 @@ export default function CustomCameraScreen({ navigation }) {
   const cameraRef = useRef(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [isCameraReady, setIsCameraReady] = useState(false);
+  const [isGalleryActive, setIsGalleryActive] = useState(false);
   const scanAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -89,9 +90,13 @@ export default function CustomCameraScreen({ navigation }) {
 
   const handleOpenGallery = async () => {
     try {
+      // Immediately hide camera interface to prevent flash
+      setIsGalleryActive(true);
+      
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission needed', 'Gallery permission is required.');
+        setIsGalleryActive(false);
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -101,15 +106,30 @@ export default function CustomCameraScreen({ navigation }) {
         quality: 0.7,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Use replace to completely replace CustomCameraScreen in the stack
         navigation.replace('PhotoCalorieScreen', { photoUri: result.assets[0].uri, mealType: 'Quick Log' });
+      } else {
+        setIsGalleryActive(false);
       }
     } catch (e) {
       Alert.alert('Error', 'Could not open gallery.');
+      setIsGalleryActive(false);
     }
   };
 
   if (!permission) {
     return <View style={styles.loadingContainer} />;
+  }
+  
+  // Show loading screen when gallery is active to prevent camera flash
+  if (isGalleryActive) {
+    return (
+      <View style={styles.loadingContainer}>
+        <View style={styles.loadingCard}>
+          <Text style={styles.loadingText}>Opening Gallery...</Text>
+        </View>
+      </View>
+    );
   }
   
   if (!permission.granted) {
@@ -251,6 +271,21 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
     backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingCard: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    backdropFilter: 'blur(20px)',
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginTop: 16,
   },
   permissionContainer: {
     flex: 1,

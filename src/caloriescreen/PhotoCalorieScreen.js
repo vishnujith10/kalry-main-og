@@ -181,8 +181,15 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
 
     } catch (error) {
         console.error("Error analyzing image:", error);
-        Alert.alert("AI Error", "Could not analyze the image. Please try again.");
-        navigation.goBack();
+        Alert.alert("AI Error", "Could not analyze the image. Please try again.", [
+          {
+            text: "Try Again",
+            onPress: () => {
+              // Navigate back to Home instead of CustomCameraScreen
+              navigation.navigate('Home');
+            }
+          }
+        ]);
     } finally {
         setIsLoading(false);
     }
@@ -422,7 +429,7 @@ const PhotoCalorieScreen = ({ route, navigation }) => {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <Text>Could not analyze the image.</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.doneButton}>
+          <TouchableOpacity onPress={() => navigation.navigate('Home')} style={styles.doneButton}>
             <Text style={styles.doneButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
