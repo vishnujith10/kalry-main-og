@@ -745,27 +745,72 @@ const MainDashboardScreen = ({ route }) => {
 
           {/* Hydration Card */}
           <View style={styles.shadowWrapper}>
-            <View style={styles.hydrationCardCustom}>
-              <TouchableOpacity style={styles.hydrationHeaderRow} onPress={() => navigation.navigate('HydrationTrackerScreen')}>
-                <View style={styles.hydrationIconContainer}>
-                  <MaterialCommunityIcons name="water-outline" size={22} color="#A084E8" />
+            <TouchableOpacity 
+              style={styles.hydrationCardCustom}
+              onPress={() => navigation.navigate('HydrationTrackerScreen')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.hydrationCardContent}>
+                {/* Left Section - Progress Indicator */}
+                <View style={styles.hydrationProgressContainer}>
+                  <View style={styles.hydrationBottleContainer}>
+                    {/* Progress Fill */}
+                    <View style={[
+                      styles.hydrationBottleFill, 
+                      { 
+                        height: hydrationLoading ? '0%' : `${Math.min(100, (currentIntake / dailyGoal) * 100)}%` 
+                      }
+                    ]}>
+                    </View>
+                    {/* Icon and Percentage - Always centered */}
+                    <View style={styles.hydrationIconPercentageContainer}>
+                      <MaterialCommunityIcons 
+                        name="water-outline" 
+                        size={28} 
+                        color={hydrationLoading || (currentIntake / dailyGoal) < 0.5 ? "#3B82F6" : "#fff"} 
+                        style={styles.hydrationDropIcon} 
+                      />
+                      <Text style={[
+                        styles.hydrationPercentage,
+                        { color: hydrationLoading || (currentIntake / dailyGoal) < 0.5 ? "#3B82F6" : "#fff" }
+                      ]}>
+                        {hydrationLoading ? '0%' : `${Math.min(100, Math.round((currentIntake / dailyGoal) * 100))}%`}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-                <Text style={styles.hydrationTitle}>Water Intake</Text>
-                <Text style={styles.hydrationGoal}>{hydrationLoading ? '--' : `${currentIntake.toFixed(2)}L / ${dailyGoal.toFixed(1)}L`}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.progressBarBg} onPress={() => navigation.navigate('HydrationTrackerScreen')}>
-                <View style={[styles.progressBarFill, { width: hydrationLoading ? '0%' : `${Math.min(100, (currentIntake / dailyGoal) * 100)}%` }]} />
-              </TouchableOpacity>
-              <View style={styles.hydrationBtnsRow}>
-                <TouchableOpacity style={styles.hydrationBtn} onPress={() => handleAddWater(intake1)}>
-                  <Text style={styles.hydrationBtnText}>{`+${intake1}ml`}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.hydrationBtn} onPress={() => handleAddWater(intake2)}>
-                  <Text style={styles.hydrationBtnText}>{`+${intake2}ml`}</Text>
-                </TouchableOpacity>
+
+                {/* Right Section - Details and Actions */}
+                <View style={styles.hydrationDetailsSection}>
+                  <Text style={styles.hydrationTitle}>Hydration</Text>
+                  <View style={styles.hydrationProgressText}>
+                    <Text style={styles.hydrationGoal}>
+                      {hydrationLoading ? '--' : `${currentIntake.toFixed(1)}L / ${dailyGoal.toFixed(1)}L`}
+                    </Text>
+                  </View>
+                  <View style={styles.hydrationBtnsRow}>
+                    <TouchableOpacity 
+                      style={styles.hydrationBtn} 
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleAddWater(250);
+                      }}
+                    >
+                      <Text style={styles.hydrationBtnText}>+250ml</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.hydrationBtn} 
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleAddWater(500);
+                      }}
+                    >
+                      <Text style={styles.hydrationBtnText}>+500ml</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               </View>
-              <Text style={styles.hydrationSub}>Hydration improves energy!</Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* Sleep & Steps Row */}
@@ -1077,44 +1122,41 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   hydrationTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: 'Lexend-Bold',
     color: '#181A20',
-    marginLeft: 8,
+    marginBottom: 8,
+    fontWeight: 'bold',
   },
   hydrationGoal: {
     fontSize: 16,
     fontFamily: 'Lexend-SemiBold',
     color: '#181A20',
-    marginLeft: 'auto',
+    marginRight: 8,
+  },
+  hydrationEmojis: {
+    fontSize: 16,
   },
   hydrationBtnsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    gap: 12,
   },
   hydrationBtn: {
     flex: 1,
-    borderWidth: 1.5,
-    borderColor: '#A084E8',
+    backgroundColor: '#E5E7EB', // Light gray background for buttons
     borderRadius: 12,
-    paddingVertical: 10,
-    marginHorizontal: 6,
-    backgroundColor: '#fff',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
   },
   hydrationBtnText: {
-    color: '#A084E8',
+    color: '#374151', // Dark gray text for buttons
     fontFamily: 'Lexend-SemiBold',
     fontSize: 14,
     fontWeight: '600',
-  },
-  hydrationSub: {
-    fontSize: 14,
-    fontFamily: 'Manrope-Regular',
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 4,
   },
   sleepCard: {
     flexBasis: '48%',
@@ -1403,32 +1445,55 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
-  hydrationHeaderRow: {
+  hydrationCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  hydrationIconContainer: {
-    backgroundColor: '#E5DFFB',
-    borderRadius: 18,
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
+  hydrationProgressContainer: {
+    marginRight: 20,
   },
-  progressBarBg: {
-    height: 12,
-    backgroundColor: '#E5DFFB',
-    borderRadius: 8,
-    marginBottom: 14,
-    marginTop: 2,
+  hydrationBottleContainer: {
+    width: 60,
+    height: 120,
+    backgroundColor: '#E5E7EB', // Light gray background
+    borderRadius: 7,
     overflow: 'hidden',
+    position: 'relative',
   },
-  progressBarFill: {
-    height: 12,
-    backgroundColor: '#A084E8',
-    borderRadius: 8,
+  hydrationBottleFill: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#3B82F6', // Light blue fill
+    minHeight: 20,
+  },
+  hydrationIconPercentageContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  hydrationDropIcon: {
+    marginBottom: 2, // Small gap between icon and percentage
+  },
+  hydrationPercentage: {
+    fontFamily: 'Lexend-Bold',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  hydrationDetailsSection: {
+    flex: 1,
+  },
+  hydrationProgressText: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   sleepCardCustom: {
     flex: 1,
