@@ -1,11 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import React, { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Dimensions, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
 import { getFoodLogs } from '../utils/api';
+
+// Global cache for progress data
+const globalProgressCache = {
+  cachedData: null,
+  timestamp: null,
+  isStale: false,
+  CACHE_DURATION: 5000, // 5 seconds
+};
 
 const screenWidth = Dimensions.get('window').width - 32;
 
@@ -37,7 +45,6 @@ function isSameDay(date1, date2) {
 
 function getRangeDates(range) {
   const now = new Date();
-  console.log('🔍 getRangeDates called with range:', range.key, 'Current time:', now.toISOString());
   
   if (range.key === 'this_week') {
     // This week: Monday to Sunday of current week
@@ -56,15 +63,6 @@ function getRangeDates(range) {
     sunday.setDate(monday.getDate() + 6);
     
     const result = { start: startOfDay(monday), end: endOfDay(sunday) };
-    console.log('🔍 This week range:', {
-      today: today.toDateString(),
-      monday: monday.toDateString(),
-      sunday: sunday.toDateString(),
-      start: result.start.toISOString(),
-      end: result.end.toISOString(),
-      daysSinceMonday,
-      currentDayOfWeek
-    });
     return result;
     
   } else if (range.key === 'last_week') {
@@ -86,12 +84,6 @@ function getRangeDates(range) {
     lastWeekSunday.setDate(lastWeekMonday.getDate() + 6);
     
     const result = { start: startOfDay(lastWeekMonday), end: endOfDay(lastWeekSunday) };
-    console.log('🔍 Last week range:', {
-      lastWeekMonday: lastWeekMonday.toDateString(),
-      lastWeekSunday: lastWeekSunday.toDateString(),
-      start: result.start.toISOString(),
-      end: result.end.toISOString()
-    });
     return result;
     
   } else if (range.key === 'one_month') {
@@ -101,11 +93,6 @@ function getRangeDates(range) {
     start.setDate(now.getDate() - 29); // 30 days total including today
     
     const result = { start: startOfDay(start), end };
-    console.log('🔍 1 Month range:', {
-      start: result.start.toISOString(),
-      end: result.end.toISOString(),
-      totalDays: Math.ceil((result.end - result.start) / (1000 * 60 * 60 * 24))
-    });
     return result;
     
   } else if (range.key === 'ninety_days') {
@@ -115,11 +102,6 @@ function getRangeDates(range) {
     start.setDate(now.getDate() - 89); // 90 days total including today
     
     const result = { start: startOfDay(start), end };
-    console.log('🔍 90 Days range:', {
-      start: result.start.toISOString(),
-      end: result.end.toISOString(),
-      totalDays: Math.ceil((result.end - result.start) / (1000 * 60 * 60 * 24))
-    });
     return result;
   }
   
@@ -131,12 +113,6 @@ function getRangeDates(range) {
 }
 
 function groupByDay(logs, start, end) {
-  console.log('🔍 groupByDay called:', { 
-    logsCount: logs.length, 
-    start: start.toISOString(), 
-    end: end.toISOString() 
-  });
-  
   // Create array of days in the range
   const days = [];
   const cursor = new Date(start);
@@ -152,10 +128,8 @@ function groupByDay(logs, start, end) {
     cursor.setDate(cursor.getDate() + 1);
   }
   
-  console.log('🔍 Created days array with', days.length, 'days');
-  
   // Process each log and add to appropriate day
-  logs.forEach((log, logIndex) => {
+  logs.forEach((log) => {
     const logDate = new Date(log.created_at);
     
     // Check if log is within our date range
@@ -173,25 +147,8 @@ function groupByDay(logs, start, end) {
         days[matchingDayIndex].protein += protein;
         days[matchingDayIndex].carbs += carbs;
         days[matchingDayIndex].fat += fat;
-        
-        console.log(`🔍 Log ${logIndex} added to day ${matchingDayIndex}:`, {
-          logDate: logDate.toISOString(),
-          dayDate: days[matchingDayIndex].date.toISOString(),
-          calories,
-          newDayTotal: days[matchingDayIndex].calories
-        });
-      } else {
-        console.log(`🔍 Log ${logIndex}: No matching day found for ${logDate.toISOString()}`);
       }
-    } else {
-      console.log(`🔍 Log ${logIndex}: Outside range - ${logDate.toISOString()}`);
     }
-  });
-  
-  // Log final summary
-  console.log('🔍 Final grouped days summary:');
-  days.forEach((day, index) => {
-    console.log(`  Day ${index}: ${day.date.toDateString()} - ${day.calories} cal`);
   });
   
   return days;
@@ -202,8 +159,11 @@ export default function ProgressScreen() {
   const [activeRange, setActiveRange] = useState(RANGES[0]);
   const [activeMetric, setActiveMetric] = useState('calories');
   const [loading, setLoading] = useState(false);
-  const [daily, setDaily] = useState([]);
-  const [totals, setTotals] = useState({ 
+  const [isFetching, setIsFetching] = useState(false);
+  
+  // Initialize with cached data
+  const [daily, setDaily] = useState(() => globalProgressCache.cachedData?.daily || []);
+  const [totals, setTotals] = useState(() => globalProgressCache.cachedData?.totals || { 
     total: 0, 
     average: 0, 
     best: 0, 
@@ -212,154 +172,159 @@ export default function ProgressScreen() {
     worstDate: null, 
     streak: 0 
   });
-  const [prevTotal, setPrevTotal] = useState(null);
-  const [userGoal, setUserGoal] = useState(null);
-  const [logsCount, setLogsCount] = useState(0);
+  const [prevTotal, setPrevTotal] = useState(() => globalProgressCache.cachedData?.prevTotal || null);
+  const [userGoal, setUserGoal] = useState(() => globalProgressCache.cachedData?.userGoal || null);
+  const [logsCount, setLogsCount] = useState(() => globalProgressCache.cachedData?.logsCount || 0);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
+  // Cache-first data fetching with useFocusEffect
+  useFocusEffect(
+    useCallback(() => {
+      const load = async () => {
         const { data: { session } } = await supabase.auth.getSession();
         const userId = session?.user?.id;
         if (!userId) return;
-        
-        // Get date range for the selected period
-        const { start, end } = getRangeDates(activeRange);
-        console.log('🔍 Loading data for range:', activeRange.key);
-        console.log('🔍 Date range:', { 
-          start: start.toISOString(), 
-          end: end.toISOString(),
-          totalDays: Math.ceil((end - start) / (1000 * 60 * 60 * 24))
-        });
-        
-        // Fetch user's calorie goal
-        const { data: profile } = await supabase.from('user_profile')
-          .select('calorie_goal')
-          .eq('id', userId)
-          .single();
-        if (profile?.calorie_goal) setUserGoal(Number(profile.calorie_goal));
-        
-        // Fetch all food logs
-        let logs = [];
-        try {
-          logs = await getFoodLogs(userId);
-          console.log('🔍 Fetched logs via API:', logs.length);
-        } catch (error) {
-          console.log('⚠️ API failed, trying Supabase directly:', error.message);
-          const { data: supabaseLogs, error: supabaseError } = await supabase
-            .from('user_food_logs')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
-          
-          if (supabaseError) {
-            console.error('❌ Supabase also failed:', supabaseError);
-            logs = [];
-          } else {
-            logs = supabaseLogs || [];
-            console.log('🔍 Fetched logs via Supabase:', logs.length);
-          }
+
+        const now = Date.now();
+        const isCacheValid = globalProgressCache.timestamp && 
+          (now - globalProgressCache.timestamp) < globalProgressCache.CACHE_DURATION;
+
+        // If cache is fresh, use it and skip fetch
+        if (isCacheValid && globalProgressCache.cachedData) {
+          const cached = globalProgressCache.cachedData;
+          setDaily(cached.daily || []);
+          setTotals(cached.totals || { total: 0, average: 0, best: 0, worst: 0, bestDate: null, worstDate: null, streak: 0 });
+          setPrevTotal(cached.prevTotal || null);
+          setUserGoal(cached.userGoal || null);
+          setLogsCount(cached.logsCount || 0);
+          return;
         }
+
+        // If cache is stale, use it immediately but fetch fresh data
+        if (globalProgressCache.cachedData && globalProgressCache.isStale) {
+          const cached = globalProgressCache.cachedData;
+          setDaily(cached.daily || []);
+          setTotals(cached.totals || { total: 0, average: 0, best: 0, worst: 0, bestDate: null, worstDate: null, streak: 0 });
+          setPrevTotal(cached.prevTotal || null);
+          setUserGoal(cached.userGoal || null);
+          setLogsCount(cached.logsCount || 0);
+        }
+
+        // Fetch fresh data
+        if (isFetching) return;
+        setIsFetching(true);
+        setLoading(true);
         
-        // Debug: Show sample logs and verify date filtering
-        if (logs.length > 0) {
-          console.log('🔍 Sample log:', logs[0]);
+        try {
+        
+          // Get date range for the selected period
+          const { start, end } = getRangeDates(activeRange);
           
-          // Filter logs for the selected range for verification
-          const logsInRange = logs.filter(log => {
-            const logDate = new Date(log.created_at);
-            return logDate >= start && logDate <= end;
+          // Fetch user's calorie goal
+          const { data: profile } = await supabase.from('user_profile')
+            .select('calorie_goal')
+            .eq('id', userId)
+            .single();
+          const userGoalValue = profile?.calorie_goal ? Number(profile.calorie_goal) : null;
+          
+          // Fetch all food logs
+          let logs = [];
+          try {
+            logs = await getFoodLogs(userId);
+          } catch (error) {
+            const { data: supabaseLogs, error: supabaseError } = await supabase
+              .from('user_food_logs')
+              .select('*')
+              .eq('user_id', userId)
+              .order('created_at', { ascending: false });
+            
+            if (supabaseError) {
+              logs = [];
+            } else {
+              logs = supabaseLogs || [];
+            }
+          }
+          
+          // Group logs by day
+          const perDay = groupByDay(logs, start, end);
+        
+          // Calculate totals for the active metric
+          const metricKey = activeMetric;
+          const values = perDay.map(d => Number(d[metricKey] || 0));
+          const total = values.reduce((sum, val) => sum + val, 0);
+          const daysWithData = values.filter(v => v > 0).length;
+          const average = daysWithData > 0 ? total / daysWithData : 0;
+          
+          // Find best and worst days
+          let best = 0, worst = 0, bestDate = null, worstDate = null;
+          if (values.length > 0) {
+            const nonZeroValues = values.filter(v => v > 0);
+            if (nonZeroValues.length > 0) {
+              best = Math.max(...values);
+              worst = Math.min(...nonZeroValues); // Only consider days with data for worst
+              const bestIndex = values.indexOf(best);
+              const worstIndex = values.indexOf(worst);
+              bestDate = perDay[bestIndex]?.date || null;
+              worstDate = perDay[worstIndex]?.date || null;
+            }
+          }
+          
+          // Calculate streak (consecutive days with logged data from the end)
+          let streak = 0;
+          for (let i = perDay.length - 1; i >= 0; i--) {
+            if ((perDay[i][metricKey] || 0) > 0) {
+              streak++;
+            } else {
+              break;
+            }
+          }
+          
+          const totalsData = { total, average, best, worst, bestDate, worstDate, streak };
+          
+          // Calculate previous period for comparison
+          const prevRange = calculatePreviousRange(activeRange, start);
+          const prevPerDay = groupByDay(logs, prevRange.start, prevRange.end);
+          const prevTotalValue = prevPerDay.reduce((sum, d) => sum + Number(d[metricKey] || 0), 0);
+          
+          // Update cache
+          globalProgressCache.cachedData = {
+            daily: perDay,
+            totals: totalsData,
+            prevTotal: prevTotalValue,
+            userGoal: userGoalValue,
+            logsCount: logs.length,
+          };
+          globalProgressCache.timestamp = Date.now();
+          globalProgressCache.isStale = false;
+          
+          // Only update state if data has changed
+          const currentDataString = JSON.stringify({ daily, totals, prevTotal, userGoal, logsCount });
+          const newDataString = JSON.stringify({ 
+            daily: perDay, 
+            totals: totalsData, 
+            prevTotal: prevTotalValue, 
+            userGoal: userGoalValue, 
+            logsCount: logs.length 
           });
           
-          console.log('🔍 Logs in selected range:', logsInRange.length);
+          if (currentDataString !== newDataString) {
+            setDaily(perDay);
+            setTotals(totalsData);
+            setPrevTotal(prevTotalValue);
+            setUserGoal(userGoalValue);
+            setLogsCount(logs.length);
+          }
           
-          // Calculate direct total for comparison
-          const directTotal = logsInRange.reduce((sum, log) => sum + Number(log.calories || 0), 0);
-          console.log('🔍 Direct total calories in range:', directTotal);
-          
-          // Show date distribution of logs
-          const logDates = logsInRange.map(log => new Date(log.created_at).toDateString());
-          const uniqueDates = [...new Set(logDates)];
-          console.log('🔍 Unique dates with logs in range:', uniqueDates.length, uniqueDates);
+        } catch (error) {
+          console.error('Error loading progress data:', error);
+        } finally {
+          setLoading(false);
+          setIsFetching(false);
         }
-        
-        // Group logs by day
-        const perDay = groupByDay(logs, start, end);
-        setDaily(perDay);
-        
-        // Calculate totals for the active metric
-        const metricKey = activeMetric;
-        const values = perDay.map(d => Number(d[metricKey] || 0));
-        const total = values.reduce((sum, val) => sum + val, 0);
-        const daysWithData = values.filter(v => v > 0).length;
-        const average = daysWithData > 0 ? total / daysWithData : 0;
-        
-        // Find best and worst days
-        let best = 0, worst = 0, bestDate = null, worstDate = null;
-        if (values.length > 0) {
-          const nonZeroValues = values.filter(v => v > 0);
-          if (nonZeroValues.length > 0) {
-            best = Math.max(...values);
-            worst = Math.min(...nonZeroValues); // Only consider days with data for worst
-            const bestIndex = values.indexOf(best);
-            const worstIndex = values.indexOf(worst);
-            bestDate = perDay[bestIndex]?.date || null;
-            worstDate = perDay[worstIndex]?.date || null;
-          }
-        }
-        
-        // Calculate streak (consecutive days with logged data from the end)
-        let streak = 0;
-        for (let i = perDay.length - 1; i >= 0; i--) {
-          if ((perDay[i][metricKey] || 0) > 0) {
-            streak++;
-          } else {
-            break;
-          }
-        }
-        
-        console.log('🔍 Final calculated totals:', {
-          total,
-          average,
-          best,
-          worst,
-          streak,
-          daysWithData,
-          metricKey,
-          activeRange: activeRange.key
-        });
-        
-        setTotals({ total, average, best, worst, bestDate, worstDate, streak });
-        setLogsCount(logs.length);
-        
-        // Calculate previous period for comparison
-        const prevRange = calculatePreviousRange(activeRange, start);
-        const prevPerDay = groupByDay(logs, prevRange.start, prevRange.end);
-        const prevTotal = prevPerDay.reduce((sum, d) => sum + Number(d[metricKey] || 0), 0);
-        setPrevTotal(prevTotal);
-        
-        console.log('🔍 Previous period comparison:', {
-          currentTotal: total,
-          prevTotal,
-          deltaPct: prevTotal === 0 ? (total > 0 ? 100 : 0) : ((total - prevTotal) / prevTotal) * 100,
-          prevRange: {
-            start: prevRange.start.toISOString(),
-            end: prevRange.end.toISOString()
-          },
-          currentRange: {
-            start: start.toISOString(),
-            end: end.toISOString()
-          }
-        });
-        
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    load();
-  }, [activeRange, activeMetric]);
+      };
+      
+      load();
+    }, [activeRange, activeMetric, isFetching])
+  );
 
   // Helper function to calculate previous period range
   function calculatePreviousRange(currentRange, currentStart) {
