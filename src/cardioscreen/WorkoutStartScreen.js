@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
+import { calculateCardioCalories, calculateTotalWorkoutCalories } from '../utils/calorieCalculator';
 
 const { width } = Dimensions.get('window');
 
@@ -43,6 +44,9 @@ export default function WorkoutStartScreen({ route, navigation }) {
   const [totalExercisesCompleted, setTotalExercisesCompleted] = useState(0);
   const [totalRoundsCompleted, setTotalRoundsCompleted] = useState(0);
   
+  // User weight for accurate calorie calculations
+  const [userWeight, setUserWeight] = useState(70); // Default 70kg
+  
   // Timer refs
   const timerRef = useRef(null);
   const workoutTimerRef = useRef(null);
@@ -60,6 +64,32 @@ export default function WorkoutStartScreen({ route, navigation }) {
       setWorkoutStartTime(Date.now()); // Start tracking actual workout time
     }
   }, [exercises]);
+
+  // Fetch user weight for accurate calorie calculations
+  useEffect(() => {
+    fetchUserWeight();
+  }, []);
+
+  const fetchUserWeight = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      
+      if (userId) {
+        const { data: profile, error } = await supabase
+          .from('user_profiles')
+          .select('weight')
+          .eq('user_id', userId)
+          .single();
+        
+        if (!error && profile?.weight) {
+          setUserWeight(profile.weight);
+        }
+      }
+    } catch (_error) {
+      console.log('Could not fetch user weight, using default:', _error);
+    }
+  };
 
   // Track actual workout time
   useEffect(() => {
@@ -306,10 +336,24 @@ export default function WorkoutStartScreen({ route, navigation }) {
     return total + exerciseTotalTime;
   }, 0);
 
-  // Use session calories from database if available, otherwise calculate
-  const actualCalories = sessionData?.estimated_calories || (() => {
+  // Calculate accurate calories using the new utility
+  const actualCalories = (() => {
+    if (sessionData?.estimated_calories) {
+      return sessionData.estimated_calories;
+    }
+    
     const safeIntensity = intensity && !isNaN(intensity) ? intensity : 50;
-    return Math.round((plannedWorkoutDuration / 60) * 8 * (safeIntensity / 50));
+    const maxRounds = Math.max(...exercises.map(ex => ex.rounds || 1));
+    
+    const { totalCalories } = calculateTotalWorkoutCalories(
+      exercises,
+      userWeight,
+      safeIntensity,
+      maxRounds,
+      restBetweenRounds
+    );
+    
+    return totalCalories;
   })();
   
   
@@ -361,7 +405,13 @@ export default function WorkoutStartScreen({ route, navigation }) {
           auto_repeat: false,
           notes: 'Completed Workout',
           estimated_time: parseInt(exercise.duration) || 45, // Individual exercise duration
-          estimated_calories: Math.round(((parseInt(exercise.duration) || 45) / 60) * 7 * (intensity / 50))
+          estimated_calories: calculateCardioCalories({
+            duration: (parseInt(exercise.duration) || 45) / 60, // convert to minutes
+            weight: userWeight,
+            exerciseName: exercise.name,
+            intensity: intensity,
+            rounds: parseInt(exercise.rounds) || 1
+          })
         };
 
 

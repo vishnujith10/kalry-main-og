@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, FlatList, Image, Modal, ScrollView, StatusBar, StyleSheet, Switch, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
+import { calculateTotalWorkoutCalories } from '../utils/calorieCalculator';
 
 const { width, height } = Dimensions.get('window');
 
@@ -84,6 +85,9 @@ export default function CardioSessionBuilder({ navigation }) {
   const [dbExercises, setDbExercises] = useState([]);
   const [loadingExercises, setLoadingExercises] = useState(false);
   
+  // User weight for accurate calorie calculations
+  const [userWeight, setUserWeight] = useState(70); // Default 70kg
+  
   // Modal states
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [templateModalVisible, setTemplateModalVisible] = useState(false);
@@ -119,7 +123,21 @@ export default function CardioSessionBuilder({ navigation }) {
   // Timer ref
   const timerRef = useRef(null);
 
-  // Fetch exercises from database
+  // Fallback exercises in case database is empty
+  const fallbackExercises = [
+    { id: '1', name: 'Jumping Jacks', type: 'cardio', body_parts: 'full body', gif_url: null },
+    { id: '2', name: 'Burpees', type: 'cardio', body_parts: 'full body', gif_url: null },
+    { id: '3', name: 'Mountain Climbers', type: 'cardio', body_parts: 'core', gif_url: null },
+    { id: '4', name: 'High Knees', type: 'cardio', body_parts: 'legs', gif_url: null },
+    { id: '5', name: 'Jump Rope', type: 'cardio', body_parts: 'full body', gif_url: null },
+    { id: '6', name: 'Squat Jumps', type: 'cardio', body_parts: 'legs', gif_url: null },
+    { id: '7', name: 'Lunge Jumps', type: 'cardio', body_parts: 'legs', gif_url: null },
+    { id: '8', name: 'Plank Jacks', type: 'cardio', body_parts: 'core', gif_url: null },
+    { id: '9', name: 'Bear Crawls', type: 'cardio', body_parts: 'full body', gif_url: null },
+    { id: '10', name: 'Crab Walks', type: 'cardio', body_parts: 'full body', gif_url: null }
+  ];
+
+  // Fetch exercises from database with fallback
   const fetchExercisesFromDB = async () => {
     try {
       setLoadingExercises(true);
@@ -155,28 +173,30 @@ export default function CardioSessionBuilder({ navigation }) {
         
         if (allError) {
           console.error('Error fetching all exercises:', allError);
-          Alert.alert('Error', `Failed to fetch exercises: ${allError.message}`);
-        return;
-      }
+          // Use fallback exercises instead of showing error
+          console.log('Using fallback exercises due to database error');
+          setDbExercises(fallbackExercises);
+          return;
+        }
         
         console.log(`✅ Successfully fetched exercises from table: ${tableName}`);
         console.log('Number of exercises:', allData.length);
-        console.log('First exercise sample:', allData[0]);
-        console.log('Exercise fields available:', Object.keys(allData[0]));
         setDbExercises(allData);
-    } else {
-        console.log('⚠️ No exercises found in any table');
-        setDbExercises([]);
+      } else {
+        console.log('⚠️ No exercises found in any table, using fallback exercises');
+        setDbExercises(fallbackExercises);
       }
     } catch (error) {
       console.error('❌ Exception while fetching exercises:', error);
-      Alert.alert('Error', 'Failed to fetch exercises from database');
+      // Use fallback exercises instead of showing error
+      console.log('Using fallback exercises due to exception');
+      setDbExercises(fallbackExercises);
     } finally {
       setLoadingExercises(false);
     }
   };
 
-  // Calculate session summary
+  // Calculate session summary with accurate calorie calculations
   const calculateSummary = () => {
     if (exercises.length === 0) {
       return {
@@ -186,34 +206,28 @@ export default function CardioSessionBuilder({ navigation }) {
       };
     }
 
-    // Calculate total calories and time for all exercises with their individual rounds
-    let totalCalories = 0;
+    // Calculate total time for all exercises
     let totalTime = 0;
-
     exercises.forEach(ex => {
-      const exerciseData = dbExercises.find(e => e.id === ex.id);
-      const intensityMultiplier = intensity / 50;
       const exerciseDuration = parseInt(ex.duration) || 45;
-      const exerciseTime = exerciseDuration / 60; // Convert to minutes
-      const exerciseRounds = ex.rounds || 1;
-      
-      // Use a default calorie burn rate based on exercise type
-      const calorieRate = exerciseData?.type === 'cardio' ? 10 : 
-                         exerciseData?.type === 'strength' ? 8 : 
-                         exerciseData?.type === 'core' ? 6 : 7;
-      
-      // Calculate calories for this exercise (per round * number of rounds)
-      const exerciseCalories = calorieRate * intensityMultiplier * exerciseTime * exerciseRounds;
-      totalCalories += exerciseCalories;
-
-      // Calculate time for this exercise
       const restDuration = parseInt(ex.rest) || 15;
+      const exerciseRounds = ex.rounds || 1;
       const exerciseTotalTime = (exerciseDuration + restDuration) * exerciseRounds;
       totalTime += exerciseTotalTime;
     });
 
     // Convert total time to minutes
     totalTime = totalTime / 60;
+
+    // Calculate accurate calories using the new utility
+    const maxRounds = Math.max(...exercises.map(ex => ex.rounds || 1));
+    const { totalCalories } = calculateTotalWorkoutCalories(
+      exercises,
+      userWeight,
+      intensity,
+      maxRounds,
+      restBetweenRounds
+    );
 
     // Determine difficulty based on total calories and time
     let difficulty = 'Easy';
@@ -263,12 +277,43 @@ export default function CardioSessionBuilder({ navigation }) {
     }).start();
   }, []);
 
-  // Fetch exercises when modal opens
+  // Pre-load exercises when component mounts to avoid delay
   useEffect(() => {
-    if (addModalVisible) {
-      fetchExercisesFromDB();
+    // Set fallback exercises immediately for instant display
+    setDbExercises(fallbackExercises);
+    setLoadingExercises(false);
+    
+    // Then fetch from database in background
+    fetchExercisesFromDB();
+  }, []);
+
+  // No need to fetch exercises when modal opens since they're already loaded
+
+  // Fetch user weight for accurate calorie calculations
+  useEffect(() => {
+    fetchUserWeight();
+  }, []);
+
+  const fetchUserWeight = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      
+      if (userId) {
+        const { data: profile, error } = await supabase
+          .from('user_profiles')
+          .select('weight')
+          .eq('user_id', userId)
+          .single();
+        
+        if (!error && profile?.weight) {
+          setUserWeight(profile.weight);
+        }
+      }
+    } catch (error) {
+      console.log('Could not fetch user weight, using default:', error);
     }
-  }, [addModalVisible]);
+  };
 
   // Progress animation based on calories
   useEffect(() => {
@@ -535,14 +580,22 @@ export default function CardioSessionBuilder({ navigation }) {
         return;
       }
 
-      // Calculate estimated time and calories
+      // Calculate estimated time and calories using accurate formulas
       const estimatedTime = exercises.reduce((total, ex) => {
         const exerciseTime = (parseInt(ex.duration) || 45) * (ex.rounds || 1);
         const restTime = (parseInt(ex.rest) || 15) * Math.max(0, (ex.rounds || 1) - 1);
         return total + exerciseTime + restTime;
       }, 0);
 
-      const estimatedCalories = Math.round((estimatedTime / 60) * 8 * (intensity / 50));
+      // Use accurate calorie calculation
+      const maxRounds = Math.max(...exercises.map(ex => ex.rounds || 1));
+      const { totalCalories: estimatedCalories } = calculateTotalWorkoutCalories(
+        exercises,
+        userWeight,
+        intensity,
+        maxRounds,
+        restBetweenRounds
+      );
 
       // Create session name
       const sessionName = sessionType || 'Cardio Session';
@@ -931,7 +984,7 @@ export default function CardioSessionBuilder({ navigation }) {
 
             {!selectedExercise ? (
               <>
-                {loadingExercises ? (
+                {loadingExercises && dbExercises.length === 0 ? (
                   <View style={styles.loadingContainer}>
                     <Text style={styles.loadingText}>Loading exercises...</Text>
                   </View>

@@ -1,8 +1,20 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
 import { Alert, FlatList, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
+
+// Global cache for saved meals data
+const globalSavedMealsCache = {
+  cachedData: null,
+  lastFetchTime: 0,
+  isFetching: false,
+  CACHE_DURATION: 60000, // 60 seconds
+  STALE_TIME: 10000, // 10 seconds
+  cacheHits: 0,
+  cacheMisses: 0,
+};
 const FILTERS = [
   'All Meals',
   'High Protein',
@@ -13,72 +25,122 @@ const FILTERS = [
 const placeholderImg = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop';
 
 const SavedMealsScreen = ({ navigation, route }) => {
-  const [meals, setMeals] = useState([]);
+  // Initialize state with cached data (Instagram pattern)
+  const [meals, setMeals] = useState(() => globalSavedMealsCache.cachedData?.meals || []);
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All Meals');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !globalSavedMealsCache.cachedData);
 
-  useEffect(() => {
-    const fetchMeals = async () => {
-      setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      if (!userId) {
-        setMeals([]);
+  useFocusEffect(
+    useCallback(() => {
+      const now = Date.now();
+      const timeSinceLastFetch = now - globalSavedMealsCache.lastFetchTime;
+      const isStale = timeSinceLastFetch > globalSavedMealsCache.STALE_TIME;
+      const isFresh = timeSinceLastFetch < globalSavedMealsCache.CACHE_DURATION;
+      
+      // SWR Pattern: Stale-While-Revalidate (like Instagram)
+      if (globalSavedMealsCache.cachedData && isFresh) {
+        // Data is fresh - use cache, no revalidation needed
+        setMeals(globalSavedMealsCache.cachedData.meals || []);
         setLoading(false);
-        return;
+        globalSavedMealsCache.cacheHits++;
+        return; // Fresh cache - no fetch needed
       }
-      const { data, error } = await supabase
-        .from('saved_meal')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-      console.log('[SavedMealsScreen] Fetched data:', data, 'Error:', error);
-      if (error || !data) {
-        setMeals([]);
+      
+      if (globalSavedMealsCache.cachedData && isStale && !isFresh) {
+        // Data is stale but within cache duration - show stale, revalidate in background
+        setMeals(globalSavedMealsCache.cachedData.meals || []);
         setLoading(false);
-        return;
+        globalSavedMealsCache.cacheHits++;
+        // Continue to fetch fresh data in background (don't return)
       }
-      // Map saved_meal to meal card format with signed URLs
-      const mapped = await Promise.all(data.map(async (log) => {
-        let imageUrl = placeholderImg;
-        
-        // If we have a photo_url (storage path), generate a signed URL
-        if (log.photo_url && !log.photo_url.startsWith('http')) {
-          try {
-            const { data: signedUrlData } = await supabase.storage
-              .from('food-photos')
-              .createSignedUrl(log.photo_url, 60 * 60); // 1 hour expiry
-            
-            if (signedUrlData?.signedUrl) {
-              imageUrl = signedUrlData.signedUrl;
-            }
-          } catch (error) {
-            console.error('Error generating signed URL:', error);
-            // Fallback to placeholder if signed URL generation fails
+      
+      // Prevent concurrent fetches
+      if (globalSavedMealsCache.isFetching) return;
+      
+      globalSavedMealsCache.isFetching = true;
+      globalSavedMealsCache.cacheMisses++;
+      
+      const fetchMeals = async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const userId = session?.user?.id;
+          if (!userId) {
+            globalSavedMealsCache.cachedData = { meals: [] };
+            setMeals([]);
+            setLoading(false);
+            return;
           }
-        } else if (log.photo_url && log.photo_url.startsWith('http')) {
-          // If it's already a full URL, use it directly
-          imageUrl = log.photo_url;
+          
+          const { data, error } = await supabase
+            .from('saved_meal')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+          
+          if (error || !data) {
+            globalSavedMealsCache.cachedData = { meals: [] };
+            setMeals([]);
+            setLoading(false);
+            return;
+          }
+          
+          // Map saved_meal to meal card format with signed URLs
+          const mapped = await Promise.all(data.map(async (log) => {
+            let imageUrl = placeholderImg;
+            
+            // If we have a photo_url (storage path), generate a signed URL
+            if (log.photo_url && !log.photo_url.startsWith('http')) {
+              try {
+                const { data: signedUrlData } = await supabase.storage
+                  .from('food-photos')
+                  .createSignedUrl(log.photo_url, 60 * 60); // 1 hour expiry
+                
+                if (signedUrlData?.signedUrl) {
+                  imageUrl = signedUrlData.signedUrl;
+                }
+              } catch (error) {
+                // Fallback to placeholder if signed URL generation fails
+              }
+            } else if (log.photo_url && log.photo_url.startsWith('http')) {
+              // If it's already a full URL, use it directly
+              imageUrl = log.photo_url;
+            }
+            
+            return {
+              id: log.id, // Include the database ID for deletion
+              dish_name: log.dish_name,
+              total_nutrition: { calories: Number(log.calories) },
+              macros: {
+                protein: Number(log.protein || 0),
+                carbs: Number(log.carbs || 0),
+                fat: Number(log.fat || 0),
+              },
+              image: imageUrl,
+            };
+          }));
+          
+          // Only update state if data actually changed
+          const newDataString = JSON.stringify(mapped);
+          const currentDataString = JSON.stringify(meals);
+          if (newDataString !== currentDataString) {
+            setMeals(mapped);
+          }
+          
+          // Cache the data
+          globalSavedMealsCache.cachedData = { meals: mapped };
+          globalSavedMealsCache.lastFetchTime = Date.now();
+          setLoading(false);
+        } catch (error) {
+          // Silent error handling
+        } finally {
+          globalSavedMealsCache.isFetching = false;
         }
-        
-        return {
-          id: log.id, // Include the database ID for deletion
-          dish_name: log.dish_name,
-          total_nutrition: { calories: Number(log.calories) },
-          macros: {
-            protein: Number(log.protein || 0),
-            carbs: Number(log.carbs || 0),
-            fat: Number(log.fat || 0),
-          },
-          image: imageUrl,
-        };
-      }));
-      setMeals(mapped);
-      setLoading(false);
-    };
-    fetchMeals();
-  }, []);
+      };
+      
+      fetchMeals();
+    }, [meals])
+  );
 
   // Filtering logic for both search and filter chips
   const filteredMeals = meals.filter(meal => {
@@ -104,6 +166,16 @@ const SavedMealsScreen = ({ navigation, route }) => {
         return;
       }
 
+      // Optimistic update - remove from UI immediately
+      const updatedMeals = meals.filter((_, i) => i !== idx);
+      setMeals(updatedMeals);
+      
+      // Update cache immediately
+      if (globalSavedMealsCache.cachedData) {
+        globalSavedMealsCache.cachedData.meals = updatedMeals;
+        globalSavedMealsCache.lastFetchTime = Date.now();
+      }
+
       // Delete from database
       const { error } = await supabase
         .from('saved_meal')
@@ -111,16 +183,22 @@ const SavedMealsScreen = ({ navigation, route }) => {
         .eq('id', mealToDelete.id);
 
       if (error) {
-        console.error('Error deleting meal:', error);
+        // Rollback optimistic update on error
+        setMeals(meals);
+        if (globalSavedMealsCache.cachedData) {
+          globalSavedMealsCache.cachedData.meals = meals;
+        }
         Alert.alert('Error', 'Failed to delete meal from database.');
         return;
       }
 
-      // Remove from local state
-      setMeals(meals.filter((_, i) => i !== idx));
       Alert.alert('Success', 'Meal deleted successfully!');
     } catch (error) {
-      console.error('Error deleting meal:', error);
+      // Rollback optimistic update on error
+      setMeals(meals);
+      if (globalSavedMealsCache.cachedData) {
+        globalSavedMealsCache.cachedData.meals = meals;
+      }
       Alert.alert('Error', 'Failed to delete meal.');
     }
   };
@@ -133,12 +211,6 @@ const SavedMealsScreen = ({ navigation, route }) => {
         Alert.alert('You must be logged in to log food.');
         return;
       }
-      
-      console.log('🔍 Logging saved meal:', {
-        dish_name: meal.dish_name,
-        image: meal.image,
-        photo_url: meal.image
-      });
       
       const today = new Date().toISOString().slice(0, 10);
       const logData = {
@@ -156,8 +228,6 @@ const SavedMealsScreen = ({ navigation, route }) => {
         photo_url: meal.image, // Include the photo URL from saved meal
         created_at: new Date().toISOString(),
       };
-      
-      console.log('🔍 Log data being inserted:', logData);
       
       const { error } = await supabase.from('user_food_logs').insert([logData]);
       if (error) throw error;

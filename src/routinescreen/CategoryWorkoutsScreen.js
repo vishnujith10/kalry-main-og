@@ -236,16 +236,23 @@ export default function CategoryWorkoutsScreen() {
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: BG }}>
       {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', position: 'relative', marginTop: 24, marginBottom: 8, marginLeft: 18, marginRight: 12 }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 12 }}>
-          <Ionicons name="chevron-back" size={28}/>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 1, marginBottom: 8, marginLeft: 18, marginRight: 12 }}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()} 
+          style={{ marginRight: 12, padding: 12, zIndex: 10 }}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="chevron-back" size={28} color="#181A20"/>
         </TouchableOpacity>
-        <View style={{ flex: 1 }} />
-        <Text pointerEvents="none" style={{ fontFamily: 'Lexend-SemiBold', fontSize: 22, color: '#181A20', position: 'absolute', left: 0, right: 0, textAlign: 'center' }}>Exercise Library</Text>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontFamily: 'Lexend-SemiBold', fontSize: 22, color: '#181A20' }}>Exercise Library</Text>
+        </View>
         <TouchableOpacity
           onPress={() => setSearchExpanded(v => !v)}
           accessibilityLabel={searchExpanded ? 'Close search' : 'Open search'}
-          style={{ padding: 6 }}
+          style={{ padding: 12, zIndex: 10 }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Ionicons name={searchExpanded ? 'close' : 'search'} size={22} color={PRIMARY} />
         </TouchableOpacity>

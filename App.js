@@ -118,7 +118,7 @@ export default function App() {
             initialRouteName="AuthLoading" 
             screenOptions={{ 
               headerShown: false,
-              animation: 'slide_from_left', // Left-to-right animation
+              animation: 'slide_from_right', // Right-to-left animation
               animationDuration: 200, // Fast but smooth (Instagram uses ~200ms)
             }}
             detachInactiveScreens={false} // Keep screens mounted (like Instagram/Facebook)
@@ -139,15 +139,36 @@ export default function App() {
             <Stack.Screen name="GoalSummary" component={GoalSummaryScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
-            <Stack.Screen name="MainDashboard" component={MainDashboardScreen} />
-            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen 
+              name="MainDashboard" 
+              component={MainDashboardScreen}
+              options={{
+                animation: 'slide_from_left', // Left-to-right animation for back navigation
+                gestureDirection: 'horizontal', // Enable horizontal swipe gestures
+              }}
+            />
+            <Stack.Screen 
+              name="Home" 
+              component={HomeScreen}
+              options={{
+                animation: 'slide_from_right', // Right-to-left animation for navigation to Home
+                gestureDirection: 'horizontal', // Enable horizontal swipe gestures
+              }}
+            />
             <Stack.Screen name="PhotoCalorieScreen" component={PhotoCalorieScreen} />
             <Stack.Screen name="ManualLogScreen" component={ManualLogScreen} />
             <Stack.Screen name="VoiceCalorieScreen" component={VoiceCalorieScreen} />
             <Stack.Screen name="VoicePostCalorieScreen" component={VoicePostCalorieScreen} />
             <Stack.Screen name="MinimalSignupTest" component={MinimalSignupTestScreen} />
             <Stack.Screen name="Tabs" component={MainTabs} />
-            <Stack.Screen name="Exercise" component={ExerciseScreen} />
+            <Stack.Screen 
+              name="Exercise" 
+              component={ExerciseScreen}
+              options={{
+                animation: 'slide_from_right', // Right-to-left animation for navigation to Exercise
+                gestureDirection: 'horizontal', // Enable horizontal swipe gestures
+              }}
+            />
             <Stack.Screen name="CategoryWorkouts" component={CategoryWorkoutsScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Goal" component={GoalScreen} />
             <Stack.Screen name="SleepTrackerScreen" component={SleepTrackerScreen} options={{ headerShown: false }} />
@@ -155,7 +176,15 @@ export default function App() {
             <Stack.Screen name="AddWeightScreen" component={AddWeightScreen} options={{ headerShown: false }} />
             <Stack.Screen name="HydrationTrackerScreen" component={HydrationTrackerScreen} options={{ headerShown: false }} />
             <Stack.Screen name="StepTrackerScreen" component={StepTrackerScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="SavedMealsScreen" component={SavedMealsScreen} options={{ headerShown: false }} />
+            <Stack.Screen 
+              name="SavedMealsScreen" 
+              component={SavedMealsScreen} 
+              options={{ 
+                headerShown: false,
+                animation: 'slide_from_right', // Right-to-left animation for navigation to SavedMeals
+                gestureDirection: 'horizontal', // Enable horizontal swipe gestures
+              }} 
+            />
             <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
             <Stack.Screen name="Create" component={CreateWorkoutScreen} />
             <Stack.Screen name="Workouts" component={WorkoutHistoryScreen} />

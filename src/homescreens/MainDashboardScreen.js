@@ -758,7 +758,8 @@ const MainDashboardScreen = ({ route }) => {
                     <View style={[
                       styles.hydrationBottleFill, 
                       { 
-                        height: hydrationLoading ? '0%' : `${Math.min(100, (currentIntake / dailyGoal) * 100)}%` 
+                        height: hydrationLoading ? '0%' : currentIntake === 0 ? '0%' : `${Math.min(100, (currentIntake / dailyGoal) * 100)}%`,
+                        minHeight: currentIntake === 0 ? 0 : 20
                       }
                     ]}>
                     </View>

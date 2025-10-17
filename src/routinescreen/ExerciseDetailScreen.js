@@ -146,7 +146,7 @@ export default function ExerciseDetailScreen() {
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: COLORS.background }}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.headerIcon}><Ionicons name="chevron-back" size={24} color={COLORS.darkText} /></TouchableOpacity>
+        <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.goBack()}><Ionicons name="chevron-back" size={24} color={COLORS.darkText} /></TouchableOpacity>
         <Text style={styles.headerTitle}>Exercise Detail</Text>
         <TouchableOpacity style={styles.headerIcon}><Ionicons name="share-outline" size={22} color={COLORS.darkText} /></TouchableOpacity>
       </View>

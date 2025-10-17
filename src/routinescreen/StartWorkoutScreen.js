@@ -1,20 +1,20 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    Dimensions,
-    Image,
-    Keyboard,
-    Modal,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  Alert,
+  Animated,
+  Dimensions,
+  Image,
+  Keyboard,
+  Modal,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import supabase from '../lib/supabase';
@@ -278,27 +278,42 @@ export default function StartWorkoutScreen({ navigation, route }) {
   };
 
   const getTotalStats = useMemo(() => {
-    // Calculate calories based on exercise type and duration
+    // Calculate calories based on exercise type, weight, and reps
     const totalKcal = exercises.reduce((sum, ex) => {
       const exerciseType = getExerciseType(ex);
       
-      // Use the total workout timer time divided by number of exercises
-      const durationMinutes = (workoutTime / exercises.length) / 60;
+      let exerciseCalories = 0;
       
-      // Basic calorie calculation based on exercise type
-      let caloriesPerMinute = 0;
-      if (exerciseType === 'cardio') {
-        caloriesPerMinute = 8; // Average for cardio exercises
-      } else if (exerciseType === 'strength') {
-        caloriesPerMinute = 5; // Average for strength exercises
+      if (exerciseType === 'strength') {
+        // For strength exercises, calculate based on weight and reps
+        const totalWeightLifted = ex.sets.reduce((setSum, set) => {
+          const weight = parseFloat(set.weight) || 0;
+          const reps = parseInt(set.reps) || 0;
+          return setSum + (weight * reps);
+        }, 0);
+        
+        // More accurate calculation: 0.05 calories per kg lifted
+        exerciseCalories = Math.round(totalWeightLifted * 0.05);
+        
+        // Minimum calories for any strength exercise (at least 2-3 calories)
+        exerciseCalories = Math.max(exerciseCalories, 3);
+        
+      } else if (exerciseType === 'cardio') {
+        // For cardio, use time-based calculation
+        const durationMinutes = (workoutTime / exercises.length) / 60;
+        exerciseCalories = Math.round(durationMinutes * 8);
+        
       } else if (exerciseType === 'timer') {
-        caloriesPerMinute = 3; // Average for timer/static exercises
+        // For timer exercises, use time-based calculation
+        const durationMinutes = (workoutTime / exercises.length) / 60;
+        exerciseCalories = Math.round(durationMinutes * 3);
+        
       } else {
-        caloriesPerMinute = 4; // Default
+        // Default calculation
+        const durationMinutes = (workoutTime / exercises.length) / 60;
+        exerciseCalories = Math.round(durationMinutes * 4);
       }
       
-      const exerciseCalories = Math.round(durationMinutes * caloriesPerMinute);
-      console.log(`Exercise: ${ex.name || ex.workout}, Type: ${exerciseType}, Duration: ${durationMinutes.toFixed(1)}min, Calories: ${exerciseCalories}`);
       return sum + exerciseCalories;
     }, 0);
     
@@ -453,16 +468,34 @@ export default function StartWorkoutScreen({ navigation, route }) {
         const exerciseType = getExerciseType(exercise);
         
         // Calculate duration and calories for this specific exercise
-        // Use the total workout timer time divided by number of exercises
         const durationSeconds = Math.round(workoutTime / exercises.length) || 0;
         let exerciseCalories = 0;
         
-        if (exerciseType === 'cardio') {
-          exerciseCalories = Math.round((durationSeconds / 60) * 8); // 8 cal/min for cardio
+        if (exerciseType === 'strength') {
+          // For strength exercises, calculate based on weight and reps
+          const totalWeightLifted = exercise.sets.reduce((setSum, set) => {
+            const weight = parseFloat(set.weight) || 0;
+            const reps = parseInt(set.reps) || 0;
+            return setSum + (weight * reps);
+          }, 0);
+          
+          // More accurate calculation: 0.05 calories per kg lifted
+          exerciseCalories = Math.round(totalWeightLifted * 0.05);
+          
+          // Minimum calories for any strength exercise (at least 2-3 calories)
+          exerciseCalories = Math.max(exerciseCalories, 3);
+          
+        } else if (exerciseType === 'cardio') {
+          // For cardio, use time-based calculation
+          exerciseCalories = Math.round((durationSeconds / 60) * 8);
+          
         } else if (exerciseType === 'timer') {
-          exerciseCalories = Math.round((durationSeconds / 60) * 3); // 3 cal/min for timer
+          // For timer exercises, use time-based calculation
+          exerciseCalories = Math.round((durationSeconds / 60) * 3);
+          
         } else {
-          exerciseCalories = Math.round((durationSeconds / 60) * 5); // 5 cal/min for strength
+          // Default calculation
+          exerciseCalories = Math.round((durationSeconds / 60) * 4);
         }
         
         return {
@@ -507,8 +540,8 @@ export default function StartWorkoutScreen({ navigation, route }) {
         `Great job! Your workout has been saved.\nDuration: ${formatTime(workoutTime)}\nCalories: ${getTotalStats.totalKcal} kcal`,
         [
           { 
-            text: 'View Saved Workouts', 
-            onPress: () => navigation.navigate('WorkoutSaveScreen', { activeTab: 'routines' })
+            text: 'Ok', 
+            onPress: () => navigation.navigate('Workouts')
           },
         ]
       );

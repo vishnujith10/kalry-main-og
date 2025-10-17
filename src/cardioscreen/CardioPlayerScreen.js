@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import React, { useEffect, useRef, useState } from 'react';
 import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { calculateCardioCalories } from '../utils/calorieCalculator';
 
 const COLORS = {
   background: '#F9FAFB',
@@ -34,6 +35,7 @@ export default function CardioPlayerScreen({ route, navigation }) {
   const [isRest, setIsRest] = useState(false);
   const [running, setRunning] = useState(true);
   const [calories, setCalories] = useState(0);
+  const [userWeight, setUserWeight] = useState(70); // Default 70kg
   const intervalRef = useRef();
   const [sound, setSound] = useState();
 
@@ -42,7 +44,6 @@ export default function CardioPlayerScreen({ route, navigation }) {
     if (!session.soundAlerts) return;
     let soundObj;
     async function loadSound() {
-      let soundFile;
       // Use a dummy beep from a public domain CDN or fallback to no sound
       try {
         const { sound } = await Audio.Sound.createAsync({
@@ -50,13 +51,41 @@ export default function CardioPlayerScreen({ route, navigation }) {
         });
         setSound(sound);
         soundObj = sound;
-      } catch (e) {
+      } catch (_e) {
         setSound(null);
       }
     }
     loadSound();
     return () => { try { soundObj && soundObj.unloadAsync && soundObj.unloadAsync(); } catch {} };
   }, [session.soundOption, session.soundAlerts]);
+
+  // Fetch user weight for accurate calorie calculations
+  useEffect(() => {
+    fetchUserWeight();
+  }, []);
+
+  const fetchUserWeight = async () => {
+    try {
+      // Import supabase dynamically to avoid circular dependencies
+      const supabase = require('../lib/supabase').default;
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      
+      if (userId) {
+        const { data: profile, error } = await supabase
+          .from('user_profiles')
+          .select('weight')
+          .eq('user_id', userId)
+          .single();
+        
+        if (!error && profile?.weight) {
+          setUserWeight(profile.weight);
+        }
+      }
+    } catch (error) {
+      console.log('Could not fetch user weight, using default:', error);
+    }
+  };
 
   // Play sound and vibrate at transitions
   const playFeedback = async () => {
@@ -91,16 +120,49 @@ export default function CardioPlayerScreen({ route, navigation }) {
     // eslint-disable-next-line
   }, [exerciseIdx, round, isRest, running]);
 
-  // Calories calculation (crude)
+  // Accurate calories calculation
   useEffect(() => {
     let total = 0;
-    for (let r = 0; r < round; r++) {
-      for (let i = 0; i < exerciseIdx; i++) {
-        total += Math.round((parseInt(exercises[i]?.duration) || 0) / 60 * 8);
+    
+    // Calculate calories for completed exercises in previous rounds
+    for (let r = 1; r < round; r++) {
+      exercises.forEach(exercise => {
+        const duration = parseInt(exercise.duration) || 45;
+        const rounds = parseInt(exercise.rounds) || 1;
+        
+        if (rounds >= r) {
+          const exerciseCalories = calculateCardioCalories({
+            duration: duration / 60, // convert to minutes
+            weight: userWeight,
+            exerciseName: exercise.name,
+            intensity: 50, // Default intensity, could be passed from session
+            rounds: 1
+          });
+          total += exerciseCalories;
+        }
+      });
+    }
+    
+    // Calculate calories for current round (completed exercises only)
+    for (let i = 0; i < exerciseIdx; i++) {
+      const exercise = exercises[i];
+      const duration = parseInt(exercise.duration) || 45;
+      const rounds = parseInt(exercise.rounds) || 1;
+      
+      if (rounds >= round) {
+        const exerciseCalories = calculateCardioCalories({
+          duration: duration / 60, // convert to minutes
+          weight: userWeight,
+          exerciseName: exercise.name,
+          intensity: 50, // Default intensity, could be passed from session
+          rounds: 1
+        });
+        total += exerciseCalories;
       }
     }
-    setCalories(total);
-  }, [exerciseIdx, round]);
+    
+    setCalories(Math.round(total));
+  }, [exerciseIdx, round, userWeight, exercises]);
 
   const handleNext = async () => {
     await playFeedback();

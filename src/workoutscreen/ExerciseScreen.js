@@ -21,11 +21,6 @@ const summary = [
   { icon: 'time-outline', color: GREEN, value: '115', label: 'Workout Minutes', unit: 'min' },
 ];
 
-const recent = [
-  { color: '#7B61FF', title: '30 min - Strength Training', time: 'Today, 8:30 AM' },
-  { color: '#22C55E', title: '15 min - HIIT', time: 'Yesterday, 7:00 PM' },
-  { color: '#F472B6', title: '45 min - Cardio', time: '2 days ago, 9:00 AM' },
-];
 
 // Add FooterBar component
 const FooterBar = ({ navigation, activeTab }) => {
@@ -52,7 +47,7 @@ const FooterBar = ({ navigation, activeTab }) => {
     {
       key: 'History',
       label: 'History',
-      icon: <Ionicons name="bookmark-outline" size={24} color={activeTab === 'Workouts' ? '#7B61FF' : '#232B3A'} />,
+      icon: <Ionicons name="time-outline" size={24} color={activeTab === 'Workouts' ? '#7B61FF' : '#232B3A'} />,
       route: 'Workouts',
     },
   ];
@@ -131,7 +126,7 @@ const ExerciseScreen = () => {
   ];
 
   useEffect(() => {
-    fetch('http://192.168.1.10:3000/api/exercise')
+    fetch('http://192.168.1.7:3000/api/exercise')
       .then(async res => {
         if (!res.ok) {
           // Try to get error details from the response body
@@ -200,12 +195,12 @@ const ExerciseScreen = () => {
             </View>
           </View>
 
-          <View style={styles.weekProgressSection}>
+          {/* <View style={styles.weekProgressSection}>
             <Text style={styles.weekProgressText}>This Week: 4/7 workouts done</Text>
             <View style={styles.progressBar}>
               <View style={styles.progressFill} />
             </View>
-          </View>
+          </View> */}
         </View>
 
         {/* Summary Cards */}
@@ -269,25 +264,6 @@ const ExerciseScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Recent Workouts */}
-        <Text style={styles.recentHeader}>Recent Workouts</Text>
-        {recent.map((r, i) => (
-          <View key={i} style={styles.recentCard}>
-            <View style={styles.recentDotWrap}>
-              <View style={[styles.recentDot, { backgroundColor: r.color }]} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.recentTitle}>{r.title}</Text>
-              <Text style={styles.recentTime}>{r.time}</Text>
-            </View>
-            <TouchableOpacity style={{ marginRight: 8 }}>
-              <Ionicons name="pencil-outline" size={18} color={GRAY} />
-            </TouchableOpacity>
-            <TouchableOpacity>
-              <Ionicons name="trash-outline" size={18} color={GRAY} />
-            </TouchableOpacity>
-          </View>
-        ))}
       </ScrollView>
       
       <FooterBar navigation={navigation} activeTab="Workout" />
@@ -648,47 +624,6 @@ const styles = StyleSheet.create({
     color: '#7B61FF',
   },
 
-  recentHeader: { 
-    fontFamily: 'Lexend-SemiBold', 
-    fontSize: 18, 
-    color: '#181A20', 
-    marginLeft: 18, 
-    marginBottom: 10 
-  },
-  recentCard: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: CARD, 
-    borderRadius: 16, 
-    marginHorizontal: 18, 
-    marginBottom: 12, 
-    padding: 16, 
-    shadowColor: '#181A20', 
-    shadowOffset: { width: 0, height: 6 }, 
-    shadowOpacity: 0.10, 
-    shadowRadius: 12, 
-    elevation: 5 
-  },
-  recentDotWrap: { 
-    width: 18, 
-    alignItems: 'center', 
-    marginRight: 8 
-  },
-  recentDot: { 
-    width: 10, 
-    height: 10, 
-    borderRadius: 5 
-  },
-  recentTitle: { 
-    fontFamily: 'Lexend-SemiBold', 
-    fontSize: 15, 
-    color: '#181A20' 
-  },
-  recentTime: { 
-    fontFamily: 'Manrope-Regular', 
-    fontSize: 13, 
-    color: '#888' 
-  },
 });
 
 const footerStyles = StyleSheet.create({
