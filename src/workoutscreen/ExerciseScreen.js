@@ -1,24 +1,20 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import supabase from '../lib/supabase';
 
-const PRIMARY = '#7B61FF';
 const PURPLE = '#A084E8';
 const GREEN = '#22C55E';
 const GRAY = '#6B7280';
 const BG = '#F7F7FA';
 const CARD = '#fff';
 
-const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-// Map JS getDay() (0=Sunday) to our days array (0=Monday)
-const jsDayToIndex = [6, 0, 1, 2, 3, 4, 5];
-const todayIndex = jsDayToIndex[new Date().getDay()];
-
-const summary = [
-  { icon: 'flame-outline', color: PURPLE, value: '780', label: 'Calories Burned', unit: 'kcal' },
-  { icon: 'time-outline', color: GREEN, value: '115', label: 'Workout Minutes', unit: 'min' },
+// This will be replaced with real data
+const defaultSummary = [
+  { icon: 'flame-outline', color: PURPLE, value: '0', label: 'Calories Burned', unit: 'kcal' },
+  { icon: 'time-outline', color: GREEN, value: '0', label: 'Workout Minutes', unit: 'min' },
 ];
 
 
@@ -90,9 +86,7 @@ const FooterBar = ({ navigation, activeTab }) => {
 };
 
 const ExerciseScreen = () => {
-  const [exercises, setExercises] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [summary, setSummary] = useState(defaultSummary);
   const navigation = useNavigation();
 
   // Get current week dates (Monday to Sunday)
@@ -125,32 +119,87 @@ const ExerciseScreen = () => {
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
   ];
 
-  useEffect(() => {
-    fetch('http://192.168.1.7:3000/api/exercise')
-      .then(async res => {
-        if (!res.ok) {
-          // Try to get error details from the response body
-          let errorBody = '';
-          try {
-            errorBody = await res.text();
-          } catch (e) {
-            errorBody = 'Could not read error body';
-          }
-          throw new Error(`Failed to fetch. Status: ${res.status}. Body: ${errorBody}`);
-        }
-        return res.json();
-      })
-      .then(data => {
-        setExercises(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        setError('Could not load exercises');
-        setLoading(false);
-        // Log the full error object and message
-        console.error('Error fetching exercises:', err, err.message);
-      });
+  // Fetch workout data (calories and minutes)
+  const fetchWorkoutData = useCallback(async () => {
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get current week start and end dates
+      const today = new Date();
+      const currentDay = today.getDay();
+      const daysToMonday = currentDay === 0 ? 6 : currentDay - 1;
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - daysToMonday);
+      weekStart.setHours(0, 0, 0, 0);
+      
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      // Fetch routine workouts
+      const { data: routineWorkouts, error: routineError } = await supabase
+        .from('workouts')
+        .select('total_kcal, duration')
+        .eq('user_id', user.id)
+        .gte('created_at', weekStart.toISOString())
+        .lte('created_at', weekEnd.toISOString());
+
+      // Fetch cardio sessions
+      const { data: cardioWorkouts, error: cardioError } = await supabase
+        .from('saved_cardio_sessions')
+        .select('estimated_calories, estimated_time')
+        .eq('user_id', user.id)
+        .gte('created_at', weekStart.toISOString())
+        .lte('created_at', weekEnd.toISOString());
+
+      if (routineError) {
+        console.error('Error fetching routine workouts:', routineError);
+      }
+      if (cardioError) {
+        console.error('Error fetching cardio workouts:', cardioError);
+      }
+
+      // Calculate totals
+      let totalCalories = 0;
+      let totalMinutes = 0;
+
+      // Add routine workout data
+      if (routineWorkouts) {
+        routineWorkouts.forEach(workout => {
+          totalCalories += workout.total_kcal || 0;
+          totalMinutes += Math.round((workout.duration || 0) / 60); // Convert seconds to minutes
+        });
+      }
+
+      // Add cardio workout data
+      if (cardioWorkouts) {
+        cardioWorkouts.forEach(workout => {
+          totalCalories += workout.estimated_calories || 0;
+          totalMinutes += workout.estimated_time || 0;
+        });
+      }
+
+      // Update workout data (no need to store in state since we update summary directly)
+
+      // Update summary with real data
+      setSummary([
+        { icon: 'flame-outline', color: PURPLE, value: totalCalories.toString(), label: 'Calories Burned', unit: 'kcal' },
+        { icon: 'time-outline', color: GREEN, value: totalMinutes.toString(), label: 'Workout Minutes', unit: 'min' },
+      ]);
+
+    } catch (error) {
+      console.error('Error fetching workout data:', error);
+    }
   }, []);
+
+  // Use useFocusEffect to fetch data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchWorkoutData();
+    }, [fetchWorkoutData])
+  );
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: BG }}>

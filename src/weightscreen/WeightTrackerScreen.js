@@ -2,14 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useContext, useEffect, useState } from "react";
 import {
-  Alert,
-  Dimensions,
-  FlatList,
-  Alert as RNAlert,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    Dimensions,
+    FlatList,
+    Alert as RNAlert,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -398,7 +398,7 @@ const WeightTrackerScreen = ({ navigation }) => {
       <View style={styles.customHeader}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('MainDashboard')}
         >
           <Ionicons name="chevron-back" size={24} color="#1F2937" />
         </TouchableOpacity>
