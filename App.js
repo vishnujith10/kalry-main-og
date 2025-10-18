@@ -21,6 +21,7 @@ import CreateWorkoutScreen from './src/cardioscreen/CreateWorkoutScreen';
 import WorkoutStartScreen from './src/cardioscreen/WorkoutStartScreen';
 import { OnboardingProvider } from './src/context/OnboardingContext';
 import HomeScreen from './src/homescreens/HomeScreen';
+import JournalScreen from './src/homescreens/JournalScreen';
 import MainDashboardScreen from './src/homescreens/MainDashboardScreen';
 import HydrationTrackerScreen from './src/hydrationscreen/HydrationTrackerScreen';
 import LoginScreen from './src/loginsignup/LoginScreen';
@@ -152,6 +153,14 @@ export default function App() {
               component={HomeScreen}
               options={{
                 animation: 'slide_from_right', // Right-to-left animation for navigation to Home
+                gestureDirection: 'horizontal', // Enable horizontal swipe gestures
+              }}
+            />
+            <Stack.Screen 
+              name="Journal" 
+              component={JournalScreen}
+              options={{
+                animation: 'slide_from_right', // Right-to-left animation for navigation to Journal
                 gestureDirection: 'horizontal', // Enable horizontal swipe gestures
               }}
             />

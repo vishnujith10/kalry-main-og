@@ -700,7 +700,11 @@ const MainDashboardScreen = ({ route }) => {
         </View>
 
         {/* Mood/Journal Card */}
-        <TouchableOpacity style={styles.moodCard} activeOpacity={0.9}>
+        <TouchableOpacity 
+          style={styles.moodCard} 
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('Journal')}
+        >
           <View style={styles.moodIconWrap}><MaterialCommunityIcons name="emoticon-happy-outline" size={28} color={COLORS.primary} /></View>
           <View style={{ flex: 1 }}>
             <Text style={styles.moodTitle}>{mood || 'Not tracked yet'}</Text>
