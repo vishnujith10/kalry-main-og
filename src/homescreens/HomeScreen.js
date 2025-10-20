@@ -260,6 +260,8 @@ const HomeScreen = ({ navigation }) => {
   const [userName, setUserName] = useState(onboardingData?.name || "User");
   const [recentMeals, setRecentMeals] = useState(() => globalHomeCache.cachedData?.recentMeals || []);
   const [expandedMeal, setExpandedMeal] = useState(null);
+  const [selectedMeals, setSelectedMeals] = useState(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const { stepsToday, calories: stepCalories } = useTodaySteps();
   const { onboardingData } = useContext(OnboardingContext);
 
@@ -548,6 +550,49 @@ const HomeScreen = ({ navigation }) => {
     navigation.navigate("VoiceCalorieScreen", { mealType, selectedDate });
   };
 
+  const handleMealLongPress = (mealId) => {
+    if (!isSelectionMode) {
+      setIsSelectionMode(true);
+      setSelectedMeals(new Set([mealId]));
+    }
+  };
+
+  const handleMealPress = (mealId, index) => {
+    if (isSelectionMode) {
+      const newSelected = new Set(selectedMeals);
+      if (newSelected.has(mealId)) {
+        newSelected.delete(mealId);
+        if (newSelected.size === 0) {
+          setIsSelectionMode(false);
+        }
+      } else {
+        newSelected.add(mealId);
+      }
+      setSelectedMeals(newSelected);
+    } else {
+      setExpandedMeal(expandedMeal === index ? null : index);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    try {
+      const selectedIds = Array.from(selectedMeals);
+      await Promise.all(selectedIds.map(id => deleteFoodLog(id)));
+      
+      const newMeals = recentMeals.filter(meal => !selectedMeals.has(meal.id));
+      const newLogs = foodLogs.filter(meal => !selectedMeals.has(meal.id));
+      
+      setRecentMeals(newMeals);
+      setFoodLogs(newLogs);
+      calculateTotals(newLogs);
+      
+      setSelectedMeals(new Set());
+      setIsSelectionMode(false);
+    } catch (e) {
+      Alert.alert("Error", "Failed to delete selected meals.");
+    }
+  };
+
   const renderMealSection = (mealType, iconName, time) => (
     <View style={styles.mealSection}>
       <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
@@ -827,16 +872,35 @@ const HomeScreen = ({ navigation }) => {
         <View
           style={{ marginHorizontal: 20, marginBottom: 30, paddingBottom: 80 }}
         >
-          <Text
-            style={{
-              fontFamily: "Lexend-SemiBold",
-              fontSize: 18,
-              color: "#181A20",
-              marginBottom: 14,
-            }}
-          >
-            Recent Meals
-          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <Text
+              style={{
+                fontFamily: "Lexend-SemiBold",
+                fontSize: 18,
+                color: "#181A20",
+              }}
+            >
+              Recent Meals
+            </Text>
+            {isSelectionMode && selectedMeals.size > 0 && (
+              <TouchableOpacity
+                onPress={handleDeleteSelected}
+                style={{
+                  backgroundColor: '#FF3B30',
+                  borderRadius: 20,
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                <Ionicons name="trash-outline" size={18} color="#fff" />
+                <Text style={{ color: '#fff', marginLeft: 6, fontWeight: '600' }}>
+                  Delete ({selectedMeals.size})
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {recentMeals.length === 0 ? (
             <Text
@@ -853,9 +917,10 @@ const HomeScreen = ({ navigation }) => {
               {recentMeals.map((meal, i) => (
                 <TouchableOpacity
                   key={meal.id || i}
-                  onPress={() => setExpandedMeal(expandedMeal === i ? null : i)}
+                  onPress={() => handleMealPress(meal.id, i)}
+                  onLongPress={() => handleMealLongPress(meal.id)}
                   style={{
-                    backgroundColor: "#fff",
+                    backgroundColor: selectedMeals.has(meal.id) ? "#FFF3F3" : "#fff",
                     borderRadius: 16,
                     padding: 12,
                     shadowColor: "#000",
@@ -864,6 +929,8 @@ const HomeScreen = ({ navigation }) => {
                     shadowRadius: 10,
                     elevation: 4,
                     transform: [{ scale: expandedMeal === i ? 1.02 : 1 }],
+                    borderWidth: selectedMeals.has(meal.id) ? 2 : 0,
+                    borderColor: selectedMeals.has(meal.id) ? "#FF3B30" : "transparent",
                   }}
                   activeOpacity={0.8}
                 >
@@ -921,30 +988,16 @@ const HomeScreen = ({ navigation }) => {
                       </Text>
                     </View>
 
-                    {/* Delete Icon */}
-                    <TouchableOpacity
-                      onPress={async () => {
-                        try {
-                          await deleteFoodLog(meal.id);
-                          setRecentMeals(
-                            recentMeals.filter((m) => m.id !== meal.id)
-                          );
-                          setFoodLogs(foodLogs.filter((m) => m.id !== meal.id));
-                          calculateTotals(
-                            foodLogs.filter((m) => m.id !== meal.id)
-                          );
-                        } catch (e) {
-                          Alert.alert("Error", "Failed to delete food log.");
-                        }
-                      }}
-                      style={{ padding: 6 }}
-                    >
-                      <Ionicons
-                        name="trash-outline"
-                        size={22}
-                        color="#FF3B30"
-                      />
-                    </TouchableOpacity>
+                    {/* Selection indicator */}
+                    {isSelectionMode && (
+                      <View style={{ padding: 6 }}>
+                        <Ionicons
+                          name={selectedMeals.has(meal.id) ? "checkmark-circle" : "ellipse-outline"}
+                          size={24}
+                          color={selectedMeals.has(meal.id) ? "#FF3B30" : "#CCC"}
+                        />
+                      </View>
+                    )}
                   </View>
 
                   {/* Expanded Nutrition Details - Inside the same card */}

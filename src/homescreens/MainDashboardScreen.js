@@ -1126,13 +1126,12 @@ const styles = StyleSheet.create({
   },
   hydrationBtn: {
     flex: 1,
-    backgroundColor: '#E5E7EB', // Light gray background for buttons
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderWidth: 2,
+    borderColor: '#a855f7',
   },
   hydrationBtnText: {
     color: '#374151', // Dark gray text for buttons
@@ -1447,7 +1446,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#3B82F6', // Light blue fill
+    backgroundColor: '#a855f7', // Light blue fill
     minHeight: 20,
   },
   hydrationIconPercentageContainer: {

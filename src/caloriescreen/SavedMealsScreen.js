@@ -212,7 +212,7 @@ const SavedMealsScreen = ({ navigation, route }) => {
         return;
       }
       
-      const today = new Date().toISOString().slice(0, 10);
+      const now = new Date();
       const logData = {
         user_id,
         food_name: meal.dish_name,
@@ -222,15 +222,19 @@ const SavedMealsScreen = ({ navigation, route }) => {
         carbs: meal.macros.carbs,
         fat: meal.macros.fat,
         fiber: meal.macros.fiber || 0,
-        date_time: today,
+        created_at: now.toISOString(),
         meal_type: 'Saved Meal',
         notes: '',
         photo_url: meal.image, // Include the photo URL from saved meal
-        created_at: new Date().toISOString(),
       };
       
       const { error } = await supabase.from('user_food_logs').insert([logData]);
       if (error) throw error;
+      
+      // Update cache optimistically
+      const { updateHomeScreenCacheOptimistic } = require('../utils/cacheManager');
+      updateHomeScreenCacheOptimistic(logData);
+      
       Alert.alert('Success', 'Meal added to today\'s plan!', [
         { text: 'OK', onPress: () => {
             // Navigate to Home and trigger refresh
@@ -241,6 +245,7 @@ const SavedMealsScreen = ({ navigation, route }) => {
         }
       ]);
     } catch (e) {
+      console.error('Error adding meal to plan:', e);
       Alert.alert('Error', 'Failed to add meal to plan.');
     }
   };
