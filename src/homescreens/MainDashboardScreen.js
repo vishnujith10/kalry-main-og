@@ -738,7 +738,7 @@ const MainDashboardScreen = ({ route }) => {
                 activeOpacity={0.8}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                  <MaterialCommunityIcons name="airplane" size={20} color="#3B82F6" style={{ marginRight: 8, transform: [{ rotate: '-30deg' }] }} />
+                  <MaterialCommunityIcons name="dumbbell" size={20} color="#3B82F6" style={{ marginRight: 8 }} />
                   <Text style={styles.statLabelCustom}>Strength{`\n`}Today</Text>
                 </View>
                 <Text style={[styles.statValueCustom, { textAlign: 'center' }]}>{todayWorkouts}</Text>
